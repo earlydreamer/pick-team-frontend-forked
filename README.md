@@ -2,6 +2,9 @@
 
 ![시연 화면](https://github.com/user-attachments/assets/816b5e41-489e-4227-86d9-2cd116ee99c1)
 
+**Backend** : https://github.com/earlydreamer/pick-team-backend-forked
+
+
 ## 🔥 프로젝트 개요
 
 'Pick Team'은 팀 프로젝트를 진행하는 모든 사람들을 위한 **올인원 협업 플랫폼**입니다. 부트캠프, 대학생 졸업과제, 소규모 팀 및 스타트업에서 겪는 분산된 도구 사용의 불편함을 해결하고, **팀 프로젝트의 시작과 끝을 책임지는 통합 솔루션**을 제공합니다.
