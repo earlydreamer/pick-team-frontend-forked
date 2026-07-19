@@ -22,7 +22,10 @@ const getBaseUrl = (): string => {
     return 'http://localhost:8081';
   }
   // 프로덕션 환경에서는 배포된 도메인 사용
-  return 'https://www.pickteam.site';
+  const configuredBaseUrl = import.meta.env.VITE_API_URL;
+  return configuredBaseUrl
+    ? configuredBaseUrl.replace(/\/$/, '')
+    : window.location.origin;
 };
 
 /**
