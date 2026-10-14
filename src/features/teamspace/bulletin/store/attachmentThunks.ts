@@ -25,7 +25,7 @@ export const deleteAttachment = createAsyncThunk(
 
       const result = await bulletinApi.deleteAttachment(
         postId,
-        attachId,
+        Number(attachId),
         accountId
       );
 

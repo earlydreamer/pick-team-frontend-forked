@@ -107,14 +107,12 @@ export class ApiError extends Error {
 export async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
   const token = tokenManager.getAccessToken();
-  const userId = tokenManager.getUserId();
   
   const config: RequestInit = {
     headers: {
       // FormData가 아닌 경우에만 Content-Type 설정
       ...(!(options.body instanceof FormData) && { 'Content-Type': 'application/json' }),
       ...(token && { 'Authorization': `Bearer ${token}` }),
-      ...(userId && { 'Account-Id': userId }),
       ...options.headers,
     },
     ...options,
@@ -132,14 +130,12 @@ export async function apiRequest<T>(endpoint: string, options: RequestInit = {})
           await authApi.refreshToken(); // 분리된 authApi 사용
           // 새 토큰으로 다시 요청
           const newToken = tokenManager.getAccessToken();
-          const newUserId = tokenManager.getUserId();
           const retryConfig: RequestInit = {
             ...config,
             headers: {
               // FormData가 아닌 경우에만 Content-Type 설정
               ...(!(options.body instanceof FormData) && { 'Content-Type': 'application/json' }),
               ...(newToken && { 'Authorization': `Bearer ${newToken}` }),
-              ...(newUserId && { 'Account-Id': newUserId }),
               ...options.headers,
             }
           };
@@ -158,19 +154,12 @@ export async function apiRequest<T>(endpoint: string, options: RequestInit = {})
           
           return await retryResponse.text() as T;
         } catch (refreshError) {
-          // 토큰 갱신 실패 시 로그인 페이지로 리다이렉트
+          // 토큰 갱신 실패 시 토큰 정리 (History 라우팅 유지, 02 §4)
           tokenManager.clearTokens();
-          if (typeof window !== 'undefined') {
-            window.location.hash = '/login';
-          }
           throw new ApiError(401, '인증이 만료되었습니다. 다시 로그인해주세요.');
         }
       } else {
-        // 리프레시 토큰이 없으면 로그인 페이지로
         tokenManager.clearTokens();
-        if (typeof window !== 'undefined') {
-          window.location.hash = '/login';
-        }
         throw new ApiError(401, '인증이 필요합니다. 로그인해주세요.');
       }
     }

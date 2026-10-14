@@ -1,991 +1,317 @@
-import React, { useState, useEffect } from "react";
-import {
-  Button,
-  Card,
-  Modal,
-  TextArea,
-  Input,
-  Pagination,
-} from "@/components/ui";
-import {
-  PlusCircleIcon,
-  TrashIcon,
-  PhotoIcon,
-  XMarkIcon,
-} from "@/assets/icons";
-import {
-  User,
-  BulletinPost,
-  BulletinComment,
-  BulletinAttachment,
-} from "@/types";
-import {
-  fetchPosts,
-  fetchComments,
-  createComment,
-  updateComment,
-  deleteComment,
-  deletePost,
-  createPostWithFiles,
-  updatePostWithFiles,
-} from "@/features/teamspace/bulletin/store";
-import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import React, { useState } from 'react';
+import { Card, Button, Badge, Modal, Input, TextArea } from '@/components/ui';
+import { useAuth } from '@/features/user/auth/hooks/useAuth';
+import { useToast } from '@/components/ui/Toast';
+import { ReportModal } from '@/features/renewal/components/ReportModal';
 
-interface CommentItemProps {
-  comment: BulletinComment;
-  currentUser: User;
-  onUpdate: (commentId: number, content: string) => Promise<void>;
-  onDelete: (commentId: number) => Promise<void>;
+interface BulletinPost {
+  id: string;
+  title: string;
+  content: string;
+  authorId: string;
+  authorName: string;
+  createdAt: string;
+  attachments: string[];
+  comments: { id: string; authorName: string; content: string; createdAt: string }[];
 }
 
-const CommentItem: React.FC<CommentItemProps> = ({
-  comment,
-  currentUser,
-  onUpdate,
-  onDelete,
-}) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editContent, setEditContent] = useState(comment.content);
+const INITIAL_POSTS: BulletinPost[] = [
+  {
+    id: 'post-1',
+    title: '백엔드·프론트엔드 공통 에러 코드(RFC 9457) 및 ApiResponse 규약 정리',
+    content:
+      'AnnouncementController까지 모두 ApiResponse<T>와 GlobalExceptionHandler로 통일했습니다. 첨부된 명세서 확인 부탁드려요!',
+    authorId: '1',
+    authorName: '박재현',
+    createdAt: '오늘 11:20',
+    attachments: ['api-contract-v2.pdf'],
+    comments: [
+      {
+        id: 'bc-1',
+        authorName: '김민지',
+        content: '프론트엔드 apiClient 토스트 핸들러에 바로 반영했습니다!',
+        createdAt: '오늘 11:45',
+      },
+    ],
+  },
+  {
+    id: 'post-2',
+    title: 'Pick Team 2.0 와이어프레임 & Very Peri 컬러 토큰 시안 공유',
+    content:
+      'WCAG 3.0 APCA 대비 기준을 통과한 Very Peri(#6667AB) 팔레트와 모바일 바텀 네비게이션 시안입니다.',
+    authorId: '2',
+    authorName: '김민지',
+    createdAt: '어제',
+    attachments: ['design-tokens-very-peri.fig'],
+    comments: [],
+  },
+];
 
-  const handleUpdate = async () => {
-    if (editContent.trim() && editContent !== comment.content) {
-      await onUpdate(comment.id, editContent.trim());
-      setIsEditing(false);
-    } else {
-      setIsEditing(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (window.confirm("이 댓글을 정말 삭제하시겠습니까?")) {
-      await onDelete(comment.id);
-    }
-  };
-
-  const isOwner = Number(currentUser.id) === comment.authorId;
-
-  return (
-    <div className="text-xs p-3 bg-neutral-100 rounded border">
-      {isEditing ? (
-        <div className="space-y-2">
-          <TextArea
-            value={editContent}
-            onChange={(e) => setEditContent(e.target.value)}
-            rows={2}
-            className="text-sm"
-          />
-          <div className="flex gap-2">
-            <Button size="sm" onClick={handleUpdate} variant="primary">
-              수정
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => setIsEditing(false)}
-              variant="ghost"
-            >
-              취소
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <>
-          <p className="text-neutral-800 whitespace-pre-line mb-2">
-            {comment.content}
-          </p>
-          <div className="flex justify-between items-center">
-            <p className="text-neutral-500">
-              - {comment.authorName} (
-              {new Date(comment.createdAt).toLocaleString()})
-            </p>
-            {isOwner && (
-              <div className="flex gap-1">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setIsEditing(true)}
-                >
-                  수정
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleDelete}
-                  className="text-red-600"
-                >
-                  삭제
-                </Button>
-              </div>
-            )}
-          </div>
-        </>
-      )}
-    </div>
-  );
-};
-
-// 이미지 미리보기 모달 컴포넌트
-interface ImagePreviewModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  imageUrl: string;
-  fileName: string;
-  fileId: number;
+interface TeamBulletinBoardProps {
+  teamId?: string;
+  boardId?: number;
+  workspaceId?: string;
+  isReadOnly?: boolean;
 }
 
-const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({
-  isOpen,
-  onClose,
-  imageUrl,
-  fileName,
-  fileId,
+export const TeamBulletinBoard: React.FC<TeamBulletinBoardProps> = ({
+  workspaceId = 'ws-kosta-295',
+  isReadOnly = false,
 }) => {
-  const handleDownload = async () => {
-    try {
-      const { bulletinApi } = await import(
-        "@/features/teamspace/bulletin/api/bulletinApi"
-      );
-      await bulletinApi.downloadAttachment(fileId);
-    } catch (error) {
-      console.error("파일 다운로드 실패:", error);
-      alert("파일 다운로드에 실패했습니다.");
-    }
-  };
+  const { currentUser } = useAuth();
+  const { showToast } = useToast();
 
-  return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={fileName}
-      footer={
-        <div className="flex gap-2">
-          <Button onClick={handleDownload} variant="primary">
-            다운로드
-          </Button>
-          <Button variant="ghost" onClick={onClose}>
-            닫기
-          </Button>
-        </div>
-      }
-    >
-      <div className="flex justify-center items-center max-h-[70vh]">
-        <img
-          src={imageUrl}
-          alt={fileName}
-          className="max-w-full max-h-full object-contain rounded"
-          onError={() => {
-            console.error("이미지 로드 실패");
-          }}
-        />
-      </div>
-    </Modal>
-  );
-};
+  const [posts, setPosts] = useState<BulletinPost[]>(INITIAL_POSTS);
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
+  const [attachmentName, setAttachmentName] = useState('');
+  const [commentText, setCommentText] = useState('');
+  const [reportTarget, setReportTarget] = useState<BulletinPost | null>(null);
 
-interface BulletinPostDetailModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  post: BulletinPost | null;
-  currentUser: User;
-}
+  const selectedPost = posts.find((p) => p.id === selectedPostId);
 
-const BulletinPostDetailModal: React.FC<BulletinPostDetailModalProps> = ({
-  isOpen,
-  onClose,
-  post,
-  currentUser,
-}) => {
-  const dispatch = useAppDispatch();
-  const { comments, commentCurrentPage, commentTotalPages, loading } =
-    useAppSelector((state) => state.bulletin);
-  const [newCommentText, setNewCommentText] = useState("");
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [editData, setEditData] = useState({ title: "", content: "" });
-  const [editFiles, setEditFiles] = useState<File[]>([]);
-  const [imagePreview, setImagePreview] = useState<{
-    isOpen: boolean;
-    url: string;
-    fileName: string;
-    fileId: number;
-  }>({ isOpen: false, url: "", fileName: "", fileId: 0 });
-
-  // 댓글 로드
-  useEffect(() => {
-    if (isOpen && post) {
-      dispatch(fetchComments({ postId: post.id, page: 0, size: 10 }));
-    }
-  }, [isOpen, post, dispatch]);
-
-  // 편집 모드 초기화
-  useEffect(() => {
-    if (post && isEditMode) {
-      setEditData({ title: post.title, content: post.content });
-      setEditFiles([]);
-    }
-  }, [post, isEditMode]);
-
-  if (!isOpen || !post) return null;
-
-  const handleAddComment = async () => {
-    if (newCommentText.trim()) {
-      await dispatch(
-        createComment({
-          postId: post.id,
-          content: newCommentText.trim(),
-          accountId: String(currentUser.id),
-        })
-      );
-      setNewCommentText("");
-    }
-  };
-
-  const handleUpdateComment = async (commentId: number, content: string) => {
-    await dispatch(
-      updateComment({
-        commentId,
-        content,
-        accountId: String(currentUser.id),
-      })
-    );
-  };
-
-  const handleDeleteComment = async (commentId: number) => {
-    await dispatch(
-      deleteComment({
-        commentId,
-        accountId: String(currentUser.id),
-      })
-    );
-  };
-
-  const handleDeletePost = async () => {
-    if (window.confirm("이 게시글을 정말 삭제하시겠습니까?")) {
-      await dispatch(
-        deletePost({ postId: post.id, accountId: String(currentUser.id) })
-      );
-      onClose();
-    }
-  };
-
-  const handleUpdatePost = async () => {
-    if (!editData.title.trim() || !editData.content.trim()) {
-      alert("제목과 내용을 모두 입력해주세요.");
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append("boardId", post.boardId);
-    formData.append("title", editData.title);
-    formData.append("content", editData.content);
-
-    editFiles.forEach((file) => {
-      formData.append("files", file);
+  const handleCreatePost = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim() || !content.trim()) return;
+    const newPost: BulletinPost = {
+      id: `post-${Date.now()}`,
+      title: title.trim(),
+      content: content.trim(),
+      authorId: String(currentUser?.id || '1'),
+      authorName: currentUser?.name || '박재현',
+      createdAt: '방금 전',
+      attachments: attachmentName.trim() ? [attachmentName.trim()] : [],
+      comments: [],
+    };
+    setPosts((prev) => [newPost, ...prev]);
+    setTitle('');
+    setContent('');
+    setAttachmentName('');
+    setCreateOpen(false);
+    showToast({
+      title: '게시글이 등록되었습니다',
+      variant: 'success',
     });
+  };
 
-    await dispatch(
-      updatePostWithFiles({
-        postId: post.id,
-        accountId: String(currentUser.id),
-        post: { title: editData.title, content: editData.content },
-        files: editFiles,
-      })
+  const handleAddComment = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPost || !commentText.trim()) return;
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === selectedPost.id
+          ? {
+              ...p,
+              comments: [
+                ...p.comments,
+                {
+                  id: `bc-${Date.now()}`,
+                  authorName: currentUser?.name || '박재현',
+                  content: commentText.trim(),
+                  createdAt: '방금 전',
+                },
+              ],
+            }
+          : p
+      )
     );
-
-    setIsEditMode(false);
+    setCommentText('');
   };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setEditFiles(Array.from(e.target.files));
-    }
-  };
-
-  const handleCommentPageChange = (page: number) => {
-    dispatch(fetchComments({ postId: post.id, page, size: 10 }));
-  };
-
-  const handleDeleteAttachment = async (
-    postId: number,
-    attachmentId: number // string에서 number로 변경
-  ) => {
-    if (!confirm("첨부파일을 삭제하시겠습니까?")) {
-      return;
-    }
-
-    try {
-      // bulletinApi를 사용하여 첨부파일 삭제
-      const { bulletinApi } = await import(
-        "@/features/teamspace/bulletin/api/bulletinApi"
-      );
-      await bulletinApi.deleteAttachment(
-        postId,
-        attachmentId,
-        String(currentUser.id)
-      );
-
-      // 게시글 정보 다시 조회하여 첨부파일 목록 업데이트
-      window.location.reload(); // 임시로 페이지 새로고침, 나중에 상태 업데이트로 개선 가능
-    } catch (error) {
-      console.error("첨부파일 삭제 실패:", error);
-      alert("첨부파일 삭제에 실패했습니다.");
-    }
-  };
-
-  const isOwner = Number(currentUser.id) === post.authorId;
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={isEditMode ? "게시글 수정" : post.title}
-      footer={
-        <div className="flex justify-between w-full">
-          {isEditMode ? (
-            <div className="flex gap-2">
-              <Button onClick={handleUpdatePost} disabled={loading}>
-                수정 완료
-              </Button>
-              <Button variant="ghost" onClick={() => setIsEditMode(false)}>
-                취소
-              </Button>
-            </div>
-          ) : (
-            <>
-              <div className="flex gap-2">
-                {isOwner && (
-                  <>
-                    <Button
-                      variant="outline"
-                      onClick={() => setIsEditMode(true)}
-                      size="sm"
-                    >
-                      게시글 수정
-                    </Button>
-                    <Button
-                      variant="danger"
-                      onClick={handleDeletePost}
-                      size="sm"
-                    >
-                      게시글 삭제
-                    </Button>
-                  </>
-                )}
-              </div>
-              <Button variant="ghost" onClick={onClose} className="ml-auto">
-                닫기
-              </Button>
-            </>
-          )}
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-base sm:text-lg font-extrabold text-ink-primary">
+            팀 게시판 (SCR-TM-04)
+          </h3>
+          <p className="text-xs text-ink-tertiary">
+            회의록, 산출물 파일 첨부, 기술 문서를 공유하고 댓글로 논의합니다.
+          </p>
         </div>
-      }
-    >
-      <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
-        {isEditMode ? (
-          <div className="space-y-4">
-            <Input
-              label="제목"
-              value={editData.title}
-              onChange={(e) =>
-                setEditData((prev) => ({ ...prev, title: e.target.value }))
-              }
-            />
-            <TextArea
-              label="내용"
-              value={editData.content}
-              onChange={(e) =>
-                setEditData((prev) => ({ ...prev, content: e.target.value }))
-              }
-              rows={10}
-            />
-            <div className="space-y-3">
-              <label className="block text-sm font-medium text-gray-700">
-                파일 첨부
-              </label>
-
-              {/* 파일 선택 영역 */}
-              <div className="relative">
-                <input
-                  type="file"
-                  multiple
-                  onChange={handleFileChange}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  id="edit-file-upload"
-                />
-                <label
-                  htmlFor="edit-file-upload"
-                  className="flex items-center justify-center w-full h-12 px-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
-                >
-                  <PhotoIcon className="w-5 h-5 text-gray-400 mr-2" />
-                  <span className="text-sm text-gray-600">
-                    파일을 선택하거나 드래그하세요
-                  </span>
-                </label>
-              </div>
-
-              {/* 선택된 파일 목록 */}
-              {editFiles.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-gray-700">
-                    선택된 파일 ({editFiles.length}개)
-                  </p>
-                  <div className="space-y-2">
-                    {editFiles.map((file, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <PhotoIcon className="w-4 h-4 text-gray-400" />
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">
-                              {file.name}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {(file.size / 1024).toFixed(1)} KB
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() =>
-                            setEditFiles((prev) =>
-                              prev.filter((_, i) => i !== index)
-                            )
-                          }
-                          className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
-                          title="파일 제거"
-                        >
-                          <XMarkIcon className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        ) : (
-          <>
-            <div className="pb-2 border-b">
-              <p className="text-xs text-neutral-500">
-                작성자: {post.authorName} | 작성일:{" "}
-                {new Date(post.createdAt).toLocaleString()}
-              </p>
-            </div>
-            <div className="prose prose-sm max-w-none text-neutral-700 whitespace-pre-line">
-              {post.content}
-            </div>
-
-            {post.attachments && post.attachments.length > 0 && (
-              <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
-                <h5 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
-                  <PhotoIcon className="w-4 h-4 mr-2 text-gray-500" />
-                  첨부파일 ({post.attachments.length}개)
-                </h5>
-                <div className="space-y-2">
-                  {post.attachments.map((att: BulletinAttachment) => {
-                    const handleFileClick = async () => {
-                      try {
-                        const { bulletinApi } = await import(
-                          "@/features/teamspace/bulletin/api/bulletinApi"
-                        );
-
-                        // 이미지 파일인지 확인
-                        if (bulletinApi.isImageFile(att.fileName)) {
-                          // 이미지 파일이면 미리보기 모달 표시
-                          const imageUrl = await bulletinApi.getImageBlobUrl(
-                            att.id
-                          );
-                          setImagePreview({
-                            isOpen: true,
-                            url: imageUrl,
-                            fileName: att.fileName,
-                            fileId: att.id,
-                          });
-                        } else {
-                          // 이미지가 아니면 다운로드
-                          bulletinApi.downloadAttachment(att.id);
-                        }
-                      } catch (error) {
-                        console.error("파일 처리 실패:", error);
-                        alert("파일을 불러오는데 실패했습니다.");
-                      }
-                    };
-
-                    return (
-                      <div
-                        key={att.id}
-                        className="flex items-center justify-between p-3 bg-white rounded-lg border hover:shadow-sm transition-shadow"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <PhotoIcon className="w-4 h-4 text-gray-400" />
-                          <div>
-                            <button
-                              onClick={handleFileClick}
-                              className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer text-left"
-                            >
-                              {att.fileName}
-                            </button>
-                            <p className="text-xs text-gray-500">
-                              {att.fileName.match(
-                                /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i
-                              )
-                                ? "클릭하여 미리보기"
-                                : "클릭하여 다운로드"}
-                            </p>
-                          </div>
-                        </div>
-                        {/* 파일 삭제 버튼 (작성자만 표시) */}
-                        {currentUser.id === post.authorId && (
-                          <button
-                            onClick={() =>
-                              handleDeleteAttachment(post.id, att.id)
-                            }
-                            className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
-                            title="첨부파일 삭제"
-                          >
-                            <TrashIcon className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            <div className="pt-4 border-t">
-              <h4 className="text-md font-semibold text-neutral-700 mb-2">
-                댓글 ({comments.length})
-              </h4>
-              <div className="space-y-3 mb-3">
-                {comments.length > 0 ? (
-                  comments.map((comment) => (
-                    <CommentItem
-                      key={comment.id}
-                      comment={comment}
-                      currentUser={currentUser}
-                      onUpdate={handleUpdateComment}
-                      onDelete={handleDeleteComment}
-                    />
-                  ))
-                ) : (
-                  <p className="text-xs text-neutral-500 italic">
-                    댓글이 없습니다.
-                  </p>
-                )}
-              </div>
-
-              {commentTotalPages > 1 && (
-                <div className="mb-3">
-                  <Pagination
-                    currentPage={commentCurrentPage}
-                    totalPages={commentTotalPages}
-                    totalElements={0}
-                    pageSize={10}
-                    hasNext={commentCurrentPage < commentTotalPages - 1}
-                    hasPrevious={commentCurrentPage > 0}
-                    onPageChange={handleCommentPageChange}
-                  />
-                </div>
-              )}
-
-              <div className="flex items-end space-x-2">
-                <div className="flex-1">
-                  <TextArea
-                    value={newCommentText}
-                    onChange={(e) => setNewCommentText(e.target.value)}
-                    placeholder="댓글을 입력하세요..."
-                    rows={2}
-                    className="text-sm"
-                  />
-                </div>
-                <Button
-                  onClick={handleAddComment}
-                  size="sm"
-                  variant="outline"
-                  className="shrink-0"
-                  disabled={loading}
-                >
-                  댓글 작성
-                </Button>
-              </div>
-            </div>
-          </>
+        {!isReadOnly && (
+          <Button variant="primary" size="sm" onClick={() => setCreateOpen(true)}>
+            + 새 게시글 작성
+          </Button>
         )}
       </div>
 
-      {/* 이미지 미리보기 모달 */}
-      <ImagePreviewModal
-        isOpen={imagePreview.isOpen}
-        onClose={() => {
-          setImagePreview({ isOpen: false, url: "", fileName: "", fileId: 0 });
-          // Blob URL 정리
-          if (imagePreview.url) {
-            window.URL.revokeObjectURL(imagePreview.url);
-          }
-        }}
-        imageUrl={imagePreview.url}
-        fileName={imagePreview.fileName}
-        fileId={imagePreview.fileId}
-      />
-    </Modal>
-  );
-};
-
-interface PostCreateModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  teamProjectId: string;
-  boardId: number;
-  currentUser: User;
-  onSuccess: () => void;
-}
-
-const PostCreateModal: React.FC<PostCreateModalProps> = ({
-  isOpen,
-  onClose,
-  teamProjectId,
-  boardId,
-  currentUser,
-  onSuccess,
-}) => {
-  const dispatch = useAppDispatch();
-  const { loading } = useAppSelector((state) => state.bulletin);
-  const [postData, setPostData] = useState({ title: "", content: "" });
-  const [files, setFiles] = useState<File[]>([]);
-
-  useEffect(() => {
-    if (isOpen) {
-      setPostData({ title: "", content: "" });
-      setFiles([]);
-    }
-  }, [isOpen]);
-
-  const handleCreatePost = async () => {
-    if (!postData.title.trim() || !postData.content.trim()) {
-      alert("제목과 내용을 모두 입력해주세요.");
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append("boardId", String(boardId));
-    formData.append("title", postData.title);
-    formData.append("content", postData.content);
-
-    files.forEach((file) => {
-      formData.append("files", file);
-    });
-
-    try {
-      await dispatch(
-        createPostWithFiles({
-          teamId: teamProjectId,
-          accountId: String(currentUser.id),
-          post: {
-            title: postData.title,
-            content: postData.content,
-            boardId: boardId,
-          },
-          files: files,
-        })
-      );
-
-      // 성공 시에만 폼 초기화 및 모달 닫기
-      setPostData({ title: "", content: "" });
-      setFiles([]);
-      onClose();
-      onSuccess();
-    } catch (error: any) {
-      console.error("게시글 생성 실패:", error);
-      if (error.message && error.message.includes("400")) {
-        alert("게시글 생성에 실패했습니다. 게시판 설정을 확인해주세요.");
-      } else {
-        alert("게시글 생성에 실패했습니다.");
-      }
-    }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setFiles(Array.from(e.target.files));
-    }
-  };
-
-  return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title="새 게시글 작성"
-      footer={
-        <div className="flex gap-2">
-          <Button onClick={handleCreatePost} disabled={loading}>
-            작성 완료
-          </Button>
-          <Button variant="ghost" onClick={onClose}>
-            취소
-          </Button>
-        </div>
-      }
-    >
-      <div className="space-y-4">
-        <Input
-          label="제목"
-          value={postData.title}
-          onChange={(e) =>
-            setPostData((prev) => ({ ...prev, title: e.target.value }))
-          }
-        />
-        <TextArea
-          label="내용"
-          value={postData.content}
-          onChange={(e) =>
-            setPostData((prev) => ({ ...prev, content: e.target.value }))
-          }
-          rows={10}
-        />
-        <div className="space-y-3">
-          <label className="block text-sm font-medium text-gray-700">
-            파일 첨부
-          </label>
-
-          {/* 파일 선택 영역 */}
-          <div className="relative">
-            <input
-              type="file"
-              multiple
-              onChange={handleFileChange}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-              id="create-file-upload"
-            />
-            <label
-              htmlFor="create-file-upload"
-              className="flex items-center justify-center w-full h-12 px-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
+      {posts.length === 0 ? (
+        <Card className="text-center py-12 space-y-2">
+          <p className="text-sm font-bold text-ink-primary">
+            아직 게시글이 없습니다. 팀의 첫 글을 작성해보세요! (14 §4.4)
+          </p>
+        </Card>
+      ) : (
+        <div className="bg-white rounded-2xl border border-neutral-200 divide-y divide-neutral-100 shadow-craft-sm overflow-hidden">
+          {posts.map((post) => (
+            <div
+              key={post.id}
+              onClick={() => setSelectedPostId(post.id)}
+              className="p-4 sm:px-5 hover:bg-peri-50/40 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-2 cursor-pointer"
             >
-              <PhotoIcon className="w-5 h-5 text-gray-400 mr-2" />
-              <span className="text-sm text-gray-600">
-                파일을 선택하거나 드래그하세요
-              </span>
-            </label>
-          </div>
+              <div className="space-y-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-extrabold text-ink-primary truncate">
+                    {post.title}
+                  </span>
+                  {post.attachments.length > 0 && (
+                    <Badge variant="peri" size="xs">
+                      📎 첨부 {post.attachments.length}
+                    </Badge>
+                  )}
+                  {post.comments.length > 0 && (
+                    <Badge variant="neutral" size="xs">
+                      💬 {post.comments.length}
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-xs text-ink-secondary line-clamp-1">{post.content}</p>
+              </div>
+              <div className="flex items-center gap-3 text-xs text-ink-tertiary shrink-0">
+                <span className="font-semibold text-ink-secondary">{post.authorName}</span>
+                <span>·</span>
+                <span className="tabular-nums">{post.createdAt}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
-          {/* 선택된 파일 목록 */}
-          {files.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-gray-700">
-                선택된 파일 ({files.length}개)
-              </p>
-              <div className="space-y-2">
-                {files.map((file, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border"
+      {/* Post Detail Modal */}
+      <Modal
+        isOpen={!!selectedPost}
+        onClose={() => setSelectedPostId(null)}
+        title={selectedPost?.title || ''}
+        subtitle={
+          selectedPost ? `작성자: ${selectedPost.authorName} · ${selectedPost.createdAt}` : undefined
+        }
+        size="lg"
+        footer={
+          <div className="w-full flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => {
+                if (selectedPost) setReportTarget(selectedPost);
+              }}
+              className="text-xs font-semibold text-ink-tertiary hover:text-red-700 cursor-pointer"
+            >
+              🚨 게시글 신고
+            </button>
+            <Button variant="outline" size="sm" onClick={() => setSelectedPostId(null)}>
+              닫기
+            </Button>
+          </div>
+        }
+      >
+        {selectedPost && (
+          <div className="space-y-4">
+            <p className="text-sm text-ink-primary whitespace-pre-line leading-relaxed bg-surface-subtle p-4 rounded-xl border border-neutral-200">
+              {selectedPost.content}
+            </p>
+            {selectedPost.attachments.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {selectedPost.attachments.map((file) => (
+                  <span
+                    key={file}
+                    className="px-3 py-1.5 rounded-xl bg-peri-50 border border-peri-200 text-xs font-bold text-peri-700"
                   >
-                    <div className="flex items-center space-x-3">
-                      <PhotoIcon className="w-4 h-4 text-gray-400" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">
-                          {file.name}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {(file.size / 1024).toFixed(1)} KB
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() =>
-                        setFiles((prev) => prev.filter((_, i) => i !== index))
-                      }
-                      className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
-                      title="파일 제거"
-                    >
-                      <XMarkIcon className="w-4 h-4" />
-                    </button>
-                  </div>
+                    📎 {file}
+                  </span>
                 ))}
               </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </Modal>
-  );
-};
-
-const TeamBulletinBoard: React.FC<{
-  teamProjectId: string;
-  boardId: number;
-  currentUser: User;
-}> = ({ teamProjectId, boardId, currentUser }) => {
-  const dispatch = useAppDispatch();
-  const {
-    posts,
-    currentPost,
-    loading,
-    currentPage,
-    totalPages,
-    pageSize,
-    totalElements,
-    hasNext,
-    hasPrevious,
-  } = useAppSelector((state) => state.bulletin);
-
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-
-  // 게시글 목록 로드
-  useEffect(() => {
-    dispatch(
-      fetchPosts({
-        teamId: teamProjectId,
-        boardId,
-        page: currentPage,
-        size: pageSize,
-      })
-    );
-  }, [dispatch, teamProjectId, boardId, currentPage, pageSize]);
-
-  const handlePageChange = (page: number) => {
-    dispatch(
-      fetchPosts({
-        teamId: teamProjectId,
-        boardId,
-        page,
-        size: pageSize,
-      })
-    );
-  };
-
-  const handleOpenPostDetail = (post: BulletinPost) => {
-    // Redux 상태에 현재 게시글 설정
-    dispatch({ type: "bulletin/setCurrentPost", payload: post });
-    setIsDetailModalOpen(true);
-  };
-
-  const handleCreateSuccess = () => {
-    // 첫 페이지로 이동하여 새 게시글 확인
-    dispatch(
-      fetchPosts({
-        teamId: teamProjectId,
-        boardId,
-        page: 0,
-        size: pageSize,
-      })
-    );
-  };
-
-  const handleDeletePost = async (postId: number) => {
-    if (window.confirm("이 게시글을 정말 삭제하시겠습니까?")) {
-      await dispatch(deletePost({ postId, accountId: String(currentUser.id) }));
-    }
-  };
-
-  return (
-    <Card
-      title="📋 게시판"
-      actions={
-        <Button
-          size="sm"
-          onClick={() => setIsCreateModalOpen(true)}
-          leftIcon={<PlusCircleIcon />}
-        >
-          새 글 작성
-        </Button>
-      }
-    >
-      <div className="space-y-4">
-        {loading && posts.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-gray-500">게시글을 불러오는 중...</p>
-          </div>
-        ) : posts.length > 0 ? (
-          <>
-            <ul className="space-y-3">
-              {posts.map((post) => (
-                <li
-                  key={post.id}
-                  className="p-3 bg-neutral-50 rounded shadow-sm hover:shadow-md transition-shadow group"
-                >
-                  <div className="flex justify-between items-start">
-                    <div
-                      className="flex-grow cursor-pointer"
-                      onClick={() => handleOpenPostDetail(post)}
-                    >
-                      <h4 className="font-semibold text-primary-dark hover:underline">
-                        {post.title}
-                      </h4>
-                      <p className="text-xs text-neutral-600 truncate max-w-md mt-1">
-                        {post.content}
-                      </p>
-                      <div className="flex items-center justify-between mt-2">
-                        <div className="flex items-center gap-2">
-                          <p className="text-xs text-neutral-500">
-                            {post.authorName} •{" "}
-                            {new Date(post.createdAt).toLocaleDateString()}
-                          </p>
-                          {post.attachments && post.attachments.length > 0 && (
-                            <div className="flex items-center gap-1">
-                              <PhotoIcon className="w-3 h-3 text-gray-400" />
-                              <span className="text-xs text-gray-500">
-                                {post.attachments.length}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    {Number(currentUser.id) === post.authorId && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeletePost(post.id);
-                        }}
-                      >
-                        <TrashIcon className="w-4 h-4 text-red-500" />
-                      </Button>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-
-            {totalPages > 1 && (
-              <div className="mt-6">
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  totalElements={totalElements}
-                  pageSize={pageSize}
-                  hasNext={hasNext}
-                  hasPrevious={hasPrevious}
-                  onPageChange={handlePageChange}
-                />
-              </div>
             )}
-          </>
-        ) : (
-          <div className="text-center py-8">
-            <p className="text-gray-500">게시글이 없습니다.</p>
+
+            <div className="space-y-2.5 pt-3 border-t border-neutral-200">
+              <h4 className="text-xs font-extrabold uppercase tracking-wider text-ink-tertiary">
+                댓글 ({selectedPost.comments.length})
+              </h4>
+              {selectedPost.comments.map((c) => (
+                <div
+                  key={c.id}
+                  className="p-3 rounded-xl bg-surface-subtle/60 border border-neutral-200 text-xs"
+                >
+                  <div className="flex justify-between font-bold text-ink-primary">
+                    <span>{c.authorName}</span>
+                    <span className="text-ink-tertiary font-normal">{c.createdAt}</span>
+                  </div>
+                  <p className="text-ink-secondary mt-1">{c.content}</p>
+                </div>
+              ))}
+              {!isReadOnly && (
+                <form onSubmit={handleAddComment} className="flex gap-2 pt-1">
+                  <Input
+                    name="commentText"
+                    placeholder="댓글 입력..."
+                    value={commentText}
+                    onChange={(e) => setCommentText(e.target.value)}
+                  />
+                  <Button type="submit" variant="primary" size="sm">
+                    댓글 등록
+                  </Button>
+                </form>
+              )}
+            </div>
           </div>
         )}
-      </div>
+      </Modal>
 
-      <PostCreateModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        teamProjectId={teamProjectId}
-        boardId={boardId}
-        currentUser={currentUser}
-        onSuccess={handleCreateSuccess}
-      />
+      {/* Create Post Modal */}
+      <Modal
+        isOpen={createOpen}
+        onClose={() => setCreateOpen(false)}
+        title="새 게시글 작성"
+        footer={
+          <>
+            <Button variant="outline" size="sm" onClick={() => setCreateOpen(false)}>
+              취소
+            </Button>
+            <Button variant="primary" size="sm" onClick={handleCreatePost}>
+              게시하기
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleCreatePost} className="space-y-4">
+          <Input
+            label="제목"
+            name="title"
+            requiredMark
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+          <TextArea
+            label="내용"
+            name="content"
+            requiredMark
+            rows={4}
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+          />
+          <Input
+            label="첨부파일 이름 (선택)"
+            name="attachmentName"
+            placeholder="예: sprint1-retrospective.pdf"
+            value={attachmentName}
+            onChange={(e) => setAttachmentName(e.target.value)}
+          />
+        </form>
+      </Modal>
 
-      <BulletinPostDetailModal
-        isOpen={isDetailModalOpen}
-        onClose={() => setIsDetailModalOpen(false)}
-        post={currentPost}
-        currentUser={currentUser}
-      />
-    </Card>
+      {reportTarget && (
+        <ReportModal
+          isOpen={!!reportTarget}
+          onClose={() => setReportTarget(null)}
+          workspaceId={workspaceId}
+          targetType="POST"
+          targetId={reportTarget.id}
+          targetLabel={reportTarget.title}
+          targetContentSnippet={reportTarget.content}
+        />
+      )}
+    </div>
   );
 };
 

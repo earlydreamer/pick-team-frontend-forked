@@ -1,45 +1,79 @@
+export type DesiredRoleCode =
+  | 'BACKEND'
+  | 'FRONTEND'
+  | 'FULLSTACK'
+  | 'PM'
+  | 'DESIGN'
+  | 'INFRA'
+  | 'AI_DATA'
+  | 'OTHER';
+
+export type WeeklyAvailableHoursCode = 'LT10H' | 'H10_20' | 'H20_30' | 'GT30H';
+
+export type AvailableTimeSlotCode = 'MORNING' | 'AFTERNOON' | 'EVENING' | 'WEEKEND';
+
+export type WorkstyleOptionCode =
+  | 'ASYNC_FIRST'
+  | 'SYNC_PREFERRED'
+  | 'DETAIL_ORIENTED'
+  | 'SPEED_FIRST'
+  | 'STRUCTURED'
+  | 'FLEXIBLE';
+
 export interface User {
-  id: string; // 로그인 프로젝트와 통합하여 string으로 변경
+  id: string;
   email: string;
   name: string;
-  nickname?: string; // 새로 추가
-  role?: string; // optional로 변경
-  provider?: string; // OAuth 제공자 정보 (LOCAL, GOOGLE, KAKAO)
-  
-  // 프로필 정보
-  bio?: string; // 자기소개
-  skills?: string[]; // 기술 스택
-  interests?: string[]; // 관심사
-  profileImageUrl?: string | null; // 프로필 이미지 URL
-  
-  // 소셜 링크
-  githubUrl?: string; // GitHub 링크
-  linkedinUrl?: string; // LinkedIn 링크
-  portfolioUrl?: string; // 포트폴리오 링크
-  
-  // 기존 필드들 (호환성 유지)
+  nickname?: string;
+  role?: string; // 'USER' | 'ADMIN' (System level)
+  provider?: string; // 'LOCAL' | 'GOOGLE' | 'KAKAO'
+
+  // PR Card v2 fields (11-profile-pr-card.md §4.1)
+  desiredRole1?: DesiredRoleCode;
+  desiredRole2?: DesiredRoleCode;
+  weeklyAvailableHours?: WeeklyAvailableHoursCode;
+  availableTimeSlots?: AvailableTimeSlotCode[];
+  goalTemperature?: 1 | 2 | 3 | 4 | 5;
+  preferWorkstyleOptions?: WorkstyleOptionCode[];
+  dislikeWorkstyleOptions?: WorkstyleOptionCode[];
+  preferWorkstyleText?: string;
+  dislikeWorkstyleText?: string;
+  cardVisible?: boolean;
+  mbtiVisible?: boolean;
+  consentGivenAt?: string | null;
+
+  // Profile fields
+  bio?: string;
+  skills?: string[];
+  interests?: string[];
+  profileImageUrl?: string | null;
+
+  // Social links
+  githubUrl?: string;
+  linkedinUrl?: string;
+  portfolioUrl?: string;
+
+  // Legacy / backend compatible fields
   age?: number;
   mbti?: string;
-  disposition?: string; // 사용자 성향/특성 설명
-  introduction?: string; // 사용자 자기소개 (bio와 중복이지만 호환성)
-  portfolio?: string; // 포트폴리오 링크 또는 설명 (portfolioUrl과 중복이지만 호환성)
-  preferWorkstyle?: string; // 선호하는 작업 스타일
-  dislikeWorkstyle?: string; // 기피하는 작업 스타일
-  likes?: string; // 좋아하는 것들
-  dislikes?: string; // 싫어하는 것들
-  hashtags?: string[]; // 해시태그 목록
-  
-  // 호환성을 위해 남겨둠
-  profileImage?: string; // → profileImageUrl로 매핑됨
-  portfolioLink?: string; // → portfolioUrl로 매핑됨
-  preferredStyle?: string; // → preferWorkstyle로 매핑됨
-  avoidedStyle?: string; // → dislikeWorkstyle로 매핑됨
-  profilePictureUrl?: string; // → profileImageUrl로 매핑됨
-  
-  // 날짜 정보
+  disposition?: string;
+  introduction?: string;
+  portfolio?: string;
+  preferWorkstyle?: string;
+  dislikeWorkstyle?: string;
+  likes?: string;
+  dislikes?: string;
+  hashtags?: string[];
+
+  profileImage?: string;
+  portfolioLink?: string;
+  preferredStyle?: string;
+  avoidedStyle?: string;
+  profilePictureUrl?: string;
+
   createdAt?: string;
   updatedAt?: string;
-  
+
   currentWorkspaceId?: string;
   currentTeamProjectId?: string;
 }
@@ -50,10 +84,10 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
-  token: string; // accessToken
+  token: string;
   refreshToken: string;
   user: User;
-} 
+}
 
 export interface UserProfileUpdateRequest {
   name?: string;
@@ -66,4 +100,14 @@ export interface UserProfileUpdateRequest {
   preferWorkstyle?: string;
   dislikeWorkstyle?: string;
   hashtags?: string[];
-} 
+  desiredRole1?: DesiredRoleCode;
+  desiredRole2?: DesiredRoleCode;
+  weeklyAvailableHours?: WeeklyAvailableHoursCode;
+  availableTimeSlots?: AvailableTimeSlotCode[];
+  goalTemperature?: 1 | 2 | 3 | 4 | 5;
+  preferWorkstyleOptions?: WorkstyleOptionCode[];
+  dislikeWorkstyleOptions?: WorkstyleOptionCode[];
+  cardVisible?: boolean;
+  mbtiVisible?: boolean;
+  consentGivenAt?: string | null;
+}

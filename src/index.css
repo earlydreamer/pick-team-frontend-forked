@@ -1,0 +1,129 @@
+/* ==========================================================================
+   PickTeam — Design System (Reference Sheet 08 ~ 14 Exact Spec)
+   08. Color System:
+     Primary: #6667AB / #6366F1 | Primary Dark: #4F46E5 | Primary Light: #818CF8
+     Secondary: #A78BFA | Accent: #38BDF8 | Success: #10B981 | Warning: #F59E0B | Error: #EF4444
+     Gray 900: #0F172A | Gray 700: #334155 | Gray 500: #64748B | Gray 300: #CBD5E1 | Gray 100: #F1F5F9 | Gray 50: #F8FAFC
+   09. Typography (Pretendard):
+     H1: 48px / 60px Bold
+     H2: 32px / 44px Bold
+     H3: 24px / 32px Bold
+     H4: 20px / 28px SemiBold
+     Body: 16px / 24px Regular & 14px / 20px Regular
+   ========================================================================== */
+
+:root {
+  --color-primary: #6667AB;
+  --color-primary-dark: #4F46E5;
+  --color-primary-light: #818CF8;
+  --color-secondary: #A78BFA;
+  --color-accent: #38BDF8;
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-error: #EF4444;
+
+  --gray-900: #0F172A;
+  --gray-700: #334155;
+  --gray-500: #64748B;
+  --gray-300: #CBD5E1;
+  --gray-100: #F1F5F9;
+  --gray-50: #F8FAFC;
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background-color: var(--gray-50);
+  color: var(--gray-900);
+  font-size: 16px;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+/* 09. Typography Utility Classes */
+.typo-h1 {
+  font-size: clamp(2.25rem, 4vw, 3rem); /* 48px */
+  line-height: 1.25; /* 60px */
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  color: var(--gray-900);
+}
+
+.typo-h2 {
+  font-size: clamp(1.625rem, 2.5vw, 2rem); /* 32px */
+  line-height: 1.35; /* 44px */
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--gray-900);
+}
+
+.typo-h3 {
+  font-size: clamp(1.25rem, 2vw, 1.5rem); /* 24px */
+  line-height: 1.33; /* 32px */
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--gray-900);
+}
+
+.typo-h4 {
+  font-size: 1.25rem; /* 20px */
+  line-height: 1.4; /* 28px */
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--gray-900);
+}
+
+.typo-body-lg {
+  font-size: 1rem; /* 16px */
+  line-height: 1.5; /* 24px */
+}
+
+.typo-body-sm {
+  font-size: 0.875rem; /* 14px */
+  line-height: 1.43; /* 20px */
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.press-scale {
+  transition: transform 140ms var(--ease-out), background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.press-scale:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.28);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(102, 103, 171, 0.55);
+}

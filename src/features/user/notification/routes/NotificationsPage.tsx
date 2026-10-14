@@ -1,88 +1,133 @@
+import React, { useState, useMemo } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Button } from '@/components/ui';
+import { useRenewal } from '@/features/renewal/context/RenewalContext';
+import { NotificationCategory } from '@/features/renewal/types/renewal';
 
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Card, Button } from '@/components/ui';
-import { BellIcon } from '@/assets/icons';
-import { Notification } from '@/types';
-
-const notifications: Notification[] = [
-  { id: '1', message: '새로운 팀 공지사항이 등록되었습니다: "주간 회의 일정 안내"', timestamp: new Date(Date.now() - 3600000), read: false, link: '/team/team-alpha-123' },
-  { id: '2', message: '박해커님이 채팅방에서 당신을 언급했습니다.', timestamp: new Date(Date.now() - 7200000), read: false, link: '/team/team-alpha-123' },
-  { id: '3', message: '캘린더에 "프로젝트 마감일" 일정이 추가되었습니다.', timestamp: new Date(Date.now() - 86400000 * 2), read: true, link: '/team/team-alpha-123' },
-  { id: '4', message: '새로운 팀원이 "알파 프로젝트 팀"에 합류했습니다.', timestamp: new Date(Date.now() - 86400000 * 3), read: true },
+const CATEGORY_TABS: { id: 'ALL' | NotificationCategory; label: string }[] = [
+  { id: 'ALL', label: '전체' },
+  { id: 'TEAM_BUILDING', label: '팀 빌딩' },
+  { id: 'KANBAN', label: '칸반 · 승인' },
+  { id: 'SCHEDULE', label: '일정' },
+  { id: 'BOARD', label: '공지 · 게시판' },
+  { id: 'CHAT', label: '메신저' },
 ];
 
 export const NotificationsPage: React.FC = () => {
-  const [notificationList, setNotificationList] = useState<Notification[]>(notifications);
-  const [kakaoAlertEnabled, setKakaoAlertEnabled] = useState(false);
+  const navigate = useNavigate();
+  const {
+    notifications,
+    unreadNotificationCount,
+    markNotificationRead,
+    markAllNotificationsRead,
+    deleteNotification,
+  } = useRenewal();
 
-  const markAsRead = (id: string) => {
-    setNotificationList(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-  };
+  const [selectedCategory, setSelectedCategory] = useState<'ALL' | NotificationCategory>('ALL');
 
-  const markAllAsRead = () => {
-    setNotificationList(prev => prev.map(n => ({ ...n, read: true })));
-  };
-
-  const unreadCount = notificationList.filter(n => !n.read).length;
+  const filteredList = useMemo(() => {
+    if (selectedCategory === 'ALL') return notifications;
+    return notifications.filter((n) => n.category === selectedCategory);
+  }, [notifications, selectedCategory]);
 
   return (
-    <Card title="알림 센터" actions={unreadCount > 0 ? <Button size="sm" variant="outline" onClick={markAllAsRead}>모두 읽음 처리</Button> : null}>
-      <div className="mb-6 p-4 bg-neutral-100 rounded-md flex items-center justify-between">
+    <div className="max-w-4xl mx-auto px-4 sm:px-8 py-6 sm:py-8 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h3 className="text-md font-semibold text-neutral-700">카카오톡 알림 설정</h3>
-          <p className="text-sm text-neutral-500">주요 활동에 대한 알림을 카카오톡으로 받아보세요.</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-ink-primary tracking-tight">
+            알림 센터
+          </h1>
+          <p className="text-xs sm:text-sm text-ink-tertiary mt-1">
+            팀 빌딩 제안과 작업 승인, 일정 리마인더를 한곳에서 확인하세요.
+          </p>
         </div>
-        <Button 
-            variant={kakaoAlertEnabled ? "primary" : "outline"}
-            onClick={() => {
-                setKakaoAlertEnabled(!kakaoAlertEnabled);
-                alert(`카카오톡 알림이 ${!kakaoAlertEnabled ? '활성화' : '비활성화'}되었습니다. (목업 기능)`);
-            }}
-        >
-            {kakaoAlertEnabled ? '카톡 알림 ON' : '카톡 알림 OFF'}
-        </Button>
+
+        <div className="flex items-center gap-2">
+          <Link to="/me/settings">
+            <Button variant="outline" size="sm">
+              알림 설정
+            </Button>
+          </Link>
+          {unreadNotificationCount > 0 && (
+            <Button variant="primary" size="sm" onClick={markAllNotificationsRead}>
+              모두 읽음
+            </Button>
+          )}
+        </div>
       </div>
 
-      {notificationList.length === 0 ? (
-        <p className="text-neutral-500 text-center py-4">새로운 알림이 없습니다.</p>
-      ) : (
-        <ul className="space-y-3">
-          {notificationList.map(notification => (
-            <li 
-              key={notification.id} 
-              className={`p-4 rounded-lg shadow-sm flex items-start space-x-3 transition-colors
-                ${notification.read ? 'bg-white hover:bg-neutral-50' : 'bg-primary-light/10 hover:bg-primary-light/20 border-l-4 border-primary'}`}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+        {CATEGORY_TABS.map((tab) => {
+          const active = selectedCategory === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setSelectedCategory(tab.id)}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+                active
+                  ? 'bg-peri-500 text-white shadow-2xs'
+                  : 'bg-white border border-neutral-200 text-ink-secondary hover:bg-surface-subtle'
+              }`}
             >
-              <div className={`mt-1 ${notification.read ? 'text-neutral-400' : 'text-primary'}`}>
-                <BellIcon className="w-5 h-5" />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="bg-white rounded-2xl border border-neutral-200/85 divide-y divide-neutral-100 shadow-craft-sm overflow-hidden">
+        {filteredList.length === 0 ? (
+          <div className="py-14 text-center text-xs sm:text-sm text-ink-tertiary">
+            새로운 알림이 없습니다.
+          </div>
+        ) : (
+          filteredList.map((item) => (
+            <div
+              key={item.id}
+              onClick={() => {
+                markNotificationRead(item.id);
+                navigate(item.deepLink);
+              }}
+              className={`p-4 sm:px-6 hover:bg-surface-subtle/60 transition-colors flex items-center justify-between gap-4 cursor-pointer ${
+                item.read ? 'opacity-65' : ''
+              }`}
+            >
+              <div className="flex items-start gap-3 min-w-0">
+                <span
+                  className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${
+                    item.read ? 'bg-neutral-300' : 'bg-peri-500'
+                  }`}
+                />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs sm:text-sm font-semibold text-ink-primary truncate">
+                      {item.title}
+                    </span>
+                    <span className="text-[11px] text-ink-tertiary tabular-nums shrink-0">
+                      {item.createdAt}
+                    </span>
+                  </div>
+                  <p className="text-xs text-ink-secondary mt-0.5 truncate">{item.message}</p>
+                </div>
               </div>
-              <div className="flex-grow">
-                <p className={`text-sm ${notification.read ? 'text-neutral-600' : 'text-neutral-800 font-medium'}`}>
-                  {notification.message}
-                </p>
-                <p className={`text-xs mt-1 ${notification.read ? 'text-neutral-400' : 'text-neutral-500'}`}>
-                  {notification.timestamp.toLocaleString()}
-                </p>
-              </div>
-              <div className="flex-shrink-0 space-x-2">
-                {notification.link && (
-                  <Link to={notification.link}>
-                    <Button size="sm" variant="ghost" onClick={() => markAsRead(notification.id)}>
-                      보기
-                    </Button>
-                  </Link>
-                )}
-                {!notification.read && (
-                  <Button size="sm" variant="outline" onClick={() => markAsRead(notification.id)}>
-                    읽음
-                  </Button>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </Card>
+
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteNotification(item.id);
+                }}
+                className="text-xs text-ink-tertiary hover:text-rose-600 shrink-0 cursor-pointer"
+              >
+                삭제
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
   );
 };
+
+export default NotificationsPage;

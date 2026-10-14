@@ -38,7 +38,7 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({ isOpen, onClose, onC
     chatLogger.ui.debug('채팅 가능한 사용자 목록:', allUsersForChat);
 
     const availableUsersForSelection = useMemo(() => {
-        return allUsersForChat.filter(u => u.id !== currentUser?.id);
+        return allUsersForChat.filter(u => String(u.id) !== String(currentUser?.id));
     }, [allUsersForChat, currentUser]);
 
     const handleUserSelect = (item: Record<string, any>) => {
@@ -86,7 +86,7 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({ isOpen, onClose, onC
             
             if (chatType === 'PERSONAL') {
                 // DM 채팅방 생성 - 현재 사용자 ID와 상대방 ID 모두 포함
-                const memberIds = [currentUser.id, ...selectedUsers.map(u => u.id)];
+                const memberIds = [Number(currentUser.id), ...selectedUsers.map(u => Number(u.id))];
                 
                 // 상대방의 정확한 이름을 DM 채팅방 이름으로 사용
                 const targetUser = selectedUsers[0];
@@ -108,7 +108,7 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({ isOpen, onClose, onC
                 chatLogger.ui.debug('DM 채팅방 생성 완료:', newChatRoom);
             } else {
                 // 그룹 채팅방 생성 - 선택된 사용자 ID 목록에 현재 사용자 ID도 포함
-                const memberIds = [currentUser.id, ...selectedUsers.map(u => u.id)];
+                const memberIds = [Number(currentUser.id), ...selectedUsers.map(u => Number(u.id))];
                 chatLogger.ui.debug('그룹 채팅방 생성 시작:', {
                     chatType,
                     groupName: groupName.trim(),

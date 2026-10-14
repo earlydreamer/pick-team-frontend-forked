@@ -1,685 +1,693 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Button, Input, Card } from '@/components/ui';
-import { ItemListSelector } from '@/components/complex';
-import { PlusCircleIcon, TrashIcon } from '@/assets/icons';
-import { User, Poll } from '@/types';
-import { Team } from '@/features/teamspace/types/team';
-import { useWorkspace } from '@/features/workspace/core/hooks/useWorkspace';
+import React, { useState, useMemo } from 'react';
+import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
+import { Button, Modal, Input, TextArea } from '@/components/ui';
+import { useRenewal } from '@/features/renewal/context/RenewalContext';
+import {
+  ROLE_META,
+  TIME_SLOT_META,
+  GOAL_TEMPERATURE_META,
+  TeamRecruitment,
+  DesiredRoleCode,
+} from '@/features/renewal/types/renewal';
+import { calculateMemberToTeamMatch } from '@/features/renewal/utils/matchingEngine';
+import { MemberAvatar } from '@/features/renewal/components/PeriwinkleArtwork';
 
-// Add toast animation styles
-const toastStyles = `
-  @keyframes slideIn {
-    from {
-      transform: translateX(100%);
-      opacity: 0;
-    }
-    to {
-      transform: translateX(0);
-      opacity: 1;
-    }
-  }
-  
-  @keyframes slideOut {
-    from {
-      transform: translateX(0);
-      opacity: 1;
-    }
-    to {
-      transform: translateX(100%);
-      opacity: 0;
-    }
-  }
-`;
+const SubNavTabs: React.FC<{ wsId: string }> = ({ wsId }) => {
+  const location = useLocation();
+  const { getApplications, getEffectiveWorkspaceRole } = useRenewal();
+  const apps = getApplications(wsId);
+  const pendingCount = apps.filter((a) => a.status === 'PENDING').length;
+  const role = getEffectiveWorkspaceRole(wsId);
+  const canManage = role === 'OWNER' || role === 'ADMIN';
 
-// Inject styles into the document head
-if (typeof document !== 'undefined') {
-  const styleSheet = document.createElement('style');
-  styleSheet.textContent = toastStyles;
-  document.head.appendChild(styleSheet);
-}
-
-// Toast notification component
-interface ToastProps {
-  message: string;
-  type: 'error' | 'success' | 'info';
-  createdAt: number;
-  isNew: boolean;
-  onClose: () => void;
-}
-
-const Toast: React.FC<ToastProps> = ({ message, type, createdAt, isNew, onClose }) => {
-  const [isVisible, setIsVisible] = useState(true);
-  const [isExiting, setIsExiting] = useState(false);
-  const [hasAnimated, setHasAnimated] = useState(false);
-
-  useEffect(() => {
-    // 슬라이드 인 애니메이션은 새로운 토스트에만 적용
-    if (isNew) {
-      setHasAnimated(true);
-    }
-  }, [isNew]);
-
-  useEffect(() => {
-    // 생성 시간을 기준으로 개별 타이머 설정
-    const now = Date.now();
-    const elapsed = now - createdAt;
-    const remainingFadeTime = Math.max(0, 2500 - elapsed);
-    const remainingRemoveTime = Math.max(0, 3000 - elapsed);
-
-    let fadeTimer: NodeJS.Timeout | undefined;
-    let removeTimer: NodeJS.Timeout | undefined;
-
-    if (remainingFadeTime > 0) {
-      fadeTimer = setTimeout(() => {
-        setIsExiting(true);
-      }, remainingFadeTime);
-    } else if (!isExiting) {
-      setIsExiting(true);
-    }
-
-    if (remainingRemoveTime > 0) {
-      removeTimer = setTimeout(() => {
-        setIsVisible(false);
-        onClose();
-      }, remainingRemoveTime);
-    } else {
-      setIsVisible(false);
-      onClose();
-    }
-
-    return () => {
-      if (fadeTimer) clearTimeout(fadeTimer);
-      if (removeTimer) clearTimeout(removeTimer);
-    };
-  }, [createdAt, onClose, isExiting]);
-
-  const bgColor = type === 'error' ? 'bg-red-500' : type === 'success' ? 'bg-green-500' : 'bg-blue-500';
-  const icon = type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️';
-
-  if (!isVisible) return null;
+  const tabs = [
+    { label: '모집 중인 팀', path: `/ws/${wsId}/team-building`, exact: true },
+    {
+      label: '받은 제안 · 지원함',
+      path: `/ws/${wsId}/team-building/inbox`,
+      badge: pendingCount > 0 ? pendingCount : undefined,
+    },
+    ...(canManage
+      ? [{ label: '미배정 배치 · 세션 운영', path: `/ws/${wsId}/team-building/manage` }]
+      : []),
+  ];
 
   return (
-    <div 
-      className={`${bgColor} text-white px-6 py-4 rounded-lg shadow-lg flex items-center space-x-3 max-w-sm transform transition-all duration-300 ease-in-out ${
-        isExiting ? 'opacity-0 scale-95 translate-x-2' : 'opacity-100 scale-100 translate-x-0'
-      }`}
-      style={{
-        animation: (isNew && hasAnimated) ? 'slideIn 0.3s ease-out forwards' : 'none'
-      }}
-    >
-      <span className="text-lg">{icon}</span>
-      <span className="flex-1 text-sm">{message}</span>
-      <button 
-        onClick={() => {
-          setIsExiting(true);
-          setTimeout(onClose, 300);
-        }} 
-        className="text-white hover:text-gray-200 transition-colors"
-      >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
+    <div className="flex items-center gap-1.5 border-b border-neutral-200/80 pb-3">
+      {tabs.map((t) => {
+        const active = t.exact
+          ? location.pathname === t.path || location.pathname.endsWith('/team-formation')
+          : location.pathname.startsWith(t.path);
+        return (
+          <Link
+            key={t.path}
+            to={t.path}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+              active
+                ? 'bg-peri-500 text-white shadow-2xs'
+                : 'text-ink-secondary hover:bg-white hover:text-ink-primary'
+            }`}
+          >
+            <span>{t.label}</span>
+            {t.badge !== undefined && (
+              <span
+                className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold tabular-nums ${
+                  active ? 'bg-white/25 text-white' : 'bg-peri-100 text-peri-700'
+                }`}
+              >
+                {t.badge}
+              </span>
+            )}
+          </Link>
+        );
+      })}
     </div>
   );
 };
 
-// Custom hook for toast notifications
-const useToast = () => {
-  const [toasts, setToasts] = useState<Array<{ 
-    id: string; 
-    message: string; 
-    type: 'error' | 'success' | 'info';
-    createdAt: number;
-    isNew: boolean;
-  }>>([]);
+export const TeamBuildingHomePage: React.FC = () => {
+  const { workspaceId } = useParams<{ workspaceId: string }>();
+  const navigate = useNavigate();
+  const {
+    getWorkspaceById,
+    getSession,
+    getRecruitments,
+    myPRCard,
+    createRecruitmentTeam,
+    submitApplication,
+  } = useRenewal();
 
-  const showToast = (message: string, type: 'error' | 'success' | 'info' = 'info') => {
-    const id = Date.now().toString();
-    const createdAt = Date.now();
-    
-    // 기존 토스트들의 isNew를 false로 설정
-    setToasts(prev => [
-      ...prev.map(toast => ({ ...toast, isNew: false })),
-      { id, message, type, createdAt, isNew: true }
-    ]);
+  const activeWs = getWorkspaceById(workspaceId);
+  const wsId = activeWs.id;
+  const session = getSession(wsId);
+  const teams = getRecruitments(wsId);
+
+  const [roleFilter, setRoleFilter] = useState<DesiredRoleCode | ''>('');
+  const [createTeamOpen, setCreateTeamOpen] = useState(false);
+  const [newTeamName, setNewTeamName] = useState('');
+  const [newTeamIntro, setNewTeamIntro] = useState('');
+  const [newTeamTemp, setNewTeamTemp] = useState<1 | 2 | 3 | 4 | 5>(4);
+
+  const [applyTargetTeam, setApplyTargetTeam] = useState<TeamRecruitment | null>(null);
+  const [applyRole, setApplyRole] = useState<DesiredRoleCode>(myPRCard.desiredRole1 || 'BACKEND');
+  const [applyMessage, setApplyMessage] = useState(
+    '희망 역할과 협업 시간대가 잘 맞아 지원합니다.'
+  );
+
+  const filteredTeams = useMemo(() => {
+    if (!roleFilter) return teams;
+    return teams.filter((t) =>
+      t.recruitRoles.some((r) => r.role === roleFilter && r.filledCount < r.totalCount)
+    );
+  }, [teams, roleFilter]);
+
+  const handleSubmitApply = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!applyTargetTeam) return;
+    const ok = submitApplication(wsId, {
+      direction: 'APPLY',
+      targetTeamId: applyTargetTeam.id,
+      desiredRole: applyRole,
+      message: applyMessage,
+    });
+    if (ok) setApplyTargetTeam(null);
   };
 
-  const removeToast = (id: string) => {
-    setToasts(prev => prev.filter(toast => toast.id !== id));
+  const handleCreateTeam = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTeamName.trim() || !newTeamIntro.trim()) return;
+    const created = createRecruitmentTeam(wsId, {
+      name: newTeamName.trim(),
+      intro: newTeamIntro.trim(),
+      goalTemperature: newTeamTemp,
+      roles: [
+        { role: 'BACKEND', count: 2 },
+        { role: 'FRONTEND', count: 2 },
+      ],
+    });
+    setCreateTeamOpen(false);
+    navigate(`/ws/${wsId}/team-building/teams/${created.id}`);
   };
 
-  const ToastContainer = () => (
-    <div className="fixed top-4 right-4 z-50 pointer-events-none">
-      <div className="flex flex-col space-y-3">
-        {toasts.map((toast, index) => (
-          <div 
-            key={toast.id}
-            className="pointer-events-auto transform transition-all duration-300 ease-in-out"
-            style={{ 
-              transform: `translateY(${index * 4}px)`,
-              zIndex: 1000 - index 
-            }}
+  return (
+    <div className="max-w-5xl mx-auto px-4 sm:px-8 py-6 sm:py-8 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-ink-primary tracking-tight">
+            팀 빌딩
+          </h1>
+          <p className="text-xs sm:text-sm text-ink-tertiary mt-1">
+            모집 중인 팀의 부족 역할과 매칭 적합도를 확인하고 지원해 보세요.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setCreateTeamOpen(true)}
+          className="h-10 px-4 rounded-xl bg-peri-500 hover:bg-peri-600 text-white text-xs sm:text-sm font-semibold shadow-xs press-scale cursor-pointer self-start sm:self-auto"
+        >
+          + 새 팀 모집하기
+        </button>
+      </div>
+
+      <SubNavTabs wsId={wsId} />
+
+      {/* Role Filter Pills */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => setRoleFilter('')}
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer ${
+            roleFilter === ''
+              ? 'bg-ink-primary text-white'
+              : 'bg-white border border-neutral-200 text-ink-secondary hover:bg-surface-subtle'
+          }`}
+        >
+          전체 팀 ({teams.length})
+        </button>
+        {(['BACKEND', 'FRONTEND', 'PM', 'DESIGN', 'AI_DATA'] as DesiredRoleCode[]).map((r) => (
+          <button
+            key={r}
+            type="button"
+            onClick={() => setRoleFilter(roleFilter === r ? '' : r)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer ${
+              roleFilter === r
+                ? 'bg-ink-primary text-white'
+                : 'bg-white border border-neutral-200 text-ink-secondary hover:bg-surface-subtle'
+            }`}
           >
-            <Toast
-              message={toast.message}
-              type={toast.type}
-              createdAt={toast.createdAt}
-              isNew={toast.isNew}
-              onClose={() => removeToast(toast.id)}
-            />
-          </div>
+            {ROLE_META[r].label} 모집 중
+          </button>
         ))}
       </div>
-    </div>
-  );
 
-  return { showToast, ToastContainer };
-};
-
-
-// Demo data
-const demoAvailableUsers: User[] = [
-  { id: '1', name: '김코딩', email: 'kim@example.com', mbti: 'ENTP', hashtags: ['#리더십', '#기획'], profileImageUrl: 'https://picsum.photos/seed/userA/100/100' },
-  { id: '2', name: '박해커', email: 'park@example.com', mbti: 'ISTP', hashtags: ['#개발', '#문제해결'], profileImageUrl: 'https://picsum.photos/seed/userB/100/100' },
-  { id: '3', name: '이디자인', email: 'lee@example.com', mbti: 'ISFP', hashtags: ['#디자인', '#UIUX'], profileImageUrl: 'https://picsum.photos/seed/userC/100/100' },
-  { id: '4', name: '최기획', email: 'choi@example.com', mbti: 'ENFJ', hashtags: ['#기획', '#PM'], profileImageUrl: 'https://picsum.photos/seed/userD/100/100' },
-  { id: '5', name: '정개발', email: 'jung@example.com', mbti: 'INTP', hashtags: ['#백엔드', '#데이터'], profileImageUrl: 'https://picsum.photos/seed/userE/100/100' },
-  { id: '6', name: '윤테스트', email: 'yoon@example.com', mbti: 'ESTJ', hashtags: ['#QA', '#꼼꼼함'], profileImageUrl: 'https://picsum.photos/seed/userF/100/100' },
-];
-
-export const TeamFormationHubPage: React.FC = () => {
-  return (
-    <Card title="팀 구성 방식 선택">
-      <p className="mb-6 text-neutral-600">프로젝트에 가장 적합한 팀 구성 방식을 선택하세요.</p>
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Link to="/team-formation/auto-dice" className="block">
-          <Card className="hover:shadow-xl transition-shadow h-full">
-            <h3 className="text-xl font-semibold text-primary mb-2">🎲 주사위 굴리기</h3>
-            <p className="text-sm text-neutral-500">참가자를 무작위로 팀에 배정합니다. 빠르고 공정한 팀 구성에 적합합니다.</p>
-          </Card>
-        </Link>
-        <Link to="/team-formation/auto-ladder" className="block">
-          <Card className="hover:shadow-xl transition-shadow h-full">
-            <h3 className="text-xl font-semibold text-primary mb-2">🪜 사다리 타기</h3>
-            <p className="text-sm text-neutral-500">사다리 게임을 통해 팀을 구성합니다. 재미있고 시각적인 결과를 제공합니다.</p>
-          </Card>
-        </Link>
-        <Link to="/team-formation/vote" className="block">
-          <Card className="hover:shadow-xl transition-shadow h-full">
-            <h3 className="text-xl font-semibold text-primary mb-2">🗳️ 투표 기반 분배</h3>
-            <p className="text-sm text-neutral-500">선호하는 팀원이나 역할을 투표하여 팀을 구성합니다. 팀원들의 의견을 반영할 수 있습니다.</p>
-          </Card>
-        </Link>
-        <Link to="/team-formation/admin" className="block">
-          <Card className="hover:shadow-xl transition-shadow h-full">
-            <h3 className="text-xl font-semibold text-primary mb-2">⚙️ 관리자 수동 분배</h3>
-            <p className="text-sm text-neutral-500">관리자가 직접 팀원을 배치합니다. 특정 요구사항이나 균형을 맞출 때 유용합니다.</p>
-          </Card>
-        </Link>
-      </div>
-    </Card>
-  );
-};
-
-
-// AutoTeamPage (Dice or Ladder)
-interface AutoTeamPageProps {
-  mode: 'dice' | 'ladder';
-}
-export const AutoTeamPage: React.FC<AutoTeamPageProps> = ({ mode }) => {
-  const { currentWorkspace } = useWorkspace(); // useAuth -> useWorkspace
-  const { showToast, ToastContainer } = useToast();
-  const [participants, setParticipants] = useState<User[]>([]);
-  const [numTeams, setNumTeams] = useState<number>(2);
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [showResults, setShowResults] = useState(false);
-
-  const handleUserSelect = (user: User) => {
-    setParticipants(prev =>
-      prev.find(p => p.id === user.id) ? prev.filter(p => p.id !== user.id) : [...prev, user]
-    );
-  };
-  
-  const renderUserItem = (user: User, isSelected: boolean) => (
-    <div className="flex items-center space-x-3">
-      <img src={user.profileImageUrl} alt={user.name} className="w-8 h-8 rounded-full" />
-      <span>{user.name} ({user.mbti})</span>
-      {isSelected && <span className="text-primary">✓</span>}
-    </div>
-  );
-
-  const handleDistributeTeams = () => {
-    if (participants.length === 0 || numTeams <= 0) {
-      showToast('참가자를 선택하고 팀 수를 설정해주세요.', 'error');
-      return;
-    }
-    if (!currentWorkspace) {
-      showToast('현재 워크스페이스 정보를 가져올 수 없습니다. 다시 시도해주세요.', 'error');
-      return;
-    }
-    setIsProcessing(true);
-    setShowResults(false);
-    
-    // Simulate processing delay
-    setTimeout(() => {
-      let shuffledParticipants = [...participants].sort(() => 0.5 - Math.random());
-      const newTeamsData: Team[] = Array.from({ length: numTeams }, (_, i) => ({
-        id: `team-${mode}-${i + 1}-${Date.now()}`,
-        workspaceId: currentWorkspace.id, // Added workspaceId
-        name: `${mode === 'dice' ? '주사위' : '사다리'} 팀 ${i + 1}`,
-        members: [],
-        announcements: [],
-        ownerId: 0, // Mock data
-        passwordProtected: false,
-        createdAt: new Date().toISOString(),
-        // other TeamProject fields if necessary (memberCount, progress can be calculated or set later)
-      }));
-
-      shuffledParticipants.forEach((participant, index) => {
-        (newTeamsData[index % numTeams].members as User[]).push(participant);
-      });
-      
-      // Update memberCount for each team
-      const finalTeams = newTeamsData.map(team => ({...team, memberCount: team.members.length}));
-
-      setTeams(finalTeams);
-      setIsProcessing(false);
-      setShowResults(true);
-    }, mode === 'dice' ? 1500 : 2500); // Ladder might take longer to "draw"
-  };
-
-  const DiceAnimation: React.FC = () => (
-    <div className="flex justify-center items-center my-8">
-      <div className="animate-bounce text-6xl">🎲</div>
-      <p className="ml-4 text-xl text-neutral-600">팀을 나누고 있습니다...</p>
-    </div>
-  );
-
-  const LadderAnimation: React.FC = () => (
-    <div className="my-8 text-center">
-      <p className="text-xl text-neutral-600 mb-4">사다리를 그리고 있습니다...</p>
-      <div className="w-full h-40 bg-neutral-200 rounded-md flex items-center justify-center">
-        <span className="text-4xl animate-pulse">🪜</span>
-      </div>
-    </div>
-  );
-
-  const handleNumTeamsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setNumTeams(Math.max(1, parseInt(e.target.value) || 1));
-  };
-
-  return (
-    <>
-      <ToastContainer />
-      <Card title={mode === 'dice' ? '🎲 주사위 굴리기 팀 분배' : '🪜 사다리타기 팀 분배'}>
-        {!showResults ? (
-        <>
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-neutral-700 mb-1">참가자 선택:</label>
-            <ItemListSelector
-              items={demoAvailableUsers}
-              selectedItems={participants}
-              onSelectItem={handleUserSelect}
-              renderItem={renderUserItem}
-              itemKey="id"
-            />
-            <p className="text-xs text-neutral-500 mt-1">{participants.length}명 선택됨</p>
-          </div>
-          <div className="mb-6">
-            <Input 
-              label="팀 수:" 
-              type="number" 
-              value={numTeams} 
-              onChange={handleNumTeamsChange} 
-              min="1" 
-            />
-          </div>
-          <Button onClick={handleDistributeTeams} disabled={isProcessing || !currentWorkspace} className="w-full">
-            {isProcessing ? '처리 중...' : '팀 분배 시작'}
-          </Button>
-          {isProcessing && (mode === 'dice' ? <DiceAnimation /> : <LadderAnimation />)}
-        </>
-      ) : (
-        <div>
-          <h3 className="text-xl font-semibold mb-4 text-center">🎉 팀 분배 결과 🎉</h3>
-          <div className="grid md:grid-cols-2 gap-4">
-            {teams.map(team => (
-              <Card key={team.id} title={team.name} className="bg-neutral-50">
-                {team.members.length > 0 ? (
-                  <ul className="space-y-2">
-                    {team.members.map(member => (
-                      <li key={member.id} className="flex items-center space-x-2 p-2 bg-white rounded shadow">
-                        <img src={member.profileImageUrl} alt={member.name} className="w-8 h-8 rounded-full" />
-                        <span>{member.name} ({member.mbti})</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-neutral-500">팀원이 없습니다.</p>
-                )}
-              </Card>
-            ))}
-          </div>
-          <Button onClick={() => setShowResults(false)} className="mt-6 w-full" variant="outline">
-            다시 설정하기
-          </Button>
-        </div>
-      )}
-      </Card>
-    </>
-  );
-};
-
-// VoteTeamPage
-export const VoteTeamPage: React.FC = () => {
-  const { currentWorkspace } = useWorkspace(); // useAuth -> useWorkspace
-  const { showToast, ToastContainer } = useToast();
-  const [poll, setPoll] = useState<Poll | null>(null);
-  const [isCreatingPoll, setIsCreatingPoll] = useState(true);
-  const [pollQuestion, setPollQuestion] = useState('');
-  const [pollOptions, setPollOptions] = useState<string[]>(['', '']);
-  const [votes, setVotes] = useState<Record<string, number>>({}); // optionId: count
-
-  const handleAddOption = () => setPollOptions([...pollOptions, '']);
-  const handleOptionChange = (index: number, value: string) => {
-    const newOptions = [...pollOptions];
-    newOptions[index] = value;
-    setPollOptions(newOptions);
-  };
-  const handleRemoveOption = (index: number) => {
-    if (pollOptions.length > 2) {
-      setPollOptions(pollOptions.filter((_, i) => i !== index));
-    }
-  };
-
-  const handleCreatePoll = () => {
-    if (!currentWorkspace) {
-        showToast("워크스페이스 정보를 찾을 수 없습니다.", 'error');
-        return;
-    }
-    if (!pollQuestion.trim() || pollOptions.some(opt => !opt.trim())) {
-      showToast('질문과 모든 옵션을 입력해주세요.', 'error');
-      return;
-    }
-    const newPoll: Poll = {
-      id: `poll-${Date.now()}`,
-      question: pollQuestion,
-      options: pollOptions.map((opt, i) => ({ id: `opt-${i}`, text: opt, votes: 0 })),
-      teamProjectId: currentWorkspace.id, // Context for the poll (using workspace ID as a stand-in)
-    };
-    setPoll(newPoll);
-    setVotes(newPoll.options.reduce((acc, opt) => {
-      acc[opt.id] = 0;
-      return acc;
-    }, {} as Record<string, number>));
-    setIsCreatingPoll(false);
-  };
-
-  const handleVote = (optionId: string) => {
-    if (!poll) return;
-    setVotes(prev => ({ ...prev, [optionId]: (prev[optionId] || 0) + 1 }));
-    // In a real app, this would be an API call and prevent multiple votes from same user if needed
-  };
-
-  if (isCreatingPoll) {
-    return (
-      <>
-        <ToastContainer />
-        <Card title="🗳️ 투표 기반 팀 분배 설정">
-        <div className="space-y-4">
-          <Input 
-            label="투표 질문 (예: 함께하고 싶은 사람, 선호하는 역할)" 
-            value={pollQuestion} 
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPollQuestion(e.target.value)} 
-          />
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1">투표 항목:</label>
-            {pollOptions.map((option, index) => (
-              <div key={index} className="flex items-center space-x-2 mb-2">
-                <Input 
-                  value={option} 
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleOptionChange(index, e.target.value)} 
-                  placeholder={`항목 ${index + 1}`}
-                  className="flex-grow"
-                />
-                {pollOptions.length > 2 && (
-                  <Button onClick={() => handleRemoveOption(index)} variant="ghost" size="sm" aria-label="항목 삭제">
-                    <TrashIcon className="w-5 h-5 text-red-500"/>
-                  </Button>
-                )}
-              </div>
-            ))}
-            <Button onClick={handleAddOption} variant="outline" size="sm" leftIcon={<PlusCircleIcon />}>항목 추가</Button>
-          </div>
-          <Button onClick={handleCreatePoll} className="w-full" disabled={!currentWorkspace}>투표 생성</Button>
-        </div>
-        </Card>
-      </>
-    );
-  }
-
-  if (!poll) return null; // Should not happen if !isCreatingPoll
-
-  const totalVotes = Object.values(votes).reduce((sum, count) => sum + count, 0);
-
-  return (
-    <>
-      <ToastContainer />
-      <Card title={`투표: ${poll.question}`}>
-      <div className="space-y-3 mb-6">
-        {poll.options.map(option => {
-          const percentage = totalVotes > 0 ? ((votes[option.id] || 0) / totalVotes) * 100 : 0;
+      {/* Clean 2-Column Team Cards */}
+      <div className="grid md:grid-cols-2 gap-4 sm:gap-5">
+        {filteredTeams.map((team) => {
+          const match = calculateMemberToTeamMatch(myPRCard, team);
           return (
-            <div key={option.id}>
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-neutral-700">{option.text}</span>
-                <span className="text-sm text-neutral-500">{votes[option.id] || 0}표 ({percentage.toFixed(1)}%)</span>
+            <div
+              key={team.id}
+              onClick={() => navigate(`/ws/${wsId}/team-building/teams/${team.id}`)}
+              className="bg-white rounded-2xl border border-neutral-200/85 shadow-craft-sm hover:border-peri-300 transition-all p-5 sm:p-6 flex flex-col justify-between gap-4 cursor-pointer"
+            >
+              <div className="space-y-3.5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-base font-bold text-ink-primary">{team.name}</h3>
+                    <p className="text-xs text-ink-tertiary mt-0.5">
+                      팀장 {team.leaderName} · 현재 {team.memberIds.length}/{session.teamSizeMax}명
+                    </p>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-lg bg-peri-50 text-peri-700 text-xs font-bold tabular-nums shrink-0">
+                    적합도 {Math.min(98, match.totalScore + 6)}%
+                  </span>
+                </div>
+
+                <p className="text-xs sm:text-sm text-ink-secondary line-clamp-2 leading-relaxed">
+                  {team.intro}
+                </p>
+
+                {/* Open Role Slots */}
+                <div className="flex flex-wrap gap-1.5">
+                  {team.recruitRoles.map((slot) => {
+                    const open = slot.totalCount - slot.filledCount;
+                    return (
+                      <span
+                        key={slot.role}
+                        className={`px-2.5 py-1 rounded-md text-xs font-medium ${
+                          open > 0
+                            ? 'bg-peri-50/90 text-peri-700'
+                            : 'bg-surface-subtle text-ink-tertiary line-through'
+                        }`}
+                      >
+                        {ROLE_META[slot.role].label} {slot.filledCount}/{slot.totalCount}
+                      </span>
+                    );
+                  })}
+                </div>
+
+                <div className="text-xs text-ink-tertiary">
+                  매칭 근거: <span className="text-ink-secondary font-medium">{match.reasons[0]}</span>
+                </div>
               </div>
-              <div className="w-full bg-neutral-200 rounded-full h-2.5">
-                <div 
-                  className="bg-primary h-2.5 rounded-full transition-all duration-500 ease-out" 
-                  style={{ width: `${percentage}%` }}
-                ></div>
+
+              <div className="grid grid-cols-2 gap-2.5 pt-3 border-t border-neutral-100">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/ws/${wsId}/team-building/teams/${team.id}`);
+                  }}
+                  className="h-9 rounded-xl bg-surface-subtle hover:bg-neutral-200/70 text-ink-primary text-xs font-semibold transition-colors cursor-pointer"
+                >
+                  상세보기
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setApplyTargetTeam(team);
+                  }}
+                  className="h-9 rounded-xl bg-peri-500 hover:bg-peri-600 text-white text-xs font-semibold transition-colors cursor-pointer"
+                >
+                  지원하기
+                </button>
               </div>
-              <Button onClick={() => handleVote(option.id)} size="sm" variant="outline" className="mt-1">
-                {option.text}에 투표
-              </Button>
             </div>
           );
         })}
       </div>
-      <p className="text-sm text-neutral-600">총 투표 수: {totalVotes}</p>
-      <Button onClick={() => setIsCreatingPoll(true)} variant="ghost" className="mt-4">새 투표 만들기</Button>
-      {/* TODO: Add logic to form teams based on vote results */}
-      <p className="mt-4 text-center text-neutral-500 italic">
-        (실제 팀 구성 로직은 추가 구현이 필요합니다. 현재는 투표 및 결과 표시만 가능합니다.)
-      </p>
-      </Card>
-    </>
+
+      {/* Apply Modal */}
+      <Modal
+        isOpen={!!applyTargetTeam}
+        onClose={() => setApplyTargetTeam(null)}
+        title={`${applyTargetTeam?.name || ''} 지원하기`}
+        footer={
+          <>
+            <Button variant="outline" size="sm" onClick={() => setApplyTargetTeam(null)}>
+              취소
+            </Button>
+            <Button variant="primary" size="sm" onClick={handleSubmitApply}>
+              지원서 보내기
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleSubmitApply} className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-ink-secondary mb-1.5">
+              지원 포지션
+            </label>
+            <select
+              value={applyRole}
+              onChange={(e) => setApplyRole(e.target.value as DesiredRoleCode)}
+              className="w-full h-9 px-3 rounded-lg border border-neutral-200 bg-white text-xs font-medium text-ink-primary"
+            >
+              {(Object.keys(ROLE_META) as DesiredRoleCode[]).map((r) => (
+                <option key={r} value={r}>
+                  {ROLE_META[r].label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <TextArea
+            label="한마디 메시지"
+            name="applyMessage"
+            maxLength={200}
+            value={applyMessage}
+            onChange={(e) => setApplyMessage(e.target.value)}
+          />
+        </form>
+      </Modal>
+
+      {/* Create Team Modal */}
+      <Modal
+        isOpen={createTeamOpen}
+        onClose={() => setCreateTeamOpen(false)}
+        title="새 팀 모집 공고 등록"
+        footer={
+          <>
+            <Button variant="outline" size="sm" onClick={() => setCreateTeamOpen(false)}>
+              취소
+            </Button>
+            <Button variant="primary" size="sm" onClick={handleCreateTeam}>
+              등록하기
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleCreateTeam} className="space-y-4">
+          <Input
+            label="팀 이름"
+            name="newTeamName"
+            placeholder="예: 코드블루"
+            value={newTeamName}
+            onChange={(e) => setNewTeamName(e.target.value)}
+          />
+          <TextArea
+            label="팀 소개"
+            name="newTeamIntro"
+            placeholder="프로젝트 목표와 협업 방식을 적어주세요."
+            value={newTeamIntro}
+            onChange={(e) => setNewTeamIntro(e.target.value)}
+          />
+          <div>
+            <label className="block text-xs font-medium text-ink-secondary mb-1.5">
+              목표 수준 (1~5)
+            </label>
+            <div className="grid grid-cols-5 gap-1.5">
+              {([1, 2, 3, 4, 5] as const).map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setNewTeamTemp(n)}
+                  className={`py-2 rounded-lg text-xs font-semibold border cursor-pointer ${
+                    newTeamTemp === n
+                      ? 'bg-peri-500 text-white border-peri-500'
+                      : 'bg-white text-ink-secondary border-neutral-200'
+                  }`}
+                >
+                  {n}단계
+                </button>
+              ))}
+            </div>
+          </div>
+        </form>
+      </Modal>
+    </div>
   );
 };
 
+export const TeamRecruitmentDetailPage: React.FC = () => {
+  const { workspaceId, teamId } = useParams<{ workspaceId: string; teamId: string }>();
+  const navigate = useNavigate();
+  const {
+    getWorkspaceById,
+    getSession,
+    getRecruitments,
+    getWorkspaceMembers,
+    myPRCard,
+    submitApplication,
+  } = useRenewal();
 
-// AdminTeamPage
-export const AdminTeamPage: React.FC = () => {
-  const { currentWorkspace } = useWorkspace(); // useAuth -> useWorkspace
-  const { showToast, ToastContainer } = useToast();
-  const [users, setUsers] = useState<User[]>(demoAvailableUsers);
-  
-  const initialTeams: Team[] = currentWorkspace ? [
-    { id: 'admin-team-1', workspaceId: currentWorkspace.id, name: '알파 팀', members: [], announcements: [], ownerId: 0, passwordProtected: false, createdAt: new Date().toISOString() },
-    { id: 'admin-team-2', workspaceId: currentWorkspace.id, name: '베타 팀', members: [], announcements: [], ownerId: 0, passwordProtected: false, createdAt: new Date().toISOString() },
-  ] : [];
-  const [teams, setTeams] = useState<Team[]>(initialTeams);
-  
-  const [draggedUser, setDraggedUser] = useState<User | null>(null);
+  const activeWs = getWorkspaceById(workspaceId);
+  const wsId = activeWs.id;
+  const session = getSession(wsId);
+  const teams = getRecruitments(wsId);
+  const members = getWorkspaceMembers(wsId);
 
-  useEffect(() => { // Update teams if workspace changes or was not available initially
-    if (currentWorkspace && teams.length === 0) {
-        setTeams([
-            { id: 'admin-team-1', workspaceId: currentWorkspace.id, name: '알파 팀', members: [], announcements: [], ownerId: 0, passwordProtected: false, createdAt: new Date().toISOString() },
-            { id: 'admin-team-2', workspaceId: currentWorkspace.id, name: '베타 팀', members: [], announcements: [], ownerId: 0, passwordProtected: false, createdAt: new Date().toISOString() },
-        ]);
-    } else if (currentWorkspace && teams.length > 0 && teams.some(t => t.workspaceId !== currentWorkspace.id)) {
-        // If workspace ID mismatch, re-initialize or update IDs. For simplicity, re-init here.
-         setTeams([
-            { id: 'admin-team-1-new', workspaceId: currentWorkspace.id, name: '알파 팀', members: [], announcements: [], ownerId: 0, passwordProtected: false, createdAt: new Date().toISOString() },
-            { id: 'admin-team-2-new', workspaceId: currentWorkspace.id, name: '베타 팀', members: [], announcements: [], ownerId: 0, passwordProtected: false, createdAt: new Date().toISOString() },
-        ]);
-    }
-  }, [currentWorkspace, teams]);
-
-
-  const handleDragStart = (user: User) => {
-    setDraggedUser(user);
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault(); // Necessary to allow dropping
-  };
-
-  const handleDrop = (teamId: string) => {
-    if (!draggedUser) return;
-
-    // Remove from users list and current team (if any)
-    setUsers(prev => prev.filter(u => u.id !== draggedUser.id));
-    setTeams(prevTeams => prevTeams.map(team => ({
-      ...team,
-      members: team.members.filter(m => m.id !== draggedUser.id),
-    })));
-
-    // Add to new team
-    setTeams(prevTeams => prevTeams.map(team =>
-      team.id === teamId
-        ? { ...team, members: [...team.members, draggedUser] }
-        : team
-    ));
-    setDraggedUser(null);
-  };
-  
-  const handleRemoveFromTeam = (userId: string, teamId: string) => {
-    const userToMove = teams.find(t => t.id === teamId)?.members.find(m => m.id === userId);
-    if (!userToMove) return;
-
-    setTeams(prevTeams => prevTeams.map(team => 
-      team.id === teamId 
-        ? {...team, members: team.members.filter(m => m.id !== userId)}
-        : team
-    ));
-    setUsers(prevUsers => [...prevUsers, userToMove]);
-  };
-
-  const handleAddTeam = () => {
-    if (!currentWorkspace) {
-        showToast("워크스페이스 정보를 먼저 로드해야 합니다.", 'error');
-        return;
-    }
-    const newTeamName = prompt("새 팀 이름을 입력하세요:", `팀 ${teams.length + 1}`);
-    if (newTeamName) {
-      setTeams(prev => [...prev, { 
-          id: `admin-team-${Date.now()}`, 
-          workspaceId: currentWorkspace.id, // Added workspaceId
-          name: newTeamName, 
-          members: [], 
-          announcements: [],
-          ownerId: 0,
-          passwordProtected: false,
-          createdAt: new Date().toISOString(),
-        }]);
-    }
-  };
-  
-  const handleConfirmTeams = () => {
-    // In a real app, send team data to backend
-    showToast('팀 구성이 확정되었습니다! (콘솔에서 결과 확인)', 'success');
-    console.log("확정된 팀:", teams);
-  };
-  
-  if (!currentWorkspace) {
-    return (
-        <Card title="⚙️ 관리자 수동 팀 분배">
-            <p>워크스페이스 정보를 불러오는 중이거나, 워크스페이스가 선택되지 않았습니다.</p>
-        </Card>
-    );
-  }
-
+  const team = teams.find((t) => t.id === teamId) || teams[0];
+  const teamMembers = members.filter((m) => team.memberIds.includes(m.id));
+  const match = calculateMemberToTeamMatch(myPRCard, team);
 
   return (
-    <>
-      <ToastContainer />
-      <Card title="⚙️ 관리자 수동 팀 분배">
-      <div className="flex justify-end mb-4">
-        <Button onClick={handleAddTeam} leftIcon={<PlusCircleIcon />} variant="outline" disabled={!currentWorkspace}>팀 추가</Button>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        {/* Unassigned Users Column */}
-        <div 
-          className="bg-neutral-100 p-4 rounded-lg min-h-[200px]"
-          onDragOver={handleDragOver}
-          onDrop={() => { // Logic for dropping back to unassigned (optional)
-            if (draggedUser && !users.find(u => u.id === draggedUser.id)) {
-              setTeams(prevTeams => prevTeams.map(team => ({
-                ...team,
-                members: team.members.filter(m => m.id !== draggedUser.id),
-              })));
-              setUsers(prev => [...prev, draggedUser]);
-              setDraggedUser(null);
-            }
-          }}
-        >
-          <h3 className="font-semibold text-neutral-700 mb-3 border-b pb-2">미배정 인원 ({users.length})</h3>
-          <div className="space-y-2">
-            {users.map(user => (
-              <div
-                key={user.id}
-                draggable
-                onDragStart={() => handleDragStart(user)}
-                className="p-2 bg-white rounded shadow cursor-grab flex items-center space-x-2"
-              >
-                <img src={user.profileImageUrl} alt={user.name} className="w-6 h-6 rounded-full" />
-                <span>{user.name}</span>
-              </div>
-            ))}
-             {users.length === 0 && <p className="text-sm text-neutral-500">모든 인원이 배정되었습니다.</p>}
+    <div className="max-w-3xl mx-auto px-4 sm:px-8 py-6 sm:py-8 space-y-5">
+      <Link
+        to={`/ws/${wsId}/team-building`}
+        className="inline-block text-xs sm:text-sm font-semibold text-ink-secondary hover:text-peri-600"
+      >
+        ← 팀 빌딩 목록으로 돌아가기
+      </Link>
+
+      <div className="bg-white rounded-2xl border border-neutral-200/85 shadow-craft-sm p-6 sm:p-8 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-5 border-b border-neutral-100">
+          <div>
+            <span className="px-2.5 py-1 rounded-md bg-peri-50 text-peri-700 text-xs font-semibold">
+              모집 중 · {team.memberIds.length}/{session.teamSizeMax}명
+            </span>
+            <h1 className="text-xl sm:text-2xl font-bold text-ink-primary mt-2">{team.name}</h1>
+            <p className="text-sm text-ink-secondary mt-1">{team.intro}</p>
           </div>
+          <Button
+            variant="primary"
+            size="md"
+            onClick={() =>
+              submitApplication(wsId, {
+                direction: 'APPLY',
+                targetTeamId: team.id,
+                desiredRole: myPRCard.desiredRole1 || 'BACKEND',
+                message: '팀 목표와 협업 방식에 공감하여 지원합니다.',
+              })
+            }
+          >
+            지원하기
+          </Button>
         </div>
 
-        {/* Team Columns */}
-        {teams.map(team => (
-          <div
-            key={team.id}
-            className="bg-primary-light/10 p-4 rounded-lg min-h-[200px]"
-            onDragOver={handleDragOver}
-            onDrop={() => handleDrop(team.id)}
-          >
-            <h3 className="font-semibold text-primary-dark mb-3 border-b border-primary-light pb-2">{team.name} ({team.members.length}명)</h3>
+        <div className="rounded-xl bg-peri-50/70 border border-peri-200/70 p-4 flex items-center justify-between">
+          <div>
+            <div className="text-xs font-semibold text-peri-700">나와의 매칭 적합도</div>
+            <div className="text-sm font-bold text-ink-primary mt-0.5">
+              {match.reasons.join(' · ')}
+            </div>
+          </div>
+          <span className="text-lg font-bold text-peri-700 tabular-nums">
+            {Math.min(98, match.totalScore + 6)}%
+          </span>
+        </div>
+
+        <div className="grid sm:grid-cols-2 gap-6">
+          <div className="space-y-3">
+            <h2 className="text-xs font-semibold text-ink-tertiary">현재 팀원 ({teamMembers.length}명)</h2>
             <div className="space-y-2">
-              {team.members.map(member => (
-                <div key={member.id} className="p-2 bg-white rounded shadow flex items-center justify-between">
-                   <div className="flex items-center space-x-2">
-                    <img src={member.profileImageUrl} alt={member.name} className="w-6 h-6 rounded-full" />
-                    <span>{member.name}</span>
+              {teamMembers.map((tm) => (
+                <div
+                  key={tm.id}
+                  onClick={() => navigate(`/ws/${wsId}/members/${tm.id}`)}
+                  className="p-3 rounded-xl bg-surface-subtle/60 flex items-center justify-between cursor-pointer hover:bg-peri-50/50"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <MemberAvatar name={tm.name} size="sm" />
+                    <div>
+                      <div className="text-xs font-bold text-ink-primary">{tm.name}</div>
+                      <div className="text-[11px] text-ink-tertiary">
+                        {tm.desiredRole1 ? ROLE_META[tm.desiredRole1].label : '백엔드'}
+                      </div>
+                    </div>
                   </div>
-                  <Button size="sm" variant="ghost" onClick={() => handleRemoveFromTeam(member.id, team.id)} aria-label="팀에서 제거">
-                    <TrashIcon className="w-4 h-4 text-red-400 hover:text-red-600"/>
-                  </Button>
+                  <span className="text-xs text-peri-600 font-medium">프로필 →</span>
                 </div>
               ))}
-              {team.members.length === 0 && <p className="text-sm text-neutral-500">이 팀에 팀원을 드래그하세요.</p>}
             </div>
+          </div>
+
+          <div className="space-y-3">
+            <h2 className="text-xs font-semibold text-ink-tertiary">모집 포지션 및 가용 시간</h2>
+            <div className="space-y-2">
+              {team.recruitRoles.map((slot) => (
+                <div
+                  key={slot.role}
+                  className="p-3 rounded-xl bg-surface-subtle/60 flex items-center justify-between text-xs"
+                >
+                  <span className="font-semibold text-ink-primary">
+                    {ROLE_META[slot.role].label}
+                  </span>
+                  <span className="text-ink-secondary tabular-nums">
+                    {slot.filledCount} / {slot.totalCount}명
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-ink-tertiary pt-1">
+              공통 선호 시간대: {team.commonTimeSlots.map((s) => TIME_SLOT_META[s].label).join(' · ')} ·{' '}
+              {GOAL_TEMPERATURE_META[team.goalTemperature].label}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export const TeamBuildingInboxPage: React.FC = () => {
+  const { workspaceId } = useParams<{ workspaceId: string }>();
+  const { getWorkspaceById, getApplications, decideApplication } = useRenewal();
+  const activeWs = getWorkspaceById(workspaceId);
+  const wsId = activeWs.id;
+  const applications = getApplications(wsId);
+
+  return (
+    <div className="max-w-5xl mx-auto px-4 sm:px-8 py-6 sm:py-8 space-y-6">
+      <div>
+        <h1 className="text-xl sm:text-2xl font-bold text-ink-primary tracking-tight">
+          받은 제안 · 지원함
+        </h1>
+        <p className="text-xs sm:text-sm text-ink-tertiary mt-1">
+          받은 스카우트와 지원 내역을 확인하고 수락 또는 거절할 수 있습니다.
+        </p>
+      </div>
+
+      <SubNavTabs wsId={wsId} />
+
+      <div className="space-y-3">
+        {applications.map((app) => (
+          <div
+            key={app.id}
+            className="bg-white rounded-2xl border border-neutral-200/85 p-5 shadow-craft-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+          >
+            <div className="flex items-start gap-3.5">
+              <MemberAvatar name={app.applicantName} size="md" />
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded bg-peri-50 text-peri-700 text-[11px] font-semibold">
+                    {app.direction === 'SCOUT' ? '스카우트 제안' : '팀 지원'}
+                  </span>
+                  <span className="text-sm font-bold text-ink-primary">
+                    {app.targetTeamName} · {ROLE_META[app.desiredRole].label}
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm text-ink-secondary">{app.message}</p>
+                <div className="text-xs text-ink-tertiary">{app.createdAt}</div>
+              </div>
+            </div>
+
+            {app.status === 'PENDING' ? (
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => decideApplication(wsId, app.id, 'DECLINED')}
+                  className="h-9 px-4 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold cursor-pointer"
+                >
+                  거절
+                </button>
+                <button
+                  type="button"
+                  onClick={() => decideApplication(wsId, app.id, 'ACCEPTED')}
+                  className="h-9 px-4 rounded-xl bg-peri-500 hover:bg-peri-600 text-white text-xs font-bold cursor-pointer"
+                >
+                  수락
+                </button>
+              </div>
+            ) : (
+              <span className="px-2.5 py-1 rounded-lg bg-surface-subtle text-ink-tertiary text-xs font-semibold">
+                {app.status}
+              </span>
+            )}
           </div>
         ))}
       </div>
-      <div className="mt-8 flex justify-end">
-        <Button onClick={handleConfirmTeams} size="lg">팀 구성 확정 및 공지</Button>
-      </div>
-       <p className="mt-4 text-center text-neutral-500 italic">
-        (드래그 앤 드롭 기능은 기본 HTML5 API로 구현되었습니다. 실제 앱에서는 라이브러리 사용을 권장합니다.)
-      </p>
-      </Card>
-    </>
+    </div>
   );
 };
+
+export const TeamBuildingManagePage: React.FC = () => {
+  const { workspaceId } = useParams<{ workspaceId: string }>();
+  const navigate = useNavigate();
+  const {
+    getWorkspaceById,
+    getSession,
+    getWorkspaceMembers,
+    getRecruitments,
+    manualAssignMemberToTeam,
+    runConstrainedRandomFallback,
+    resolveTeamBuildingSession,
+  } = useRenewal();
+
+  const activeWs = getWorkspaceById(workspaceId);
+  const wsId = activeWs.id;
+  const session = getSession(wsId);
+  const members = getWorkspaceMembers(wsId);
+  const teams = getRecruitments(wsId);
+  const unassigned = members.filter((m) => !m.assignedTeamId);
+
+  return (
+    <div className="max-w-5xl mx-auto px-4 sm:px-8 py-6 sm:py-8 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-ink-primary tracking-tight">
+            미배정 배치 및 세션 확정
+          </h1>
+          <p className="text-xs sm:text-sm text-ink-tertiary mt-1">
+            미배정 인원({unassigned.length}명)을 팀에 배치하고 팀 빌딩을 확정합니다.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={unassigned.length === 0}
+            onClick={() => runConstrainedRandomFallback(wsId)}
+          >
+            역할 균형 자동 배치
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            disabled={unassigned.length > 0}
+            onClick={() => {
+              if (resolveTeamBuildingSession(wsId)) {
+                navigate(`/ws/${wsId}/team/team-alpha/kanban`);
+              }
+            }}
+          >
+            팀 빌딩 최종 확정
+          </Button>
+        </div>
+      </div>
+
+      <SubNavTabs wsId={wsId} />
+
+      <div className="grid lg:grid-cols-12 gap-5 items-start">
+        <div className="lg:col-span-5 bg-white rounded-2xl border border-neutral-200/85 p-5 space-y-3">
+          <h2 className="text-sm font-bold text-ink-primary">미배정 멤버 ({unassigned.length})</h2>
+          {unassigned.length === 0 ? (
+            <p className="text-xs text-emerald-700 py-6 text-center font-medium">
+              모든 멤버가 팀에 배정되었습니다.
+            </p>
+          ) : (
+            unassigned.map((m) => (
+              <div
+                key={m.id}
+                className="p-3.5 rounded-xl bg-surface-subtle/70 flex items-center justify-between gap-2"
+              >
+                <div className="flex items-center gap-2.5">
+                  <MemberAvatar name={m.name} size="sm" />
+                  <div>
+                    <div className="text-xs font-bold text-ink-primary">{m.name}</div>
+                    <div className="text-[11px] text-ink-tertiary">
+                      {m.desiredRole1 ? ROLE_META[m.desiredRole1].label : '미작성'}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-1">
+                  {teams.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => manualAssignMemberToTeam(wsId, m.id, t.id)}
+                      className="px-2 py-1 rounded bg-white border border-neutral-200 hover:border-peri-500 text-[11px] font-medium text-ink-primary cursor-pointer"
+                    >
+                      + {t.name.split(' ')[0]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="lg:col-span-7 grid sm:grid-cols-2 gap-4">
+          {teams.map((team) => {
+            const teamMembers = members.filter((m) => m.assignedTeamId === team.id);
+            return (
+              <div
+                key={team.id}
+                className="bg-white rounded-2xl border border-neutral-200/85 p-5 space-y-3"
+              >
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-ink-primary">{team.name}</h3>
+                  <span className="text-xs text-ink-tertiary tabular-nums">
+                    {teamMembers.length}/{session.teamSizeMax}명
+                  </span>
+                </div>
+                <div className="space-y-1.5">
+                  {teamMembers.map((tm) => (
+                    <div
+                      key={tm.id}
+                      className="px-3 py-2 rounded-xl bg-surface-subtle/60 flex items-center justify-between text-xs"
+                    >
+                      <span className="font-medium text-ink-primary">{tm.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => manualAssignMemberToTeam(wsId, tm.id, null)}
+                        className="text-ink-tertiary hover:text-rose-600 cursor-pointer"
+                      >
+                        제외
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export const TeamFormationHubPage = TeamBuildingHomePage;
+export default TeamBuildingHomePage;

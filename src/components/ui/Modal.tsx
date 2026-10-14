@@ -1,17 +1,34 @@
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useEffect } from 'react';
 import { XMarkIcon } from '@/assets/icons';
 
-// Modal Component
-interface ModalProps {
+export interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
+  subtitle?: string;
   children: ReactNode;
   footer?: ReactNode;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
 }
 
-export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer, size = 'md' }) => {
+export const Modal: React.FC<ModalProps> = ({
+  isOpen,
+  onClose,
+  title,
+  subtitle,
+  children,
+  footer,
+  size = 'md',
+}) => {
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const sizeClasses = {
@@ -19,20 +36,45 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
     md: 'max-w-md',
     lg: 'max-w-lg',
     xl: 'max-w-xl',
+    '2xl': 'max-w-2xl',
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className={`bg-white rounded-lg shadow-xl w-full ${sizeClasses[size]}`}>
-        <div className="flex justify-between items-center p-4 sm:p-5 border-b border-neutral-200">
-          <h3 className="text-lg sm:text-xl font-semibold text-neutral-800">{title}</h3>
-          <button onClick={onClose} className="text-neutral-500 hover:text-neutral-700">
-            <XMarkIcon className="w-6 h-6 sm:w-7 sm:h-7" />
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-ink-primary/40 backdrop-blur-[2px] p-0 sm:p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        className={`bg-white rounded-t-xl sm:rounded-xl shadow-craft-lg border border-neutral-200 w-full ${sizeClasses[size]} max-h-[88vh] flex flex-col overflow-hidden`}
+      >
+        <div className="flex justify-between items-start gap-4 px-5 py-4 border-b border-neutral-100 shrink-0">
+          <div>
+            <h3 id="modal-title" className="text-base font-semibold text-ink-primary">
+              {title}
+            </h3>
+            {subtitle && <p className="text-xs text-ink-tertiary mt-0.5">{subtitle}</p>}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="닫기"
+            className="w-7 h-7 rounded-md flex items-center justify-center text-ink-tertiary hover:text-ink-primary hover:bg-surface-subtle transition-colors cursor-pointer"
+          >
+            <XMarkIcon className="w-4 h-4" />
           </button>
         </div>
-        <div className="p-4 sm:p-5 text-neutral-600">{children}</div>
-        {footer && <div className="flex justify-end space-x-3 p-4 sm:p-5 border-t border-neutral-200">{footer}</div>}
+        <div className="p-5 text-sm text-ink-secondary overflow-y-auto flex-1">{children}</div>
+        {footer && (
+          <div className="flex justify-end items-center gap-2 px-5 py-3 bg-surface-subtle/40 border-t border-neutral-100 shrink-0">
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   );
-}; 
+};

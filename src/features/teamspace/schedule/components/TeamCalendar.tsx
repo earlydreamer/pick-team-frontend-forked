@@ -1,472 +1,367 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { Button, Card, Modal, TextArea, Input } from "@/components/ui";
-import { TrashIcon, ArrowLeftIcon, PlusCircleIcon } from "@/assets/icons";
-import {
-  ScheduleResponse,
-  ScheduleCreateRequest,
-  ScheduleUpdateRequest,
-  User,
-} from "@/types";
-import { scheduleApi } from "@/features/teamspace/schedule/api/scheduleApi";
+import React, { useState } from 'react';
+import { Card, Button, Badge, Modal, Input, TextArea } from '@/components/ui';
+import { useRenewal } from '@/features/renewal/context/RenewalContext';
 
-// 컴포넌트 내부에서 사용할 이벤트 타입 (날짜를 Date 객체로 관리)
-interface InternalCalendarEvent {
-  id: number;
-  title: string;
-  startDate: Date;
-  endDate: Date;
-  description?: string;
-  type: "MEETING" | "DEADLINE" | "WORKSHOP" | "VACATION" | "OTHER";
-  teamId: number;
-  creatorId?: number;
+interface TeamCalendarProps {
+  teamId?: string;
+  workspaceId?: string;
+  isReadOnly?: boolean;
 }
 
-const daysOfWeek = ["일", "월", "화", "수", "목", "금", "토"];
+const SCHEDULE_TYPE_META: Record<
+  'MEETING' | 'DEADLINE' | 'WORKSHOP' | 'VACATION' | 'OTHER',
+  { label: string; badgeVariant: 'peri' | 'danger' | 'warning' | 'success' | 'neutral'; dotClass: string }
+> = {
+  MEETING: { label: '정기·스프린트 회의', badgeVariant: 'peri', dotClass: 'bg-peri-600' },
+  DEADLINE: { label: '마감·데드라인', badgeVariant: 'danger', dotClass: 'bg-rose-600' },
+  WORKSHOP: { label: '코드리뷰·워크숍', badgeVariant: 'warning', dotClass: 'bg-amber-600' },
+  VACATION: { label: '휴가·개인일정', badgeVariant: 'success', dotClass: 'bg-emerald-600' },
+  OTHER: { label: '기타', badgeVariant: 'neutral', dotClass: 'bg-neutral-500' },
+};
 
-const TeamCalendar: React.FC<{ teamId: string; currentUser: User }> = ({
-  teamId,
-  currentUser,
+export const TeamCalendar: React.FC<TeamCalendarProps> = ({
+  teamId = 'team-alpha',
+  workspaceId = 'ws-kosta-295',
+  isReadOnly = false,
 }) => {
-  const [events, setEvents] = useState<InternalCalendarEvent[]>([]);
-  const [showAddEventModal, setShowAddEventModal] = useState(false);
-  const [newEvent, setNewEvent] = useState<Partial<InternalCalendarEvent>>({
-    title: "",
-    startDate: new Date(),
-    endDate: new Date(),
-    type: "MEETING",
-  });
-  const [editingEvent, setEditingEvent] =
-    useState<InternalCalendarEvent | null>(null);
-  const [currentDisplayDate, setCurrentDisplayDate] = useState(new Date());
+  const { getTeamSchedules, addSchedule, deleteSchedule } = useRenewal();
 
-  const { year, month } = {
-    year: currentDisplayDate.getFullYear(),
-    month: currentDisplayDate.getMonth(),
-  };
+  const [viewMode, setViewMode] = useState<'MONTH' | 'WEEK' | 'LIST'>('MONTH');
+  const [showPersonalLayer, setShowPersonalLayer] = useState(true);
+  const [createOpen, setCreateOpen] = useState(false);
 
-  const loadEvents = useCallback(
-    async (startDate: Date, endDate: Date) => {
-      try {
-        const scheduleResponses = await scheduleApi.getSchedulesByDateRange(
-          Number(teamId),
-          startDate.toISOString(),
-          endDate.toISOString()
-        );
-        const calendarEvents: InternalCalendarEvent[] = scheduleResponses.map(
-          (res: ScheduleResponse) => ({
-            id: res.id,
-            title: res.title,
-            startDate: new Date(res.startDate),
-            endDate: new Date(res.endDate),
-            type: res.type,
-            teamId: res.teamId,
-            description: res.scheduleDesc,
-            creatorId: res.creatorId,
-          })
-        );
-        setEvents(calendarEvents);
-      } catch (error) {
-        console.error("일정 로딩 실패:", error);
-        alert("일정을 불러오는 데 실패했습니다.");
-      }
-    },
-    [teamId]
-  );
+  const [title, setTitle] = useState('');
+  const [startDate, setStartDate] = useState('2026-10-16T14:00');
+  const [endDate, setEndDate] = useState('2026-10-16T15:30');
+  const [type, setType] = useState<'MEETING' | 'DEADLINE' | 'WORKSHOP' | 'VACATION' | 'OTHER'>('MEETING');
+  const [isPersonal, setIsPersonal] = useState(false);
+  const [desc, setDesc] = useState('');
 
-  useEffect(() => {
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0, 23, 59, 59);
-    loadEvents(firstDay, lastDay);
-  }, [year, month, loadEvents]);
+  const schedules = getTeamSchedules(teamId, showPersonalLayer);
 
-  const resetModalState = () => {
-    setEditingEvent(null);
-    setNewEvent({
-      title: "",
-      startDate: new Date(),
-      endDate: new Date(),
-      type: "MEETING",
+  const handleAdd = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) return;
+    addSchedule({
+      workspaceId,
+      teamId,
+      title: title.trim(),
+      startDate,
+      endDate,
+      type,
+      isPersonal,
+      scheduleDesc: desc.trim() || undefined,
+      reminderMinutesBefore: 5,
     });
-    setShowAddEventModal(false);
+    setTitle('');
+    setDesc('');
+    setCreateOpen(false);
   };
 
-  const handleAddOrUpdateEvent = async () => {
-    const eventToProcess = editingEvent
-      ? { ...editingEvent, ...newEvent }
-      : newEvent;
-
-    if (
-      !eventToProcess.title ||
-      !eventToProcess.startDate ||
-      !eventToProcess.endDate
-    ) {
-      alert("일정 제목, 시작일, 종료일은 필수입니다.");
-      return;
-    }
-
-    try {
-      if (editingEvent) {
-        const updateRequest: ScheduleUpdateRequest = {
-          title: eventToProcess.title,
-          startDate: eventToProcess.startDate.toISOString(),
-          endDate: eventToProcess.endDate.toISOString(),
-          scheduleDesc: eventToProcess.description,
-          type: eventToProcess.type || "MEETING",
-        };
-        await scheduleApi.updateSchedule(
-          Number(teamId),
-          editingEvent.id,
-          String(currentUser.id),
-          updateRequest
-        );
-      } else {
-        const createRequest: ScheduleCreateRequest = {
-          title: eventToProcess.title,
-          startDate: eventToProcess.startDate.toISOString(),
-          endDate: eventToProcess.endDate.toISOString(),
-          scheduleDesc: eventToProcess.description,
-          type: eventToProcess.type || "MEETING",
-        };
-        await scheduleApi.createSchedule(
-          Number(teamId),
-          String(currentUser.id),
-          createRequest
-        );
-      }
-
-      resetModalState();
-
-      const firstDay = new Date(year, month, 1);
-      const lastDay = new Date(year, month + 1, 0, 23, 59, 59);
-      await loadEvents(firstDay, lastDay);
-    } catch (error) {
-      console.error("일정 처리 실패:", error);
-      alert(`일정 ${editingEvent ? "수정" : "추가"}에 실패했습니다.`);
-    }
-  };
-
-  const handleDeleteEvent = async () => {
-    if (editingEvent) {
-      if (window.confirm("이 일정을 정말 삭제하시겠습니까?")) {
-        try {
-          await scheduleApi.deleteSchedule(
-            Number(teamId),
-            editingEvent.id,
-            String(currentUser.id)
-          );
-          resetModalState();
-          const firstDay = new Date(year, month, 1);
-          const lastDay = new Date(year, month + 1, 0, 23, 59, 59);
-          await loadEvents(firstDay, lastDay);
-        } catch (error) {
-          console.error("일정 삭제 실패:", error);
-          alert("일정 삭제에 실패했습니다.");
-        }
-      }
-    }
-  };
-
-  const openAddModal = (date: Date) => {
-    resetModalState();
-    const startOfDay = new Date(date);
-    startOfDay.setHours(9, 0, 0, 0);
-    const endOfDay = new Date(date);
-    endOfDay.setHours(10, 0, 0, 0);
-    setNewEvent({
-      title: "",
-      startDate: startOfDay,
-      endDate: endOfDay,
-      type: "MEETING",
-    });
-    setShowAddEventModal(true);
-  };
-
-  const openEditModal = (event: InternalCalendarEvent) => {
-    setEditingEvent(event);
-    setNewEvent({
-      title: event.title,
-      startDate: new Date(event.startDate),
-      endDate: new Date(event.endDate),
-      type: event.type,
-      description: event.description,
-    });
-    setShowAddEventModal(true);
-  };
-
-  const prevMonth = () => setCurrentDisplayDate(new Date(year, month - 1, 1));
-  const nextMonth = () => setCurrentDisplayDate(new Date(year, month + 1, 1));
-
-  const getDayClass = (
-    _day: number,
-    isCurrentMonth: boolean,
-    isToday: boolean,
-    hasEvent: boolean
-  ) => {
-    let classes =
-      "w-6 h-6 text-center leading-6 cursor-pointer rounded-full transition-colors text-sm ";
-    if (!isCurrentMonth) classes += "text-gray-400";
-    else if (isToday) classes += "bg-blue-500 text-white font-bold ";
-    else classes += "hover:bg-blue-100 ";
-
-    if (hasEvent && isCurrentMonth) classes += " font-semibold";
-
-    return classes;
-  };
-
-  const renderDays = () => {
-    const totalDays = new Date(year, month + 1, 0).getDate();
-    const firstDayIndex = new Date(year, month, 1).getDay();
-    const prevMonthDays = new Date(year, month, 0).getDate();
-
-    const days = [];
-
-    for (let i = firstDayIndex - 1; i >= 0; i--) {
-      days.push(
-        <div
-          key={`prev-${i}`}
-          className="p-2 h-24 border-b border-r border-gray-200 bg-gray-50"
-        >
-          <div className="w-6 h-6 text-center leading-6 text-gray-300 text-sm">
-            {prevMonthDays - i}
-          </div>
-        </div>
-      );
-    }
-
-    for (let i = 1; i <= totalDays; i++) {
-      const fullDate = new Date(year, month, i);
-      const isToday = fullDate.toDateString() === new Date().toDateString();
-      const dayEvents = events.filter((e) => {
-        const start = new Date(e.startDate);
-        const end = new Date(e.endDate);
-        return (
-          fullDate >=
-            new Date(start.getFullYear(), start.getMonth(), start.getDate()) &&
-          fullDate <= new Date(end.getFullYear(), end.getMonth(), end.getDate())
-        );
-      });
-
-      days.push(
-        <div
-          key={i}
-          className="p-2 h-24 border-b border-r border-gray-200 hover:bg-gray-50 cursor-pointer"
-        >
-          <div className="flex justify-between items-start mb-1">
-            <div
-              className={getDayClass(i, true, isToday, dayEvents.length > 0)}
-              onClick={() => openAddModal(fullDate)}
-            >
-              {i}
-            </div>
-          </div>
-          <div className="w-full text-xs space-y-1">
-            {dayEvents.slice(0, 3).map((event) => (
-              <div
-                key={event.id}
-                onClick={() => openEditModal(event)}
-                className={`px-1 py-0.5 rounded truncate cursor-pointer text-xs ${
-                  event.type === "MEETING"
-                    ? "bg-blue-100 text-blue-800"
-                    : event.type === "DEADLINE"
-                    ? "bg-red-100 text-red-800"
-                    : event.type === "WORKSHOP"
-                    ? "bg-green-100 text-green-800"
-                    : event.type === "VACATION"
-                    ? "bg-purple-100 text-purple-800"
-                    : "bg-gray-100 text-gray-800"
-                }`}
-              >
-                {event.title}
-              </div>
-            ))}
-            {dayEvents.length > 3 && (
-              <div className="text-xs text-gray-500 text-center">
-                +{dayEvents.length - 3}개
-              </div>
-            )}
-          </div>
-        </div>
-      );
-    }
-
-    const remainingCells = 42 - days.length; // 6 * 7 grid
-    for (let i = 1; i <= remainingCells; i++) {
-      days.push(
-        <div
-          key={`next-${i}`}
-          className="p-2 h-24 border-b border-r border-gray-200 bg-gray-50"
-        >
-          <div className="w-6 h-6 text-center leading-6 text-gray-300 text-sm">
-            {i}
-          </div>
-        </div>
-      );
-    }
-
-    return days;
-  };
+  // Generate October 2026 days for Month Grid
+  const daysInMonth = Array.from({ length: 31 }, (_, i) => i + 1);
 
   return (
-    <Card>
-      <div className="flex justify-between items-center mb-4 pb-4 border-b border-neutral-200">
-        <h2 className="text-xl font-semibold text-neutral-800">🗓️ 팀 캘린더</h2>
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => openAddModal(new Date())}
-          leftIcon={<PlusCircleIcon />}
-        >
-          일정 추가
-        </Button>
-      </div>
-      <div className="flex justify-between items-center mb-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={prevMonth}
-          leftIcon={<ArrowLeftIcon />}
-        >
-          이전 달
-        </Button>
-        <h3 className="text-lg font-bold">{`${year}년 ${month + 1}월`}</h3>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={nextMonth}
-          rightIcon={
-            <div className="transform rotate-180">
-              <ArrowLeftIcon />
-            </div>
-          }
-        >
-          다음 달
-        </Button>
-      </div>
-      <div className="grid grid-cols-7 gap-1 border border-gray-200 rounded-lg overflow-hidden">
-        {daysOfWeek.map((day) => (
-          <div
-            key={day}
-            className="font-semibold text-center text-sm p-2 bg-gray-50 border-b border-gray-200"
-          >
-            {day}
+    <div className="space-y-5">
+      {/* Toolbar: 3 Views (Month / Week / List) + Personal Layer Toggle (Spec 14 §4.3) */}
+      <div className="bg-white rounded-2xl border border-neutral-200 p-4 shadow-craft-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex p-1 bg-surface-subtle rounded-xl border border-neutral-200">
+            {[
+              { id: 'MONTH', label: '월간 그리드' },
+              { id: 'WEEK', label: '주간 타임라인' },
+              { id: 'LIST', label: '리스트 뷰' },
+            ].map((v) => (
+              <button
+                key={v.id}
+                type="button"
+                onClick={() => setViewMode(v.id as 'MONTH' | 'WEEK' | 'LIST')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors ${
+                  viewMode === v.id ? 'bg-peri-600 text-white shadow-xs' : 'text-ink-secondary'
+                }`}
+              >
+                {v.label}
+              </button>
+            ))}
           </div>
-        ))}
-        {renderDays()}
+
+          <label className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-peri-50 border border-peri-200 text-xs font-bold text-peri-800 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showPersonalLayer}
+              onChange={(e) => setShowPersonalLayer(e.target.checked)}
+              className="h-4 w-4 accent-peri-600"
+            />
+            <span>내 개인 일정 레이어 겹쳐 보기 (본인에게만 표시)</span>
+          </label>
+        </div>
+
+        <div className="flex items-center justify-between md:justify-end gap-3">
+          <span className="text-sm font-extrabold text-ink-primary tabular-nums">2026년 10월</span>
+          {!isReadOnly && (
+            <Button variant="primary" size="sm" onClick={() => setCreateOpen(true)}>
+              + 일정 추가 (팀/개인)
+            </Button>
+          )}
+        </div>
       </div>
 
-      <Modal
-        isOpen={showAddEventModal}
-        onClose={resetModalState}
-        title={editingEvent ? "일정 수정" : "새 일정 추가"}
-        footer={
-          <div className="flex justify-between w-full">
-            {editingEvent && (
-              <Button
-                variant="danger"
-                onClick={handleDeleteEvent}
-                leftIcon={<TrashIcon />}
-              >
-                삭제
-              </Button>
-            )}
-            <div className="flex space-x-2 ml-auto">
-              <Button variant="ghost" onClick={resetModalState}>
-                취소
-              </Button>
-              <Button variant="primary" onClick={handleAddOrUpdateEvent}>
-                {editingEvent ? "수정" : "추가"}
-              </Button>
-            </div>
+      {/* Legend (5 ScheduleTypes, Spec 14-D3) */}
+      <div className="flex flex-wrap items-center gap-3 px-1 text-xs text-ink-secondary">
+        <span className="font-bold text-ink-tertiary">유형 범례:</span>
+        {(Object.keys(SCHEDULE_TYPE_META) as Array<keyof typeof SCHEDULE_TYPE_META>).map((k) => (
+          <span key={k} className="inline-flex items-center gap-1.5 font-semibold">
+            <span className={`w-2.5 h-2.5 rounded-full ${SCHEDULE_TYPE_META[k].dotClass}`} />
+            <span>
+              {k} ({SCHEDULE_TYPE_META[k].label})
+            </span>
+          </span>
+        ))}
+      </div>
+
+      {/* 1. MONTH VIEW */}
+      {viewMode === 'MONTH' && (
+        <Card noPadding className="overflow-hidden">
+          <div className="grid grid-cols-7 bg-surface-subtle border-b border-neutral-200 text-center py-2.5 text-xs font-extrabold text-ink-secondary">
+            {['일', '월', '화', '수', '목', '금', '토'].map((d) => (
+              <div key={d}>{d}</div>
+            ))}
           </div>
+          <div className="grid grid-cols-7 divide-x divide-y divide-neutral-200/80">
+            {/* Offset for Oct 1, 2026 (Thursday = 4 empty cells) */}
+            {[0, 1, 2, 3].map((empty) => (
+              <div key={`empty-${empty}`} className="min-h-[96px] sm:min-h-[116px] bg-surface-subtle/30 p-1.5" />
+            ))}
+            {daysInMonth.map((day) => {
+              const datePrefix = `2026-10-${String(day).padStart(2, '0')}`;
+              const dayEvents = schedules.filter((s) => s.startDate.startsWith(datePrefix));
+              const isToday = day === 14;
+
+              return (
+                <div
+                  key={day}
+                  className={`min-h-[96px] sm:min-h-[116px] p-1.5 sm:p-2 flex flex-col gap-1 ${
+                    isToday ? 'bg-peri-50/40' : 'bg-white'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={`w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center tabular-nums ${
+                        isToday ? 'bg-peri-600 text-white' : 'text-ink-secondary'
+                      }`}
+                    >
+                      {day}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1">
+                    {dayEvents.slice(0, 3).map((ev) => (
+                      <div
+                        key={ev.id}
+                        className={`px-1.5 py-1 rounded text-[11px] font-bold truncate ${
+                          ev.isPersonal
+                            ? 'bg-violet-50 text-violet-900 border border-dashed border-violet-400'
+                            : ev.type === 'DEADLINE'
+                            ? 'bg-rose-50 text-rose-900 border border-rose-200'
+                            : 'bg-peri-50 text-peri-800 border border-peri-200'
+                        }`}
+                        title={`${ev.title} (${ev.startDate.slice(11, 16)})`}
+                      >
+                        {ev.title}
+                      </div>
+                    ))}
+                    {dayEvents.length > 3 && (
+                      <div className="text-[10px] font-bold text-ink-tertiary pl-1">
+                        +{dayEvents.length - 3}개 더보기
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
+      {/* 2. WEEK VIEW */}
+      {viewMode === 'WEEK' && (
+        <Card title="이번 주 일정 레인 (2026.10.12 ~ 10.18)" subtitle="시간대별 팀 공식 일정과 내 개인 일정을 비교합니다.">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {[14, 15, 16, 17].map((day) => {
+              const datePrefix = `2026-10-${day}`;
+              const dayEvents = schedules.filter((s) => s.startDate.startsWith(datePrefix));
+              return (
+                <div
+                  key={day}
+                  className="p-3.5 rounded-2xl bg-surface-subtle/70 border border-neutral-200 space-y-2.5"
+                >
+                  <div className="flex items-center justify-between border-b border-neutral-200 pb-2">
+                    <span className="text-sm font-extrabold text-ink-primary tabular-nums">
+                      10월 {day}일
+                    </span>
+                    {day === 14 && (
+                      <Badge variant="peri" size="xs">
+                        오늘
+                      </Badge>
+                    )}
+                  </div>
+                  {dayEvents.length === 0 ? (
+                    <p className="text-xs text-ink-tertiary py-4 text-center">등록된 일정 없음</p>
+                  ) : (
+                    dayEvents.map((ev) => (
+                      <div
+                        key={ev.id}
+                        className="p-3 rounded-xl bg-white border border-neutral-200 space-y-1 shadow-2xs"
+                      >
+                        <div className="flex items-center justify-between">
+                          <Badge
+                            variant={
+                              ev.isPersonal
+                                ? 'admin'
+                                : SCHEDULE_TYPE_META[ev.type].badgeVariant
+                            }
+                            size="xs"
+                          >
+                            {ev.isPersonal ? '내 개인 일정' : ev.type}
+                          </Badge>
+                          <span className="text-xs font-bold text-ink-tertiary tabular-nums">
+                            {ev.startDate.slice(11, 16)}
+                          </span>
+                        </div>
+                        <div className="text-xs sm:text-sm font-bold text-ink-primary">
+                          {ev.title}
+                        </div>
+                        {ev.scheduleDesc && (
+                          <p className="text-xs text-ink-secondary">{ev.scheduleDesc}</p>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
+      {/* 3. LIST VIEW */}
+      {viewMode === 'LIST' && (
+        <Card title="전체 일정 리스트" subtitle="시작 5분 전 인앱 리마인더 알림이 자동 발송됩니다. (16-D4)">
+          <div className="space-y-3">
+            {schedules.map((ev) => (
+              <div
+                key={ev.id}
+                className="p-4 rounded-2xl bg-surface-subtle/60 border border-neutral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+              >
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge
+                      variant={
+                        ev.isPersonal ? 'admin' : SCHEDULE_TYPE_META[ev.type].badgeVariant
+                      }
+                      size="xs"
+                    >
+                      {ev.isPersonal ? '🔒 내 개인 일정' : SCHEDULE_TYPE_META[ev.type].label}
+                    </Badge>
+                    <span className="text-sm font-extrabold text-ink-primary">{ev.title}</span>
+                  </div>
+                  {ev.scheduleDesc && (
+                    <p className="text-xs text-ink-secondary">{ev.scheduleDesc}</p>
+                  )}
+                  <div className="text-xs text-ink-tertiary tabular-nums">
+                    일시: {ev.startDate.replace('T', ' ')} ~ {ev.endDate.replace('T', ' ')} · 등록:{' '}
+                    {ev.creatorName}
+                  </div>
+                </div>
+                {!isReadOnly && (
+                  <Button variant="ghost" size="xs" onClick={() => deleteSchedule(ev.id)}>
+                    삭제
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Add Schedule Modal */}
+      <Modal
+        isOpen={createOpen}
+        onClose={() => setCreateOpen(false)}
+        title="새 일정 등록 (팀 공식 / 내 개인 일정)"
+        subtitle="개인 일정으로 체크하면 타 팀원에게는 절대 노출되지 않으며 내 캘린더에만 표시됩니다. (14 §4.3)"
+        footer={
+          <>
+            <Button variant="outline" size="sm" onClick={() => setCreateOpen(false)}>
+              취소
+            </Button>
+            <Button variant="primary" size="sm" onClick={handleAdd}>
+              일정 등록하기
+            </Button>
+          </>
         }
       >
-        <div className="space-y-4">
+        <form onSubmit={handleAdd} className="space-y-4">
           <Input
             label="일정 제목"
-            value={newEvent.title || ""}
-            onChange={(e) =>
-              setNewEvent((prev) => ({ ...prev, title: e.target.value }))
-            }
-            required
-            placeholder="일정 제목을 입력하세요"
+            name="title"
+            requiredMark
+            placeholder="예: 중간 발표 리허설 회의"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
           />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid sm:grid-cols-2 gap-3">
             <Input
-              label="시작일"
+              label="시작 일시"
+              name="startDate"
               type="datetime-local"
-              value={
-                newEvent.startDate
-                  ? new Date(
-                      newEvent.startDate.getTime() -
-                        newEvent.startDate.getTimezoneOffset() * 60000
-                    )
-                      .toISOString()
-                      .slice(0, 16)
-                  : ""
-              }
-              onChange={(e) =>
-                setNewEvent((prev) => ({
-                  ...prev,
-                  startDate: new Date(e.target.value),
-                }))
-              }
-              required
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
             />
             <Input
-              label="종료일"
+              label="종료 일시"
+              name="endDate"
               type="datetime-local"
-              value={
-                newEvent.endDate
-                  ? new Date(
-                      newEvent.endDate.getTime() -
-                        newEvent.endDate.getTimezoneOffset() * 60000
-                    )
-                      .toISOString()
-                      .slice(0, 16)
-                  : ""
-              }
-              onChange={(e) =>
-                setNewEvent((prev) => ({
-                  ...prev,
-                  endDate: new Date(e.target.value),
-                }))
-              }
-              required
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              일정 종류
+            <label className="block text-xs sm:text-sm font-semibold text-ink-primary mb-1.5">
+              일정 유형 (ScheduleType 5종)
             </label>
             <select
-              value={newEvent.type || "MEETING"}
-              onChange={(e) =>
-                setNewEvent((prev) => ({
-                  ...prev,
-                  type: e.target.value as InternalCalendarEvent["type"],
-                }))
-              }
-              className="w-full p-3 border border-gray-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              value={type}
+              onChange={(e) => setType(e.target.value as any)}
+              className="w-full min-h-[44px] px-3.5 py-2 rounded-xl border border-neutral-300 bg-surface-subtle/60 text-sm font-semibold text-ink-primary"
             >
-              <option value="MEETING">📝 회의</option>
-              <option value="DEADLINE">⏰ 마감일</option>
-              <option value="WORKSHOP">🎯 워크샵</option>
-              <option value="VACATION">🏖️ 휴가</option>
-              <option value="OTHER">📌 기타</option>
+              {(Object.keys(SCHEDULE_TYPE_META) as Array<keyof typeof SCHEDULE_TYPE_META>).map(
+                (k) => (
+                  <option key={k} value={k}>
+                    {k} — {SCHEDULE_TYPE_META[k].label}
+                  </option>
+                )
+              )}
             </select>
           </div>
           <TextArea
-            label="설명 (선택)"
-            value={newEvent.description || ""}
-            onChange={(e) =>
-              setNewEvent((prev) => ({ ...prev, description: e.target.value }))
-            }
-            rows={3}
-            placeholder="일정에 대한 상세 설명을 입력하세요"
+            label="일정 메모 (선택)"
+            name="desc"
+            value={desc}
+            onChange={(e) => setDesc(e.target.value)}
           />
-        </div>
+          <label className="flex items-center gap-2.5 p-3 rounded-xl bg-violet-50 border border-dashed border-violet-300 text-xs font-bold text-violet-900 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isPersonal}
+              onChange={(e) => setIsPersonal(e.target.checked)}
+              className="h-4 w-4 accent-peri-600"
+            />
+            <span>🔒 내 개인 일정으로 등록 (본인에게만 표시 · 14 §5.3)</span>
+          </label>
+        </form>
       </Modal>
-    </Card>
+    </div>
   );
 };
 
