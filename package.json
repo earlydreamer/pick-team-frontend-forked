@@ -14,14 +14,14 @@
     "@stomp/stompjs": "^7.1.1",
     "@types/react-linkify": "^1.0.4",
     "@vitejs/plugin-react": "^4.6.0",
-    "axios": "^1.13.2",
+    "axios": "^1.20.0",
     "livekit-client": "^2.15.2",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-linkify": "^1.0.0-alpha",
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.6.2",
-    "vite": "^6.4.1",
+    "vite": "^6.4.5",
     "vite-tsconfig-paths": "^4.3.2"
   },
   "devDependencies": {
@@ -29,5 +29,8 @@
     "@types/react": "^19.2.3",
     "@types/react-dom": "^19.2.3",
     "typescript": "~5.7.2"
+  },
+  "overrides": {
+    "linkify-it": "^5.0.2"
   }
 }
