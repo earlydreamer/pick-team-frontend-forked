@@ -24,3 +24,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# 디자인 QA 캡처 산출물
+.taste-skill/
