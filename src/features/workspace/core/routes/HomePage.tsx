@@ -11,7 +11,6 @@ import { User, Workspace } from '@/types';
 import { workspaceApi } from '@/features/workspace/management/api/workspaceApi';
 import { UserIcon, UsersIcon } from '@/assets/icons';
 import TeamActionModal from '@/features/teamspace/team/components/TeamActionModal';
-import { TeamProjectSidebar } from '@/features/teamspace/core/components/TeamProjectSidebar';
 import { getProfileImageSrc, handleImageError } from '@/lib/imageUtils';
 
 export const HomePage: React.FC = () => {
@@ -219,8 +218,7 @@ export const HomePage: React.FC = () => {
 
   return (
     <div className="flex">
-      <TeamProjectSidebar />
-      <div className="flex-1 ml-64 p-4 sm:p-6 lg:p-8 space-y-8">
+      <div className="flex-1 p-4 sm:p-6 lg:p-8 space-y-8">
         <Card>
           <h1 className="text-2xl font-bold text-neutral-800">안녕하세요, {currentUser.name || '사용자'}님!</h1>
           <p className="text-neutral-600 mt-1">{currentWorkspace.name} 워크스페이스입니다.</p>

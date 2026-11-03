@@ -5,7 +5,6 @@ import { useWorkspace } from '@/features/workspace/core/hooks/useWorkspace';
 import { useChat } from '../context/ChatContext';
 import { Card, TextArea, Button } from '@/components/ui';
 import { PlusCircleIcon, XCircleIcon } from '@/assets/icons';
-import { TeamProjectSidebar } from '@/features/teamspace/core/components/TeamProjectSidebar';
 import Linkify from 'react-linkify';
 import { chatLogger } from '../utils/chatLogger';
 import { getFileUrl } from '@/lib/imageUtils';
@@ -322,9 +321,8 @@ export const ChatPage: React.FC = () => {
 
   return (
     <div className="flex">
-      <TeamProjectSidebar />
-      <div className="flex-1 ml-64 p-4 sm:p-6 lg:p-8">
-        <Card title={`대화: ${getChatRoomDisplayName()}`} className="flex flex-col h-[calc(100vh-8rem-4rem)]">
+      <div className="flex-1 p-4 sm:p-6 lg:p-8">
+        <Card title={`대화: ${getChatRoomDisplayName()}`} className="flex flex-col h-[calc(100dvh-6.5rem)] lg:h-[calc(100dvh-4rem)]">
           <div className="flex-grow space-y-3 overflow-y-auto mb-3 pr-2 p-2 border border-neutral-200 rounded-md bg-neutral-50 scrollbar-thin scrollbar-thumb-neutral-300 scrollbar-track-neutral-100">
             {/* 이전 메시지 더보기 버튼 */}
             {messages.length > loadedMessageCount && (
