@@ -1,0 +1,8 @@
+/* Pretendard Variable (SIL OFL 1.1, fonts/Pretendard-OFL.txt). 외부 CDN 없이 번들에 포함합니다. */
+@font-face {
+  font-family: 'Pretendard Variable';
+  src: url('./fonts/PretendardVariable.woff2') format('woff2');
+  font-weight: 45 920;
+  font-style: normal;
+  font-display: swap;
+}
