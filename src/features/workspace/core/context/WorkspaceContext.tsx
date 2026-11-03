@@ -59,12 +59,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({
         }
     }, [currentWorkspace]);
 
+    // 최초 로드는 위 effect의 hasLoaded로 한 번만 실행하고, 직접 호출하면 항상 다시 불러옵니다(재시도·참여 후 갱신).
     const loadWorkspaces = async () => {
-        if (hasLoaded) {
-            console.log('이미 워크스페이스가 로드됨, 중복 호출 방지');
-            return;
-        }
-        
         setLoading(true);
         setError(null);
         try {

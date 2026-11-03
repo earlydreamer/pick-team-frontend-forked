@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/features/user/auth/context/AuthContext';
 import { userApi } from '@/lib/userApi';
+import { CheckCircleIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
+import { BrandLockup } from '@/layout/BrandMark';
 
 export const OAuthCallbackPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -34,6 +36,7 @@ export const OAuthCallbackPage: React.FC = () => {
       // 회원가입인지 로그인인지 확인
       const isSignup = sessionStorage.getItem('isOAuthSignup') === 'true';
       sessionStorage.removeItem('isOAuthSignup');
+      let postLoginPath = '/';
       
       try {
         setMessage(isSignup ? '회원가입을 완료하는 중입니다...' : '로그인 중입니다...');
@@ -95,13 +98,14 @@ export const OAuthCallbackPage: React.FC = () => {
           const pendingInviteCode = sessionStorage.getItem('pendingInviteCode');
           if (pendingInviteCode) {
             sessionStorage.removeItem('pendingInviteCode');
-            // TODO: 워크스페이스 참여 로직
+            // 초대 화면에서 사용자가 직접 참여를 확인합니다.
+              postLoginPath = `/invite/${encodeURIComponent(pendingInviteCode)}`;
           }            setStatus('success');
             setMessage(isSignup ? '회원가입이 완료되었습니다. 메인 페이지로 이동합니다...' : '로그인되었습니다. 메인 페이지로 이동합니다...');
             setTimeout(() => {
               // OAuth 로그인 완료 후 리다이렉트 플래그 초기화
               sessionStorage.removeItem('hasRedirectedFromRoot');
-              navigate('/', { replace: true });
+              navigate(postLoginPath, { replace: true });
             }, 1500);
         } else if (tempCode) {
           // 임시 코드를 받은 경우 (백엔드에서 임시 코드 방식 사용하는 경우)
@@ -121,7 +125,8 @@ export const OAuthCallbackPage: React.FC = () => {
             const pendingInviteCode = sessionStorage.getItem('pendingInviteCode');
             if (pendingInviteCode) {
               sessionStorage.removeItem('pendingInviteCode');
-              // TODO: 워크스페이스 참여 로직
+              // 초대 화면에서 사용자가 직접 참여를 확인합니다.
+              postLoginPath = `/invite/${encodeURIComponent(pendingInviteCode)}`;
             }
 
             setStatus('success');
@@ -137,7 +142,7 @@ export const OAuthCallbackPage: React.FC = () => {
               }
               // OAuth 로그인 완료 후 리다이렉트 플래그 초기화 (새로운 로그인이므로)
               sessionStorage.removeItem('hasRedirectedFromRoot');
-              navigate('/', { replace: true });
+              navigate(postLoginPath, { replace: true });
             }, 2000);
           } else {
             throw new Error(response.message || '토큰 교환에 실패했습니다.');
@@ -174,41 +179,19 @@ export const OAuthCallbackPage: React.FC = () => {
   }, [searchParams, navigate, auth]); // isProcessing 의존성 제거
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-neutral-50">
-      <div className="max-w-md w-full space-y-8">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold text-primary">PickTeam</h1>
-          
-          {status === 'loading' && (
-            <div className="mt-8">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-              <p className="mt-4 text-neutral-600">{message}</p>
-            </div>
-          )}
-          
-          {status === 'success' && (
-            <div className="mt-8">
-              <div className="w-12 h-12 mx-auto bg-green-100 rounded-full flex items-center justify-center">
-                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                </svg>
-              </div>
-              <p className="mt-4 text-green-600 font-medium">{message}</p>
-            </div>
-          )}
-          
-          {status === 'error' && (
-            <div className="mt-8">
-              <div className="w-12 h-12 mx-auto bg-red-100 rounded-full flex items-center justify-center">
-                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-              </div>
-              <p className="mt-4 text-red-600">{message}</p>
-              <p className="mt-2 text-sm text-neutral-500">잠시 후 로그인 페이지로 이동합니다.</p>
-            </div>
-          )}
-        </div>
+    <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-canvas px-4">
+      <BrandLockup />
+      <div
+        role={status === 'error' ? 'alert' : 'status'}
+        className="w-full max-w-sm rounded-modal border border-outline-soft bg-surface px-6 py-8 text-center"
+      >
+        {status === 'loading' && (
+          <span className="mx-auto block h-10 w-10 animate-spin rounded-full border-[3px] border-primary border-t-transparent" aria-hidden="true" />
+        )}
+        {status === 'success' && <CheckCircleIcon className="mx-auto h-12 w-12 text-success" aria-hidden="true" />}
+        {status === 'error' && <ExclamationCircleIcon className="mx-auto h-12 w-12 text-danger" aria-hidden="true" />}
+        <p className={`mt-4 font-semibold ${status === 'error' ? 'text-danger' : 'text-ink'}`}>{message}</p>
+        {status === 'error' && <p className="mt-2 text-sm text-muted">잠시 후 로그인 화면으로 이동해요.</p>}
       </div>
     </div>
   );
