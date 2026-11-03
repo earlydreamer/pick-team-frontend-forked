@@ -161,7 +161,7 @@ export async function apiRequest<T>(endpoint: string, options: RequestInit = {})
           // 토큰 갱신 실패 시 로그인 페이지로 리다이렉트
           tokenManager.clearTokens();
           if (typeof window !== 'undefined') {
-            window.location.hash = '/login';
+            if (window.location.pathname !== '/login') window.location.assign('/login');
           }
           throw new ApiError(401, '인증이 만료되었습니다. 다시 로그인해주세요.');
         }
@@ -169,7 +169,7 @@ export async function apiRequest<T>(endpoint: string, options: RequestInit = {})
         // 리프레시 토큰이 없으면 로그인 페이지로
         tokenManager.clearTokens();
         if (typeof window !== 'undefined') {
-          window.location.hash = '/login';
+          if (window.location.pathname !== '/login') window.location.assign('/login');
         }
         throw new ApiError(401, '인증이 필요합니다. 로그인해주세요.');
       }

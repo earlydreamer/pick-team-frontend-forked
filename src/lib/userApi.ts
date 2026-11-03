@@ -202,7 +202,7 @@ async function userApiRequest<T>(
         tokenManager.clearTokens();
         
         if (typeof window !== "undefined") {
-          window.location.hash = "/login";
+          if (window.location.pathname !== '/login') window.location.assign('/login');
         }
         throw refreshError;
       } finally {

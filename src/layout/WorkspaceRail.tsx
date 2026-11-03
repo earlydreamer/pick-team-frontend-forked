@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useMatch, useNavigate } from 'react-router-dom';
 import { PlusIcon, LinkIcon } from '@heroicons/react/24/outline';
 import { useWorkspace } from '@/features/workspace/core/hooks/useWorkspace';
 import CreateWorkspaceModal from '@/features/workspace/management/components/CreateWorkspaceModal';
@@ -35,6 +35,8 @@ const WorkspaceIcon: React.FC<{ workspace: Workspace; active: boolean }> = ({ wo
 export const WorkspaceRail: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }) => {
   const { workspaces, currentWorkspace, loading } = useWorkspace();
   const navigate = useNavigate();
+  // 워크스페이스 밖 화면(마이페이지·초대 등)에서는 선택 표시를 하지 않습니다.
+  const inWorkspace = useMatch('/ws/:workspaceId/*') !== null;
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isJoinOpen, setIsJoinOpen] = useState(false);
 
@@ -56,7 +58,7 @@ export const WorkspaceRail: React.FC<{ onNavigate?: () => void }> = ({ onNavigat
             <li className="h-11 w-11 animate-pulse rounded-[12px] bg-surface-container" aria-label="워크스페이스를 불러오는 중" />
           ) : (
             workspaces.map((ws) => {
-              const active = currentWorkspace?.id === ws.id;
+              const active = inWorkspace && currentWorkspace?.id === ws.id;
               return (
                 <li key={ws.id}>
                   <button

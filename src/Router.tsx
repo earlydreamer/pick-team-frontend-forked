@@ -13,6 +13,8 @@ import { HomePage } from '@/features/workspace/core/routes/HomePage';
 import { ChatPage } from '@/features/workspace/chat/routes/ChatPage';
 import { VideoConferencePage } from '@/features/workspace/video/routes/VideoConferencePage';
 import EmptyWorkspacePage from '@/features/workspace/core/routes/EmptyWorkspacePage';
+import { InvitePage } from '@/features/workspace/management/routes/InvitePage';
+import { NotFoundPage } from '@/layout/NotFoundPage';
 import { useWorkspace } from '@/features/workspace/core/hooks/useWorkspace';
 import { useAuth } from '@/features/user/auth/hooks/useAuth';
 
@@ -39,6 +41,8 @@ const Router: React.FC = () => {
                 <Route path="users/:userId" element={<UserProfileViewPage />} />
                 <Route path="notifications" element={<NotificationsPage />} />
                 <Route path="empty-workspace" element={<EmptyWorkspacePage />} />
+                <Route path="invite/:inviteCode" element={<InvitePage />} />
+                <Route path="*" element={<NotFoundPage />} />
             </Route>
         </Routes>
     );

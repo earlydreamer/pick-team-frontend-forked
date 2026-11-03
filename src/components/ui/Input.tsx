@@ -9,7 +9,7 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const fieldClassName = (hasError: boolean, extra = '') =>
-  `block w-full min-h-touch rounded-lg border bg-surface px-3 py-2.5 text-[0.9375rem] text-ink placeholder:text-neutral-400 transition-colors focus:outline-none focus-visible:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:bg-surface-low disabled:text-neutral-500 ${
+  `block w-full min-h-touch rounded-lg border bg-surface px-3 py-2.5 text-[0.9375rem] text-ink placeholder:text-neutral-500 transition-colors focus:outline-none focus-visible:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:bg-surface-low disabled:text-neutral-500 ${
     hasError ? 'border-2 border-danger focus:ring-danger/30' : 'border-outline focus:border-primary focus:ring-primary/30'
   } ${extra}`.trim();
 

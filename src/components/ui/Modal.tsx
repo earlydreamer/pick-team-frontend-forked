@@ -23,6 +23,9 @@ const sizeClasses = {
   '2xl': 'sm:max-w-2xl',
 };
 
+/** 열린 대화상자 순서. Escape·Tab은 가장 위의 대화상자만 처리합니다. */
+const openStack: symbol[] = [];
+
 const FOCUSABLE =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -50,6 +53,9 @@ export const Modal: React.FC<ModalProps> = ({
 
   useEffect(() => {
     if (!isOpen) return;
+    const token = Symbol('modal');
+    openStack.push(token);
+    const isTop = () => openStack[openStack.length - 1] === token;
     const previouslyFocused = document.activeElement as HTMLElement | null;
     const panel = panelRef.current;
     const { overflow } = document.body.style;
@@ -61,6 +67,7 @@ export const Modal: React.FC<ModalProps> = ({
     (firstField ?? panel)?.focus();
 
     const onKeyDown = (event: KeyboardEvent) => {
+      if (!isTop()) return;
       if (event.key === 'Escape') {
         if (preventCloseRef.current) return;
         event.stopPropagation();
@@ -86,6 +93,7 @@ export const Modal: React.FC<ModalProps> = ({
     document.addEventListener('keydown', onKeyDown);
     return () => {
       document.removeEventListener('keydown', onKeyDown);
+      openStack.splice(openStack.indexOf(token), 1);
       document.body.style.overflow = overflow;
       previouslyFocused?.focus?.();
     };
