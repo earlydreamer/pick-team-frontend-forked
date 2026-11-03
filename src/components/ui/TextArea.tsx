@@ -1,27 +1,46 @@
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useId } from 'react';
+import { fieldClassName } from './Input';
 
-// TextArea Component
 interface TextAreaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string;
+  help?: string;
   error?: string;
 }
 
 export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
-  ({ label, name, error, className, ...props }, ref) => {
-  return (
-    <div className="w-full">
-      {label && <label htmlFor={name} className="block text-sm font-medium text-neutral-700 mb-1">{label}</label>}
-      <textarea
-        id={name}
-        name={name}
-        ref={ref}
-        rows={3}
-        className={`block w-full px-3 py-2 border rounded-md shadow-sm placeholder-neutral-400 focus:outline-none sm:text-sm ${error ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : 'border-neutral-300 focus:ring-primary focus:border-primary'} ${className}`}
-        {...props}
-      />
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
-    </div>
-  );
-});
+  ({ label, name, help, error, className = '', id, rows = 3, 'aria-describedby': describedBy, 'aria-invalid': ariaInvalid, ...props }, ref) => {
+    const generatedId = useId();
+    const inputId = id || (name ? `field-${name}-${generatedId}` : generatedId);
+    const descriptionId = `${inputId}-description`;
+    const description = error || help;
+    const describedByIds = [describedBy, description ? descriptionId : null].filter(Boolean).join(' ') || undefined;
 
-TextArea.displayName = 'TextArea'; 
+    return (
+      <div className="w-full">
+        {label && (
+          <label htmlFor={inputId} className="mb-1.5 block text-sm font-semibold text-ink">
+            {label}
+            {props.required && <span className="ml-0.5 text-danger" aria-hidden="true">*</span>}
+          </label>
+        )}
+        <textarea
+          id={inputId}
+          name={name}
+          ref={ref}
+          rows={rows}
+          aria-invalid={error ? true : ariaInvalid}
+          aria-describedby={describedByIds}
+          className={fieldClassName(Boolean(error), `leading-6 ${className}`)}
+          {...props}
+        />
+        {description && (
+          <p id={descriptionId} className={`mt-1.5 text-sm ${error ? 'text-danger' : 'text-muted'}`}>
+            {description}
+          </p>
+        )}
+      </div>
+    );
+  },
+);
+
+TextArea.displayName = 'TextArea';
