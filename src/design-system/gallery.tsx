@@ -8,9 +8,11 @@ type SectionId = typeof sections[number][0];
 const palette = [
   { title: '표면', items: [['canvas', '화면 배경'], ['surface', '카드 표면'], ['surface-low', '보조 표면'], ['surface-container', '컨테이너 표면']] },
   { title: '텍스트', items: [['ink', '기본 글자'], ['muted', '보조 글자']] },
-  { title: '주요 행동과 선택', items: [['primary', '강조 글자'], ['primary-fill', '주요 버튼 배경'], ['on-primary', '주요 버튼 글자'], ['primary-container', '선택 배경'], ['on-primary-container', '선택 글자']] },
+  { title: '주요 행동과 선택', items: [['primary', '강조 글자'], ['primary-fill', '주요 버튼 배경'], ['primary-fill-hover', '주요 버튼 호버'], ['on-primary', '주요 버튼 글자'], ['primary-container', '선택 배경'], ['on-primary-container', '선택 글자']] },
   { title: '경계와 포커스', items: [['outline', '입력 경계'], ['outline-soft', '장식 구분선'], ['focus', '포커스 링']] },
   { title: '상태', items: [['success', '성공'], ['warning', '주의'], ['error', '오류']] },
+  { title: '중립 단계 (라이트 전용)', items: [['neutral-50', '50'], ['neutral-100', '100'], ['neutral-200', '200'], ['neutral-300', '300'], ['neutral-400', '400 · 장식'], ['neutral-500', '500 · 보조 글자 최저'], ['neutral-600', '600'], ['neutral-700', '700'], ['neutral-800', '800'], ['neutral-900', '900']] },
+  { title: 'Peri 단계 (라이트 전용)', items: [['peri-50', '50'], ['peri-100', '100'], ['peri-200', '200'], ['peri-300', '300'], ['peri-400', '400'], ['peri-500', '500 · 브랜드'], ['peri-600', '600'], ['peri-700', '700'], ['peri-800', '800'], ['peri-900', '900 · 강조 면']] },
 ] as const;
 
 function formatHex(value: string) {
