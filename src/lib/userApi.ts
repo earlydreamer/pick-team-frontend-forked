@@ -330,14 +330,28 @@ export const userApi = {
     });
   },
 
-  // 프로필 이미지 업로드
-  uploadProfileImage: async (file: File): Promise<ApiResponse<{ profileImageUrl: string }>> => {
+  // 프로필 이미지 업로드. 서버는 data에 이미지 URL 문자열을 담아 돌려줍니다.
+  uploadProfileImage: async (file: File): Promise<ApiResponse<string>> => {
     const formData = new FormData();
     formData.append("file", file);
 
     return userApiRequest("/users/me/profile-image", {
       method: "POST",
       body: formData,
+    });
+  },
+
+  // 프로필 이미지 삭제
+  deleteProfileImage: async (): Promise<ApiResponse<null>> => {
+    return userApiRequest("/users/me/profile-image", {
+      method: "DELETE",
+    });
+  },
+
+  // 다른 사용자 프로필 조회
+  getUserProfile: async (userId: string): Promise<ApiResponse<LoginResponse["user"]>> => {
+    return userApiRequest(`/users/${encodeURIComponent(userId)}`, {
+      method: "GET",
     });
   },
 
@@ -411,9 +425,9 @@ export const userApi = {
     });
   },
 
-  // 해시태그 검색
-  searchHashtags: async (query: string): Promise<ApiResponse<{ hashtags: string[] }>> => {
-    return userApiRequest(`/hashtags/search?q=${encodeURIComponent(query)}`, {
+  // 해시태그 검색 (GET /api/users/hashtags/search?keyword=)
+  searchHashtags: async (keyword: string): Promise<ApiResponse<{ id: number; name: string }[]>> => {
+    return userApiRequest(`/users/hashtags/search?keyword=${encodeURIComponent(keyword)}`, {
       method: "GET",
     });
   },

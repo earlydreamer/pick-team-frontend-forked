@@ -24,6 +24,7 @@ import {
 } from '@/components/ui';
 import { getErrorMessage } from '@/lib/errorMessage';
 import { MemberProfileModal } from '../components/MemberProfileModal';
+import { completenessItems } from '@/features/user/mypage/lib/profile';
 import type { Team, User } from '@/types';
 
 /** 팀 응답의 members는 TeamMemberResponse(accountId 포함)입니다. */
@@ -186,6 +187,7 @@ export const HomePage: React.FC = () => {
   }
 
   const base = `/ws/${currentWorkspace.id}`;
+  const profileIncomplete = completenessItems(currentUser).some((item) => (item.id === 'introduction' || item.id === 'hashtags') && !item.done);
   const memberPreview = members.status === 'ready' ? members.members.slice(0, 6) : [];
   const memberCount = members.status === 'ready' ? members.members.length : currentWorkspace.memberCount;
 
@@ -206,6 +208,21 @@ export const HomePage: React.FC = () => {
           <Button onClick={() => setIsTeamActionOpen(true)}>팀 만들기·참여</Button>
         </div>
       </header>
+
+      {/* 여정: 합류 → 프로필(PR 카드) → 팀 빌딩. 자기소개·태그가 비어 있으면 프로필부터 안내합니다. */}
+      {profileIncomplete && (
+        <section aria-labelledby="profile-nudge-heading" className="mt-6 flex flex-col gap-4 rounded-modal border border-peri-200 bg-peri-50 p-5 sm:flex-row sm:items-center sm:p-6">
+          <div className="flex-1">
+            <h2 id="profile-nudge-heading" className="text-lg font-bold leading-7">
+              프로필을 채우면 팀원이 나를 찾기 쉬워요
+            </h2>
+            <p className="mt-1 text-sm leading-5 text-muted">자기소개와 관심 태그는 멤버 목록과 팀 빌딩에서 함께 보여요.</p>
+          </div>
+          <Link to={`/my-page/profile-edit?onboarding=1&from=${encodeURIComponent(base)}`} className={buttonClassName('primary')}>
+            프로필 채우기
+          </Link>
+        </section>
+      )}
 
       {/* 다음 행동: 참여할 수 있는 팀이 있는데 소속 팀이 없을 때만 안내합니다(팀이 하나도 없으면 아래 빈 상태가 안내). */}
       {myTeams.length === 0 && otherTeams.length > 0 && (
