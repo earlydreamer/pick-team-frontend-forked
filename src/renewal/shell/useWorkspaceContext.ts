@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useLocation, useMatch } from 'react-router-dom';
 import { isManager } from '@/renewal/domain/workspace';
 import { useMyWorkspaces, useSession, useTeams, useMe } from '@/renewal/data/queries';
+import { rememberPath } from './entry';
 
 const LAST_WORKSPACE_KEY = 'pickteam.renewal.lastWorkspace';
 
@@ -19,7 +20,7 @@ const readLastWorkspace = () => {
  */
 export const useWorkspaceContext = () => {
   const match = useMatch('/ws/:wsId/*');
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const routeWsId = match?.params.wsId ?? '';
   const me = useMe();
   const workspaces = useMyWorkspaces();
@@ -32,6 +33,12 @@ export const useWorkspaceContext = () => {
       // 기억하지 못해도 동작에는 문제가 없다.
     }
   }, [routeWsId]);
+
+  // 진입 경로 계산(entry.ts)을 위해 워크스페이스별 마지막 화면을 기억한다.
+  const accountId = me.data?.id;
+  useEffect(() => {
+    if (routeWsId && accountId) rememberPath(accountId, routeWsId, pathname + search);
+  }, [routeWsId, accountId, pathname, search]);
 
   const fallbackId = pathname.startsWith('/me') ? readLastWorkspace() || workspaces.data?.[0]?.id || '' : '';
   const wsId = routeWsId || fallbackId;

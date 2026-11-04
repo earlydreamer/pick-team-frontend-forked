@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { PrCard } from '@/renewal/domain/card';
-import type { CreateTeamInput } from '@/renewal/domain/teamBuilding';
+import type { CreateTeamInput, SessionSettingsInput } from '@/renewal/domain/teamBuilding';
 import { data } from './index';
 
 /** 쿼리 키를 한곳에서 관리해 무효화 범위를 분명히 한다. */
@@ -19,6 +19,8 @@ export const keys = {
   teamDetail: (id: string, teamId: string) => ['workspaces', id, 'team-building', 'teams', teamId] as const,
   recommendations: (id: string) => ['workspaces', id, 'team-building', 'recommendations'] as const,
   inbox: (id: string) => ['workspaces', id, 'team-building', 'inbox'] as const,
+  manage: (id: string) => ['workspaces', id, 'team-building', 'manage'] as const,
+  dashboard: (id: string) => ['workspaces', id, 'dashboard'] as const,
 };
 
 export const useMe = () => useQuery({ queryKey: keys.me, queryFn: () => data.session.me() });
@@ -94,3 +96,23 @@ export const useAccept = (id: string) => useTeamBuildingMutation(id, (applicatio
 export const useDecline = (id: string) => useTeamBuildingMutation(id, (applicationId: string) => data.teamBuilding.decline(id, applicationId));
 export const useWithdraw = (id: string) => useTeamBuildingMutation(id, (applicationId: string) => data.teamBuilding.withdraw(id, applicationId));
 export const useCreateTeam = (id: string) => useTeamBuildingMutation(id, (input: CreateTeamInput) => data.teamBuilding.createTeam(id, input));
+
+/* 세션 운영(SCR-TB-04)과 강사 대시보드(SCR-DSH-01) */
+
+export const useManageView = (id: string, enabled = true) =>
+  useQuery({ queryKey: keys.manage(id), queryFn: () => data.teamBuilding.getManageView(id), enabled: Boolean(id) && enabled });
+export const useCreateSession = (id: string) => useTeamBuildingMutation(id, (input: SessionSettingsInput) => data.teamBuilding.createSession(id, input));
+export const useUpdateSession = (id: string) => useTeamBuildingMutation(id, (input: SessionSettingsInput) => data.teamBuilding.updateSession(id, input));
+export const useOpenSession = (id: string) => useTeamBuildingMutation(id, (_: void) => data.teamBuilding.openSession(id));
+export const useCloseSession = (id: string) => useTeamBuildingMutation(id, (_: void) => data.teamBuilding.closeSession(id));
+export const useAssignMember = (id: string) =>
+  useTeamBuildingMutation(id, (input: { accountId: string; teamId: string }) => data.teamBuilding.assignMember(id, input.accountId, input.teamId));
+export const useUnassignMember = (id: string) => useTeamBuildingMutation(id, (accountId: string) => data.teamBuilding.unassignMember(id, accountId));
+export const useAddTeamSlot = (id: string) => useTeamBuildingMutation(id, (name: string) => data.teamBuilding.addTeamSlot(id, name));
+export const useRandomAssign = (id: string) => useTeamBuildingMutation(id, (_: void) => data.teamBuilding.randomAssign(id));
+export const useResolveSession = (id: string) => useTeamBuildingMutation(id, (_: void) => data.teamBuilding.resolveSession(id));
+
+export const useDashboard = (id: string, enabled = true) =>
+  useQuery({ queryKey: keys.dashboard(id), queryFn: () => data.dashboard.get(id), enabled: Boolean(id) && enabled });
+export const useApprove = (id: string) => useTeamBuildingMutation(id, (approvalId: string) => data.dashboard.approve(id, approvalId));
+export const useRemindCardWriters = (id: string) => useTeamBuildingMutation(id, (_: void) => data.dashboard.remindCardWriters(id));

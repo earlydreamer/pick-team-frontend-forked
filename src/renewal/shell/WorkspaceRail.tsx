@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useMatch } from 'react-router-dom';
-import { useMyWorkspaces } from '@/renewal/data/queries';
+import { useMe, useMyWorkspaces } from '@/renewal/data/queries';
+import { workspaceEntryPath } from './entry';
 
 /** 레일 아이콘 글자: 숫자만 있는 단어(연도 등)를 건너뛰고 첫 단어의 앞 두 글자를 쓴다. 예) 2026 하계 부트캠프 → 하계 */
 const railLabel = (name: string) => {
@@ -9,11 +10,12 @@ const railLabel = (name: string) => {
 };
 
 /**
- * WS 레일(02 §2.1). 가입한 워크스페이스를 세로로 나열한다.
+ * WS 레일(02 §2.1). 가입한 워크스페이스를 세로로 나열한다. 링크는 역할별 진입 경로(02-D4)를 따른다.
  * 워크스페이스 생성·참여 버튼과 미확인 알림 배지는 인증·초대와 알림 단계에서 추가한다.
  */
 export const WorkspaceRail: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }) => {
   const { data: workspaces, isLoading } = useMyWorkspaces();
+  const me = useMe();
   const match = useMatch('/ws/:wsId/*');
   const activeId = match?.params.wsId;
 
@@ -26,7 +28,7 @@ export const WorkspaceRail: React.FC<{ onNavigate?: () => void }> = ({ onNavigat
           return (
             <li key={workspace.id}>
               <Link
-                to={`/ws/${workspace.id}`}
+                to={workspaceEntryPath(me.data?.id, workspace)}
                 onClick={onNavigate}
                 aria-label={workspace.name}
                 aria-current={active ? 'page' : undefined}

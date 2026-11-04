@@ -1,6 +1,18 @@
 import type { PrCard } from '@/renewal/domain/card';
 import type { Account, Member, Workspace } from '@/renewal/domain/workspace';
-import type { CreateTeamInput, Inbox, Recommendation, Team, TeamBuildingBoard, TeamBuildingSession, TeamDetail } from '@/renewal/domain/teamBuilding';
+import type {
+  CreateTeamInput,
+  Inbox,
+  RandomAssignResult,
+  Recommendation,
+  SessionManageView,
+  SessionSettingsInput,
+  Team,
+  TeamBuildingBoard,
+  TeamBuildingSession,
+  TeamDetail,
+} from '@/renewal/domain/teamBuilding';
+import type { DashboardView } from '@/renewal/domain/dashboard';
 import type { Announcement } from '@/renewal/domain/announcement';
 
 /**
@@ -58,6 +70,30 @@ export interface TeamBuildingPort {
   decline(workspaceId: string, applicationId: string): Promise<void>;
   withdraw(workspaceId: string, applicationId: string): Promise<void>;
   createTeam(workspaceId: string, input: CreateTeamInput): Promise<{ teamId: string }>;
+
+  /* 세션 운영(SCR-TB-04). 모두 개설자·매니저 전용이며 멤버가 부르면 FORBIDDEN이다. */
+  getManageView(workspaceId: string): Promise<SessionManageView>;
+  createSession(workspaceId: string, input: SessionSettingsInput): Promise<void>;
+  /** DRAFT는 마감과 정원, OPEN은 마감 연장만 바꾼다 */
+  updateSession(workspaceId: string, input: SessionSettingsInput): Promise<void>;
+  openSession(workspaceId: string): Promise<void>;
+  /** 지금 마감: OPEN → CLOSING, 대기 제안은 만료 */
+  closeSession(workspaceId: string): Promise<void>;
+  assignMember(workspaceId: string, accountId: string, teamId: string): Promise<void>;
+  unassignMember(workspaceId: string, accountId: string): Promise<void>;
+  addTeamSlot(workspaceId: string, name: string): Promise<{ teamId: string }>;
+  randomAssign(workspaceId: string): Promise<RandomAssignResult>;
+  /** 결과 확정: CLOSING → RESOLVED, 되돌릴 수 없다(12-D5) */
+  resolveSession(workspaceId: string): Promise<void>;
+}
+
+/** 강사 대시보드(SCR-DSH-01). 개설자·매니저 전용이다. */
+export interface DashboardPort {
+  get(workspaceId: string): Promise<DashboardView>;
+  /** 진행도 승인. 승인자는 요청한 계정으로 기록한다(00 §3.2 규칙 2). */
+  approve(workspaceId: string, approvalId: string): Promise<void>;
+  /** 카드 미작성 참여 대상에게 리마인드를 보내고 보낸 인원을 돌려준다 */
+  remindCardWriters(workspaceId: string): Promise<{ count: number }>;
 }
 
 export interface AnnouncementPort {
@@ -71,5 +107,6 @@ export interface DataSource {
   workspaces: WorkspacePort;
   cards: CardPort;
   teamBuilding: TeamBuildingPort;
+  dashboard: DashboardPort;
   announcements: AnnouncementPort;
 }

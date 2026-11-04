@@ -1,12 +1,16 @@
 import React from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { MapIcon, WrenchScrewdriverIcon, BuildingOffice2Icon } from '@heroicons/react/24/outline';
+import { MapIcon, WrenchScrewdriverIcon, BuildingOffice2Icon, LockClosedIcon } from '@heroicons/react/24/outline';
 import { EmptyState, ErrorState, LoadingState, buttonClassName } from '@/renewal/ui';
 import { useMe, useMyWorkspaces } from '@/renewal/data/queries';
+import { workspaceEntryPath } from '@/renewal/shell/entry';
 
-/** 첫 진입. 소속 워크스페이스가 있으면 첫 워크스페이스로, 없으면 무소속 랜딩으로 보낸다. */
+/**
+ * 첫 진입. 소속 워크스페이스가 있으면 첫 워크스페이스의 진입 경로(02-D4)로, 없으면 무소속 랜딩으로 보낸다.
+ */
 export const RootRedirect: React.FC = () => {
   const { data, isLoading, isError, refetch } = useMyWorkspaces();
+  const me = useMe();
   if (isLoading) return <LoadingState className="min-h-[60vh]" label="워크스페이스를 불러오는 중이에요" />;
   if (isError)
     return (
@@ -22,7 +26,8 @@ export const RootRedirect: React.FC = () => {
       />
     );
   if (!data || data.length === 0) return <Navigate to="/welcome" replace />;
-  return <Navigate to={`/ws/${data[0].id}`} replace />;
+  if (me.isLoading) return <LoadingState className="min-h-[60vh]" label="워크스페이스를 불러오는 중이에요" />;
+  return <Navigate to={workspaceEntryPath(me.data?.id, data[0])} replace />;
 };
 
 /**
@@ -68,3 +73,20 @@ export const WelcomeScreen: React.FC = () => {
     />
   );
 };
+
+/**
+ * 관리 화면에 권한 없이 들어왔을 때의 안내(02-D2: 관리 화면은 403 안내, 비공개 자원은 404 은닉).
+ */
+export const ForbiddenScreen: React.FC<{ backTo: string }> = ({ backTo }) => (
+  <EmptyState
+    className="min-h-[60vh]"
+    icon={<LockClosedIcon className="h-7 w-7" />}
+    title="개설자와 매니저만 볼 수 있는 화면이에요"
+    description="권한이 필요하면 워크스페이스 개설자에게 문의해 주세요."
+    action={
+      <Link to={backTo} className={buttonClassName('outline')}>
+        워크스페이스 홈으로
+      </Link>
+    }
+  />
+);

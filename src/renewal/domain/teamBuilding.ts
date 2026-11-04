@@ -157,3 +157,71 @@ export interface CreateTeamInput {
   goalTemperature?: GoalTemperature;
   recruitRoles: RecruitRole[];
 }
+
+/* ── 세션 운영(SCR-TB-04, 12 §4.4) ── */
+
+/** 세션 설정 범위. 기획의 정원 min/max는 단일 정원으로 단순화했다(docs/renewal/implementation.md R6). */
+export const SESSION_RULES = {
+  capacityMin: 2,
+  capacityMax: 8,
+} as const;
+
+export interface SessionSettingsInput {
+  /** 모집 마감 시각(ISO) */
+  closesAt: string;
+  teamCapacity: number;
+}
+
+export interface ManagedTeam {
+  team: Team;
+  members: Member[];
+  openSeats: number;
+}
+
+/** 운영 화면 조회 모델. 참여 대상은 MEMBER 역할만 센다(12 §2). */
+export interface SessionManageView {
+  session: TeamBuildingSession | null;
+  participants: number;
+  assigned: number;
+  unassigned: Member[];
+  /** 카드를 쓰지 않았거나 동의하지 않은 참여 대상 */
+  cardNotWritten: number;
+  teams: ManagedTeam[];
+  pendingApplications: number;
+}
+
+export interface RandomAssignResult {
+  assigned: number;
+  /** 빈자리가 모자라 배치하지 못한 인원 */
+  remaining: number;
+}
+
+/** 세션 설정 검증. 오류가 없으면 빈 객체를 돌려준다. */
+export const validateSessionSettings = (input: SessionSettingsInput, now = new Date(), previousClosesAt?: string) => {
+  const errors: Partial<Record<keyof SessionSettingsInput, string>> = {};
+  const closes = new Date(input.closesAt);
+  if (Number.isNaN(closes.getTime())) errors.closesAt = '모집 마감 일시를 입력해 주세요.';
+  else if (closes.getTime() <= now.getTime()) errors.closesAt = '모집 마감은 지금보다 뒤여야 해요.';
+  else if (previousClosesAt && closes.getTime() <= new Date(previousClosesAt).getTime()) errors.closesAt = '연장할 마감은 지금 마감보다 뒤여야 해요.';
+  if (!Number.isInteger(input.teamCapacity) || input.teamCapacity < SESSION_RULES.capacityMin || input.teamCapacity > SESSION_RULES.capacityMax) {
+    errors.teamCapacity = `팀 정원은 ${SESSION_RULES.capacityMin}~${SESSION_RULES.capacityMax}명으로 정해 주세요.`;
+  }
+  return errors;
+};
+
+/** 마감 시각 표시. 예) 11월 7일 (토) 오후 11:59 */
+export const formatDeadline = (iso: string) =>
+  new Date(iso).toLocaleString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' });
+
+/** ISO 시각을 datetime-local 입력값(로컬 시각, 분 단위)으로 바꾼다. */
+export const toLocalInputValue = (iso: string) => {
+  const date = new Date(iso);
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
+/** datetime-local 입력값을 ISO 시각으로 바꾼다. 비어 있거나 잘못된 값이면 빈 문자열을 돌려준다. */
+export const fromLocalInputValue = (value: string) => {
+  const date = new Date(value);
+  return value && !Number.isNaN(date.getTime()) ? date.toISOString() : '';
+};
