@@ -46,3 +46,14 @@ export const useSetCardVisibility = () => {
     },
   });
 };
+
+export const useUpdateProfileImage = () => {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File | null) => data.session.updateProfileImage(file),
+    onSuccess: (account) => {
+      client.setQueryData(keys.me, account);
+      client.invalidateQueries({ queryKey: keys.workspaces });
+    },
+  });
+};

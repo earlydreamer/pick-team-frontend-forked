@@ -24,7 +24,7 @@ export interface MockDb {
 }
 
 const STORAGE_KEY = 'pickteam.renewal.mock';
-const VERSION = 1;
+const VERSION = 2;
 
 const daysFromNow = (days: number, hour = 23, minute = 59) => {
   const date = new Date();
@@ -68,12 +68,12 @@ export const seed = (): MockDb => ({
     'u-manager': emptyCard(),
     'u-01': consented({ desiredRole1: 'BACKEND', desiredRole2: 'INFRA', weeklyAvailableHours: 'H20_30', availableTimeSlots: ['EVENING', 'WEEKEND'], goalTemperature: 4, hashtags: ['Java', 'Spring', 'MySQL'], preferWorkstyleOptions: ['STRUCTURED', 'DETAIL_ORIENTED'], introduction: '서버와 데이터 모델링을 좋아해요.', mbti: 'ISTJ' }),
     'u-02': consented({ desiredRole1: 'FRONTEND', desiredRole2: 'DESIGN', weeklyAvailableHours: 'H10_20', availableTimeSlots: ['AFTERNOON', 'EVENING'], goalTemperature: 3, hashtags: ['React', 'TypeScript', 'Figma'], preferWorkstyleOptions: ['ASYNC_FIRST'], introduction: '사용자가 헤매지 않는 화면을 만들고 싶어요.', portfolio: 'https://github.com/example-yh' }),
-    'u-03': consented({ desiredRole1: 'BACKEND', desiredRole2: 'FULLSTACK', weeklyAvailableHours: 'LT10H', availableTimeSlots: ['WEEKEND'], goalTemperature: 2, hashtags: ['Node.js', 'DevOps'], mbti: 'ENFP', mbtiHidden: true }),
+    'u-03': consented({ desiredRole1: 'BACKEND', desiredRole2: 'FULLSTACK', weeklyAvailableHours: 'LT10H', availableTimeSlots: ['WEEKEND'], goalTemperature: 2, hashtags: ['NodeJS', 'DevOps'], }),
     'u-04': consented({ desiredRole1: 'FRONTEND', desiredRole2: 'PM', weeklyAvailableHours: 'H10_20', availableTimeSlots: ['EVENING'], goalTemperature: 5, hashtags: ['Vue', '기획'], preferWorkstyleOptions: ['SPEED_FIRST', 'SYNC_PREFERRED'], workstyleText: '아이디어를 빠르게 검증하는 팀을 좋아해요.' }),
     'u-05': consented({ desiredRole1: 'AI_DATA', desiredRole2: 'BACKEND', weeklyAvailableHours: 'GT30H', availableTimeSlots: ['MORNING', 'AFTERNOON'], goalTemperature: 5, hashtags: ['Python', 'PyTorch'] }),
     'u-06': consented({ desiredRole1: 'DESIGN', desiredRole2: 'FRONTEND', weeklyAvailableHours: 'H20_30', availableTimeSlots: ['AFTERNOON'], goalTemperature: 3, hashtags: ['Figma', 'UX리서치'] }),
     'u-07': consented({ desiredRole1: 'PM', desiredRole2: 'BACKEND', weeklyAvailableHours: 'H10_20', availableTimeSlots: ['EVENING', 'WEEKEND'], goalTemperature: 4, hashtags: ['Notion', 'Jira'] }),
-    'u-08': consented({ desiredRole1: 'FULLSTACK', desiredRole2: 'FRONTEND', weeklyAvailableHours: 'H20_30', availableTimeSlots: ['EVENING'], goalTemperature: 3, hashtags: ['Next.js', 'Prisma'] }),
+    'u-08': consented({ desiredRole1: 'FULLSTACK', desiredRole2: 'FRONTEND', weeklyAvailableHours: 'H20_30', availableTimeSlots: ['EVENING'], goalTemperature: 3, hashtags: ['NextJS', 'Prisma'] }),
     // 비공개 카드와 미작성 카드(갤러리 흐린 표시 대상)
     'u-09': consented({ desiredRole1: 'INFRA', desiredRole2: 'BACKEND', weeklyAvailableHours: 'H10_20', cardVisible: false }),
     'u-10': { ...emptyCard(), consentGivenAt: '2026-10-29T09:00:00.000Z' },
@@ -131,6 +131,12 @@ const read = (): MockDb => {
 };
 
 let db: MockDb = read();
+// 처음 실행하면 초기 데이터를 바로 저장해 새로고침 후에도 같은 상태로 시작한다.
+try {
+  if (!localStorage.getItem(STORAGE_KEY)) localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+} catch {
+  // 저장하지 못해도 메모리에서 동작한다.
+}
 
 export const getDb = () => db;
 

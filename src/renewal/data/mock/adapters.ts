@@ -25,12 +25,30 @@ const findWorkspaceOfMe = (workspaceId: string) => {
 
 /**
  * 다른 멤버에게 보이는 카드. 공개 카드가 아니면 내용을 비우고 상태만 남긴다.
- * MBTI를 숨긴 경우 값도 내려보내지 않는다(11-D4).
  */
 const visibleCard = (card: PrCard, isMe: boolean): PrCard => {
   if (isMe) return card;
   if (cardStatus(card) !== 'PUBLIC') return { ...emptyCard(), consentGivenAt: card.consentGivenAt, cardVisible: card.cardVisible };
-  return card.mbtiHidden ? { ...card, mbti: undefined } : card;
+  return card;
+};
+
+/** 목업 저장소 용량을 아끼려고 사진을 256px JPEG로 줄여 data URL로 저장한다. */
+const toSmallDataUrl = async (file: File) => {
+  if (!file.type.startsWith('image/')) throw new DataError('이미지 파일만 올릴 수 있어요.', 'INVALID');
+  const bitmap = await createImageBitmap(file).catch(() => {
+    throw new DataError('이미지를 읽지 못했어요. 다른 파일로 시도해 주세요.', 'INVALID');
+  });
+  const size = 256;
+  const scale = Math.max(size / bitmap.width, size / bitmap.height);
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext('2d');
+  if (!context) throw new DataError('이미지를 처리하지 못했어요.', 'UNKNOWN');
+  const width = bitmap.width * scale;
+  const height = bitmap.height * scale;
+  context.drawImage(bitmap, (size - width) / 2, (size - height) / 2, width, height);
+  return canvas.toDataURL('image/jpeg', 0.85);
 };
 
 export const mockDataSource: DataSource = {
@@ -45,6 +63,16 @@ export const mockDataSource: DataSource = {
     async signOut() {
       await latency(150);
       commit({ ...getDb(), currentAccountId: null });
+    },
+    async updateProfileImage(file) {
+      await latency(400);
+      fail('profileImage');
+      const me = requireMe();
+      const profileImageUrl = file ? await toSmallDataUrl(file) : null;
+      const db = getDb();
+      const next = { ...me, profileImageUrl };
+      commit({ ...db, accounts: db.accounts.map((account) => (account.id === me.id ? next : account)) });
+      return next;
     },
   },
 
