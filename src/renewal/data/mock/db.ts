@@ -13,6 +13,8 @@ export interface MockWorkspace {
   name: string;
   /** 워크스페이스 정원(초대 링크 사용 한도). 없으면 제한 없음 */
   capacity?: number;
+  /** 합류 비밀번호 해시(10-D4). 없으면 비밀번호 없이 합류한다 */
+  passwordHash?: string;
   members: { accountId: string; role: WorkspaceRole; teamId?: string }[];
 }
 
@@ -50,10 +52,44 @@ export interface MockDb {
   bans: { workspaceId: string; accountId: string; bannedAt: string }[];
   /** 카드 미작성자 리마인드 발송 기록. 알림 센터가 생기면 실제 알림으로 바꾼다. */
   reminders: { workspaceId: string; accountIds: string[]; sentAt: string }[];
+  /** 이메일 계정의 비밀번호 해시. OAuth로만 가입한 계정은 없다 */
+  credentials: Record<string, { passwordHash: string }>;
+  /** 이메일 인증·비밀번호 재설정 코드(5분 유효, 10 §6.4) */
+  verifications: MockVerification[];
+  /** 초대 링크 v2(10 §5.5, §6.3) */
+  invites: MockInvite[];
+  oauthLinks: { provider: 'google' | 'kakao'; subject: string; accountId: string }[];
 }
 
+export interface MockVerification {
+  email: string;
+  purpose: 'SIGNUP' | 'RESET';
+  code: string;
+  expiresAt: string;
+  verified: boolean;
+}
+
+export interface MockInvite {
+  workspaceId: string;
+  code: string;
+  /** null이면 만료 없음 */
+  expiresAt: string | null;
+  /** 재발급하면 false가 된다 */
+  active: boolean;
+  usedCount: number;
+}
+
+/**
+ * 목업 비밀번호 해시. 브라우저 저장소에 평문 비밀번호를 남기지 않기 위한 장치일 뿐이며 실제 보안 수단이 아니다.
+ * 시드 계정의 비밀번호는 모두 Pickteam1! 이다.
+ */
+export const MOCK_PASSWORD = 'Pickteam1!';
+const SEED_PASSWORD_HASH = 'adb7a220a9fc0f2e7f11eb83d815e591330158c0b16f2db35ee86f06c83c7db0';
+/** ws-3 합류 비밀번호 study */
+const SEED_WORKSPACE_PASSWORD_HASH = '6b5960ce025fca41a5e127b14ad6a8544685e224ef4566816cf90726d81c4ebc';
+
 const STORAGE_KEY = 'pickteam.renewal.mock';
-const VERSION = 5;
+const VERSION = 6;
 
 const daysFromNow = (days: number, hour = 23, minute = 59) => {
   const date = new Date();
@@ -142,6 +178,16 @@ export const seed = (): MockDb => ({
         { accountId: 'u-02', role: 'MEMBER' },
       ],
     },
+    {
+      // 초대 랜딩 시연용: 김수강이 아직 속하지 않았고 합류 비밀번호가 있는 워크스페이스
+      id: 'ws-3',
+      name: 'UX 리서치 스터디',
+      passwordHash: SEED_WORKSPACE_PASSWORD_HASH,
+      members: [
+        { accountId: 'u-instructor', role: 'OWNER' },
+        { accountId: 'u-05', role: 'MEMBER' },
+      ],
+    },
   ],
   sessions: [{ id: 's-1', workspaceId: 'ws-1', status: 'OPEN', closesAt: daysFromNow(3), teamCapacity: 4 }],
   applications: [
@@ -162,6 +208,16 @@ export const seed = (): MockDb => ({
   ],
   bans: [{ workspaceId: 'ws-1', accountId: 'u-12', bannedAt: hoursAgo(24 * 4) }],
   reminders: [],
+  credentials: Object.fromEntries(people.map(([id]) => [id, { passwordHash: SEED_PASSWORD_HASH }])),
+  verifications: [],
+  invites: [
+    { workspaceId: 'ws-1', code: 'SUMMER26', expiresAt: daysFromNow(30), active: true, usedCount: 14 },
+    { workspaceId: 'ws-1', code: 'SPRING26', expiresAt: daysFromNow(-1), active: true, usedCount: 3 },
+    { workspaceId: 'ws-2', code: 'ALGO2026', expiresAt: null, active: true, usedCount: 2 },
+    { workspaceId: 'ws-3', code: 'UXSTUDY', expiresAt: daysFromNow(14), active: true, usedCount: 1 },
+    { workspaceId: 'ws-3', code: 'UXOLD', expiresAt: null, active: false, usedCount: 5 },
+  ],
+  oauthLinks: [],
   announcements: [
     { id: 'a-1', workspaceId: 'ws-1', title: '팀 빌딩 마감 시각 안내', authorName: '박강사', createdAt: hoursAgo(1) },
     { id: 'a-2', workspaceId: 'ws-1', title: 'PR 카드 작성 가이드: 희망 역할과 태그 쓰는 법', authorName: '정매니저', createdAt: hoursAgo(26) },

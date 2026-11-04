@@ -1,15 +1,15 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { IdentificationIcon, UserCircleIcon, Cog6ToothIcon, ArrowsRightLeftIcon } from '@heroicons/react/24/outline';
+import { IdentificationIcon, UserCircleIcon, Cog6ToothIcon, ArrowsRightLeftIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
 import { Avatar } from '@/renewal/ui';
 import { useMe } from '@/renewal/data/queries';
 import { data } from '@/renewal/data';
 import { mockPersonas, switchMockPersona } from '@/renewal/data/mock/adapters';
 
 /**
- * 아바타 드롭다운(02 §2.1): 마이페이지, 내 PR 카드, 계정 설정.
- * 목업 단계에서는 로그아웃 대신 시연용 계정 전환을 둔다. 실제 인증이 붙으면 로그아웃으로 바꾼다.
+ * 아바타 드롭다운(02 §2.1): 마이페이지, 내 PR 카드, 계정 설정, 로그아웃.
+ * 목업 데이터에서는 시연용 계정 전환을 함께 둔다.
  */
 export const AccountMenu: React.FC = () => {
   const { data: me } = useMe();
@@ -81,6 +81,21 @@ export const AccountMenu: React.FC = () => {
                 <Cog6ToothIcon className="h-5 w-5 text-muted" aria-hidden="true" />
                 계정 설정
               </Link>
+            </li>
+            <li>
+              <button
+                type="button"
+                className={itemClass}
+                onClick={async () => {
+                  close();
+                  await data.session.signOut();
+                  client.clear();
+                  navigate('/login', { replace: true });
+                }}
+              >
+                <ArrowRightOnRectangleIcon className="h-5 w-5 text-muted" aria-hidden="true" />
+                로그아웃
+              </button>
             </li>
           </ul>
           {data.kind === 'mock' && (

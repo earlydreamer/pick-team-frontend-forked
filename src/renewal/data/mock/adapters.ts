@@ -5,6 +5,7 @@ import { aggregateTeam, matchCandidateToTeam } from '@/renewal/domain/matching';
 import { openSeats, type ApplicationView, type Team, type TeamApplication, type TeamSummary } from '@/renewal/domain/teamBuilding';
 import * as rules from './rules';
 import * as sessionRules from './sessionRules';
+import * as authRules from './authRules';
 import { INACTIVE_DAYS, type DashboardAlert } from '@/renewal/domain/dashboard';
 import { commit, getDb, latency, shouldFail, type MockDb } from './db';
 
@@ -122,6 +123,63 @@ export const mockDataSource: DataSource = {
       await latency(150);
       commit({ ...getDb(), currentAccountId: null });
     },
+    async signIn(email, password) {
+      await latency(350);
+      fail('signIn');
+      const result = await authRules.signIn(getDb(), email, password);
+      commit(result.db);
+      return result.db.accounts.find((account) => account.id === result.accountId)!;
+    },
+    async requestSignupCode(email) {
+      await latency(350);
+      fail('sendCode');
+      commit(authRules.requestCode(getDb(), email, 'SIGNUP'));
+    },
+    async verifySignupCode(email, code) {
+      await latency();
+      fail('verifyCode');
+      commit(authRules.verifyCode(getDb(), email, 'SIGNUP', code));
+    },
+    async signUp(input) {
+      await latency(350);
+      fail('signUp');
+      const result = await authRules.signUp(getDb(), input);
+      commit(result.db);
+      return result.db.accounts.find((account) => account.id === result.accountId)!;
+    },
+    async requestPasswordReset(email) {
+      await latency(350);
+      fail('sendCode');
+      commit(authRules.requestCode(getDb(), email, 'RESET'));
+    },
+    async verifyResetCode(email, code) {
+      await latency();
+      fail('verifyCode');
+      commit(authRules.verifyCode(getDb(), email, 'RESET', code));
+    },
+    async resetPassword(email, code, newPassword) {
+      await latency(350);
+      fail('resetPassword');
+      commit(await authRules.resetPassword(getDb(), email, code, newPassword));
+    },
+    oauthStartUrl(provider) {
+      // 목업은 제공자 화면 없이 바로 콜백으로 돌아온다. http 어댑터는 백엔드 OAuth 시작 주소를 돌려준다.
+      return `/oauth/callback?provider=${provider}&code=mock-${provider}`;
+    },
+    async oauthExchange(provider, code) {
+      await latency(400);
+      fail('oauth');
+      if (!code.startsWith('mock-')) throw new DataError('로그인을 완료하지 못했어요. 다시 시도해 주세요.', 'INVALID');
+      // 목업: localStorage 실패 스위치에 oauthConflict를 넣으면 이메일 계정과 겹치는 경우(10-D3)를 재현한다.
+      const conflict = shouldFail('oauthConflict');
+      const label = provider === 'google' ? 'Google' : '카카오';
+      const profile = conflict
+        ? { subject: `${provider}-conflict`, email: 'user1@example.com', name: '김수강' }
+        : { subject: `${provider}-demo`, email: `${provider}.demo@example.com`, name: `${label} 사용자` };
+      const result = authRules.oauthSignIn(getDb(), provider, profile);
+      commit(result.db);
+      return result.db.accounts.find((account) => account.id === result.accountId)!;
+    },
     async updateProfileImage(file) {
       await latency(400);
       fail('profileImage');
@@ -147,6 +205,14 @@ export const mockDataSource: DataSource = {
           memberCount: workspace.members.length,
           myRole: workspace.members.find((member) => member.accountId === me.id)!.role,
         }));
+    },
+    async create(input) {
+      await latency(350);
+      fail('createWorkspace');
+      const me = requireMe();
+      const result = await authRules.createWorkspace(getDb(), me.id, input);
+      commit(result.db);
+      return { id: result.workspaceId, name: input.name.trim(), memberCount: 1, myRole: 'OWNER' };
     },
     async get(workspaceId) {
       await latency();
@@ -441,6 +507,22 @@ export const mockDataSource: DataSource = {
     },
   },
 
+  invites: {
+    async get(code) {
+      await latency();
+      fail('invite');
+      return authRules.getInvite(getDb(), code, getDb().currentAccountId);
+    },
+    async join(code, password) {
+      await latency(350);
+      fail('join');
+      const me = requireMe();
+      const { db, result } = await authRules.joinByInvite(getDb(), code, me.id, password);
+      commit(db);
+      return result;
+    },
+  },
+
   dashboard: {
     async get(workspaceId) {
       await latency();
@@ -527,5 +609,11 @@ export const mockPersonas = [
   { id: 'u-manager', label: '매니저 정매니저', description: '2026 하계 부트캠프 매니저' },
   { id: 'u-01', label: '팀장 김철수', description: '2026 하계 부트캠프 알파팀 팀장' },
 ] as const;
+
+/** 목업 전용: 발송한 인증 코드를 화면 안내로 보여 주려고 읽는다. 실제 서비스에서는 메일로만 받는다. */
+export const peekMockCode = (email: string, purpose: 'SIGNUP' | 'RESET') => {
+  const matches = getDb().verifications.filter((item) => item.email === email.trim().toLowerCase() && item.purpose === purpose);
+  return matches[matches.length - 1]?.code;
+};
 
 export const switchMockPersona = (accountId: string) => commit({ ...getDb(), currentAccountId: accountId });

@@ -14,6 +14,7 @@ import type {
 } from '@/renewal/domain/teamBuilding';
 import type { DashboardView } from '@/renewal/domain/dashboard';
 import type { Announcement } from '@/renewal/domain/announcement';
+import type { CreateWorkspaceInput, InviteInfo, JoinResult, OAuthProvider, SignUpInput } from '@/renewal/domain/auth';
 
 /**
  * 화면이 의존하는 데이터 포트.
@@ -21,7 +22,8 @@ import type { Announcement } from '@/renewal/domain/announcement';
  */
 
 /** CARD_REQUIRED: 공개 카드가 있어야 하는 행동(지원 등)을 카드 없이 시도함(01-D1, 11-D5) */
-export type DataErrorCode = 'UNAUTHORIZED' | 'FORBIDDEN' | 'NOT_FOUND' | 'CONFLICT' | 'INVALID' | 'CARD_REQUIRED' | 'NETWORK' | 'UNKNOWN';
+/** GONE: 있었지만 더 쓸 수 없음(만료된 초대 링크·인증 코드, HTTP 410) */
+export type DataErrorCode = 'UNAUTHORIZED' | 'FORBIDDEN' | 'NOT_FOUND' | 'GONE' | 'CONFLICT' | 'INVALID' | 'CARD_REQUIRED' | 'NETWORK' | 'UNKNOWN';
 
 export class DataError extends Error {
   constructor(message: string, public readonly code: DataErrorCode) {
@@ -34,12 +36,31 @@ export interface SessionPort {
   /** 로그인한 계정. 없으면 null */
   me(): Promise<Account | null>;
   signOut(): Promise<void>;
+
+  /* 인증(10 §4.1~§4.3, §6.1). 오류 문구는 계정 존재 여부를 드러내지 않는다. */
+  signIn(email: string, password: string): Promise<Account>;
+  /** 가입 이메일 인증 코드 발송. 이미 가입된 이메일이면 CONFLICT */
+  requestSignupCode(email: string): Promise<void>;
+  /** 틀린 코드는 INVALID, 5분이 지난 코드는 GONE */
+  verifySignupCode(email: string, code: string): Promise<void>;
+  /** 인증을 마친 이메일로 계정을 만들고 바로 로그인한다 */
+  signUp(input: SignUpInput): Promise<Account>;
+  requestPasswordReset(email: string): Promise<void>;
+  verifyResetCode(email: string, code: string): Promise<void>;
+  /** 성공하면 코드를 지워 다시 쓸 수 없다 */
+  resetPassword(email: string, code: string, newPassword: string): Promise<void>;
+  /** OAuth 제공자 인증 화면 주소. 인증을 마치면 /oauth/callback?provider=&code= 로 돌아온다 */
+  oauthStartUrl(provider: OAuthProvider): string;
+  /** 임시 코드를 교환해 로그인한다. 같은 이메일의 이메일 계정이 있으면 CONFLICT(10-D3) */
+  oauthExchange(provider: OAuthProvider, code: string): Promise<Account>;
   /** 프로필 사진 변경. null이면 삭제한다 */
   updateProfileImage(file: File | null): Promise<Account>;
 }
 
 export interface WorkspacePort {
   listMine(): Promise<Workspace[]>;
+  /** 워크스페이스 만들기. 만든 사람이 개설자가 된다 */
+  create(input: CreateWorkspaceInput): Promise<Workspace>;
   get(workspaceId: string): Promise<Workspace>;
   /** 갤러리용 멤버 목록. 비공개·미작성 카드는 카드 내용 없이 상태만 담는다(11 §5.2, 11-D3) */
   listMembers(workspaceId: string): Promise<Member[]>;
@@ -87,6 +108,14 @@ export interface TeamBuildingPort {
   resolveSession(workspaceId: string): Promise<void>;
 }
 
+/** 초대 링크(10 §4.4, §6.2). 조회는 로그인하지 않아도 된다. */
+export interface InvitePort {
+  /** 없는 코드는 NOT_FOUND, 만료·재발급된 코드는 GONE */
+  get(code: string): Promise<InviteInfo>;
+  /** 로그인 필요. 차단·정원 초과는 FORBIDDEN, 비밀번호 오류는 INVALID */
+  join(code: string, password?: string): Promise<JoinResult>;
+}
+
 /** 강사 대시보드(SCR-DSH-01). 개설자·매니저 전용이다. */
 export interface DashboardPort {
   get(workspaceId: string): Promise<DashboardView>;
@@ -108,5 +137,6 @@ export interface DataSource {
   cards: CardPort;
   teamBuilding: TeamBuildingPort;
   dashboard: DashboardPort;
+  invites: InvitePort;
   announcements: AnnouncementPort;
 }

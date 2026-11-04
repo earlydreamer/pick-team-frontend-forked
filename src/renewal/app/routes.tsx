@@ -1,7 +1,8 @@
 import React from 'react';
 import { Route, Routes } from 'react-router-dom';
 import { AppShell } from '@/renewal/shell/AppShell';
-import { NotFoundScreen, PendingScreen, RootRedirect, WelcomeScreen } from '@/renewal/screens/system';
+import { NotFoundScreen, PendingScreen, RootRedirect } from '@/renewal/screens/system';
+import { WelcomeScreen } from '@/renewal/features/auth/WelcomeScreen';
 import { OnboardingScreen } from '@/renewal/features/card/OnboardingScreen';
 import { CardEditScreen } from '@/renewal/features/card/CardEditScreen';
 import { GalleryScreen } from '@/renewal/features/members/GalleryScreen';
@@ -12,13 +13,30 @@ import { TeamRecruitDetail } from '@/renewal/features/teamBuilding/TeamRecruitDe
 import { InboxScreen } from '@/renewal/features/teamBuilding/InboxScreen';
 import { ManageScreen } from '@/renewal/features/manage/ManageScreen';
 import { DashboardScreen } from '@/renewal/features/dashboard/DashboardScreen';
+import { GuestOnly, RequireAuth } from '@/renewal/features/auth/guards';
+import { LoginScreen } from '@/renewal/features/auth/LoginScreen';
+import { SignupScreen } from '@/renewal/features/auth/SignupScreen';
+import { ResetPasswordScreen } from '@/renewal/features/auth/ResetPasswordScreen';
+import { OAuthCallbackScreen } from '@/renewal/features/auth/OAuthCallbackScreen';
+import { InviteScreen } from '@/renewal/features/auth/InviteScreen';
 
 /**
  * 리뉴얼 라우트. URL 체계는 docs/renewal/spec/02-information-architecture.md §4를 따른다.
  * 목업 6종은 단계별 PR에서 PendingScreen을 실제 화면으로 바꾼다.
+ * 인증 화면과 초대 랜딩을 뺀 모든 화면은 RequireAuth 아래에 둔다.
  */
 export const AppRoutes: React.FC = () => (
   <Routes>
+    {/* 인증 화면(10 §4). 로그인한 사람은 원래 목적지로 보낸다. */}
+    <Route element={<GuestOnly />}>
+      <Route path="login" element={<LoginScreen />} />
+      <Route path="signup" element={<SignupScreen />} />
+      <Route path="reset-password" element={<ResetPasswordScreen />} />
+    </Route>
+    <Route path="oauth/callback" element={<OAuthCallbackScreen />} />
+    {/* 초대 랜딩은 로그인하지 않아도 열린다(10 §2). */}
+    <Route path="invite/:code" element={<InviteScreen />} />
+    <Route element={<RequireAuth />}>
     {/* 온보딩 위저드는 셸 없이 단독 화면으로 띄운다(목업 onboarding.html). */}
     <Route path="ws/:wsId/onboarding" element={<OnboardingScreen />} />
     <Route element={<AppShell />}>
@@ -43,6 +61,7 @@ export const AppRoutes: React.FC = () => (
         <Route path="*" element={<NotFoundScreen />} />
       </Route>
       <Route path="*" element={<NotFoundScreen />} />
+    </Route>
     </Route>
   </Routes>
 );

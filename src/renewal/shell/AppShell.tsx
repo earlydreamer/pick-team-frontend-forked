@@ -49,7 +49,8 @@ export const AppShell: React.FC = () => {
       </a>
 
       <header className="fixed inset-x-0 top-0 z-40 flex h-14 items-center gap-2 border-b border-outline-soft bg-surface px-2 sm:px-4">
-        {inWorkspace && (
+        {/* 워크스페이스 밖(/welcome, /me)에서도 768px 미만이면 드로어로 WS 레일을 열 수 있어야 한다. */}
+        {(inWorkspace || Boolean(workspaces.data?.length)) && (
           <button
             ref={menuButtonRef}
             type="button"
@@ -57,7 +58,7 @@ export const AppShell: React.FC = () => {
             aria-label="메뉴 열기"
             aria-expanded={drawerOpen}
             aria-controls="nav-drawer"
-            className="inline-flex h-11 w-11 items-center justify-center rounded-lg hover:bg-surface-container lg:hidden"
+            className={`inline-flex h-11 w-11 items-center justify-center rounded-lg hover:bg-surface-container ${inWorkspace ? 'lg:hidden' : 'md:hidden'}`}
           >
             <Bars3Icon className="h-6 w-6" aria-hidden="true" />
           </button>
