@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeftIcon, ArrowTopRightOnSquareIcon, ClockIcon, CalendarDaysIcon, LockClosedIcon, PencilSquareIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, ArrowTopRightOnSquareIcon, ClockIcon, CalendarDaysIcon, LockClosedIcon, PaperAirplaneIcon, PencilSquareIcon } from '@heroicons/react/24/outline';
 import {
   TIME_SLOT_LABEL,
   WEEKLY_HOURS_LABEL,
@@ -8,10 +8,11 @@ import {
   isHttpUrl,
   type GoalTemperature,
 } from '@/renewal/domain/card';
-import { Avatar, Badge, Button, EmptyState, ErrorState, LoadingState, buttonClassName } from '@/renewal/ui';
+import { Avatar, Badge, Button, EmptyState, ErrorState, LoadingState, buttonClassName, toast } from '@/renewal/ui';
 import { DataError } from '@/renewal/data';
-import { useMe, useMember } from '@/renewal/data/queries';
+import { useBoard, useInbox, useMe, useMember, useScout } from '@/renewal/data/queries';
 import { NotFoundScreen } from '@/renewal/screens/system';
+import { CardRequiredModal, ProposalModal, useActionErrorHandler } from '@/renewal/features/teamBuilding/shared';
 import { RoleBadges } from './MemberCardTile';
 
 const temperatureText = (value: GoalTemperature) => (value <= 2 ? '완주 지향에 가까움' : value >= 4 ? '수상 지향에 가까움' : '중간');
@@ -26,12 +27,18 @@ const Block: React.FC<{ title: string; children: React.ReactNode }> = ({ title, 
 /**
  * SCR-PRF-01 카드 상세(11 §4.5). 워크스페이스에 속하지 않은 사람에게는 404로 존재를 숨기고,
  * 비공개·미작성 카드는 이름만 보이고 안내를 띄운다(11 §5.3).
- * 스카우트 제안 버튼은 팀 빌딩 멤버 화면(SCR-TB-01~03) 단계에서 붙인다.
+ * 모집 중인 세션에서 빈자리가 있는 팀의 팀장은 팀이 없는 공개 카드 멤버에게 스카우트를 보낼 수 있다(12-D1).
  */
 export const MemberDetailScreen: React.FC = () => {
   const { wsId = '', accountId = '' } = useParams<{ wsId: string; accountId: string }>();
   const me = useMe();
   const member = useMember(wsId, accountId);
+  const board = useBoard(wsId);
+  const leading = Boolean(board.data?.me.isLeader && board.data.session.status === 'OPEN');
+  const inbox = useInbox(leading ? wsId : '');
+  const scout = useScout(wsId);
+  const errors = useActionErrorHandler();
+  const [scouting, setScouting] = useState(false);
   const back = `/ws/${wsId}/members`;
 
   if (member.isLoading) return <LoadingState className="min-h-[60vh]" label="카드를 불러오는 중이에요" />;
@@ -50,6 +57,20 @@ export const MemberDetailScreen: React.FC = () => {
   const { account, card, cardState } = member.data;
   const isMe = account.id === me.data?.id;
   const portfolioHref = card.portfolio && isHttpUrl(card.portfolio) ? card.portfolio : undefined;
+  const myTeam = board.data?.teams.find((summary) => summary.team.id === board.data?.me.teamId);
+  const scoutable = leading && !isMe && member.data.role === 'MEMBER' && !member.data.teamId && cardState === 'PUBLIC' && (myTeam?.openSeats ?? 0) > 0;
+  const scoutSent = inbox.data?.sent.some((view) => view.application.direction === 'SCOUT' && view.application.applicantId === account.id && view.application.status === 'PENDING');
+
+  const submitScout = async (message: string) => {
+    try {
+      await scout.mutateAsync({ accountId: account.id, message });
+      toast.success(`${account.name}님에게 스카우트를 보냈어요. 진행 상황은 제안함에서 볼 수 있어요.`);
+    } catch (error) {
+      errors.handle(error);
+    } finally {
+      setScouting(false);
+    }
+  };
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 lg:py-8">
@@ -78,6 +99,14 @@ export const MemberDetailScreen: React.FC = () => {
               편집
             </Link>
           )}
+          {scoutable &&
+            (scoutSent ? (
+              <Badge tone="warning">스카우트 답변 대기</Badge>
+            ) : (
+              <Button leftIcon={<PaperAirplaneIcon className="h-5 w-5" />} onClick={() => setScouting(true)}>
+                스카우트 제안
+              </Button>
+            ))}
         </header>
 
         {cardState !== 'PUBLIC' && !isMe ? (
@@ -181,6 +210,17 @@ export const MemberDetailScreen: React.FC = () => {
           </div>
         )}
       </article>
+
+      <ProposalModal
+        open={scouting}
+        title={`${account.name}님에게 스카우트`}
+        description={`${myTeam?.team.name ?? '내 팀'}에서 제안해요. 상대가 수락하면 바로 팀에 합류해요.`}
+        submitLabel="스카우트 보내기"
+        pending={scout.isPending}
+        onClose={() => setScouting(false)}
+        onSubmit={submitScout}
+      />
+      <CardRequiredModal open={errors.cardRequired !== null} workspaceId={wsId} message={errors.cardRequired ?? undefined} onClose={errors.clearCardRequired} />
     </div>
   );
 };

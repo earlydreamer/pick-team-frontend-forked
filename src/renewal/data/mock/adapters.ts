@@ -1,7 +1,10 @@
 import { cardStatus, emptyCard, isRequiredComplete, type PrCard } from '@/renewal/domain/card';
 import type { Member, MemberCardState, Workspace } from '@/renewal/domain/workspace';
 import { DataError, type DataSource } from '../ports';
-import { commit, getDb, latency, shouldFail } from './db';
+import { aggregateTeam, matchCandidateToTeam } from '@/renewal/domain/matching';
+import { openSeats, type ApplicationView, type Team, type TeamApplication, type TeamSummary } from '@/renewal/domain/teamBuilding';
+import * as rules from './rules';
+import { commit, getDb, latency, shouldFail, type MockDb } from './db';
 
 const requireMe = () => {
   const db = getDb();
@@ -54,6 +57,54 @@ const toSmallDataUrl = async (file: File) => {
 const memberCardState = (card: PrCard): MemberCardState => {
   const status = cardStatus(card);
   return status === 'PUBLIC' ? 'PUBLIC' : status === 'PRIVATE' ? 'PRIVATE' : 'NOT_WRITTEN';
+};
+
+
+/* ── 팀 빌딩 조회 도우미 ── */
+
+const toMember = (db: MockDb, workspaceId: string, accountId: string, viewerId: string): Member => {
+  const workspace = db.workspaces.find((item) => item.id === workspaceId)!;
+  const member = workspace.members.find((item) => item.accountId === accountId)!;
+  const card = db.cards[accountId] ?? emptyCard();
+  return {
+    account: db.accounts.find((account) => account.id === accountId)!,
+    role: member.role,
+    teamId: member.teamId,
+    cardState: memberCardState(card),
+    card: visibleCard(card, accountId === viewerId),
+  };
+};
+
+const teamCards = (db: MockDb, team: Team) => team.memberIds.map((id) => db.cards[id] ?? emptyCard());
+
+const summarize = (db: MockDb, team: Team, viewerId: string, capacity: number): TeamSummary => {
+  const session = rules.findSession(db, team.workspaceId)!;
+  const myApplication = db.applications
+    .filter((app) => app.sessionId === session.id && app.teamId === team.id && app.applicantId === viewerId && app.direction === 'APPLY')
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+  const viewerCard = db.cards[viewerId];
+  const viewerHasTeam = db.teams.some((item) => item.workspaceId === team.workspaceId && item.memberIds.includes(viewerId));
+  const fit =
+    viewerCard && cardStatus(viewerCard) === 'PUBLIC' && !viewerHasTeam ? matchCandidateToTeam(viewerCard, team, teamCards(db, team)) : undefined;
+  return {
+    team,
+    capacity,
+    openSeats: openSeats(team, capacity),
+    pendingApplies: db.applications.filter((app) => app.teamId === team.id && app.direction === 'APPLY' && app.status === 'PENDING').length,
+    myApplicationStatus: myApplication?.status,
+    fit,
+  };
+};
+
+const toView = (db: MockDb, app: TeamApplication): ApplicationView => {
+  const team = db.teams.find((item) => item.id === app.teamId)!;
+  return { application: app, team: { id: team.id, name: team.name }, applicant: db.accounts.find((account) => account.id === app.applicantId)! };
+};
+
+const mutate = async (operation: string, change: (db: MockDb) => MockDb) => {
+  await latency(350);
+  fail(operation);
+  commit(change(getDb()));
 };
 
 export const mockDataSource: DataSource = {
@@ -193,12 +244,132 @@ export const mockDataSource: DataSource = {
     async getSession(workspaceId) {
       await latency();
       findWorkspaceOfMe(workspaceId);
-      return getDb().sessions.find((session) => session.workspaceId === workspaceId) ?? null;
+      return rules.findSession(getDb(), workspaceId);
     },
     async listTeams(workspaceId) {
       await latency();
       findWorkspaceOfMe(workspaceId);
       return getDb().teams.filter((team) => team.workspaceId === workspaceId);
+    },
+    async getBoard(workspaceId) {
+      await latency();
+      fail('board');
+      const { me, membership } = findWorkspaceOfMe(workspaceId);
+      const db = getDb();
+      const session = rules.findSession(db, workspaceId);
+      if (!session) throw new DataError('진행 중인 팀 빌딩이 없어요.', 'NOT_FOUND');
+      const myTeam = db.teams.find((team) => team.workspaceId === workspaceId && team.memberIds.includes(me.id));
+      const mine = db.applications.filter((app) => app.sessionId === session.id && app.status === 'PENDING');
+      const isLeader = myTeam?.leaderId === me.id;
+      const sentPending = mine.filter((app) => (app.direction === 'APPLY' ? app.applicantId === me.id : isLeader && app.teamId === myTeam?.id)).length;
+      const receivedPending = mine.filter((app) => (app.direction === 'SCOUT' ? app.applicantId === me.id : isLeader && app.teamId === myTeam?.id)).length;
+      const card = db.cards[me.id];
+      return {
+        session,
+        me: {
+          isParticipant: membership.role === 'MEMBER',
+          cardPublic: Boolean(card && cardStatus(card) === 'PUBLIC'),
+          teamId: myTeam?.id,
+          isLeader,
+          sentPending,
+          receivedPending,
+        },
+        teams: db.teams.filter((team) => team.workspaceId === workspaceId).map((team) => summarize(db, team, me.id, session.teamCapacity)),
+      };
+    },
+    async getTeamDetail(workspaceId, teamId) {
+      await latency();
+      const { me } = findWorkspaceOfMe(workspaceId);
+      const db = getDb();
+      const session = rules.findSession(db, workspaceId);
+      const team = db.teams.find((item) => item.id === teamId && item.workspaceId === workspaceId);
+      if (!session || !team) throw new DataError('팀을 찾을 수 없어요.', 'NOT_FOUND');
+      const isLeader = team.leaderId === me.id;
+      return {
+        ...summarize(db, team, me.id, session.teamCapacity),
+        members: team.memberIds.map((id) => toMember(db, workspaceId, id, me.id)),
+        // 개인값 대신 팀 집계만 보여 준다(12-D6).
+        aggregate: aggregateTeam(teamCards(db, team)),
+        receivedApplications: isLeader
+          ? db.applications
+              .filter((app) => app.sessionId === session.id && app.teamId === team.id && app.direction === 'APPLY')
+              .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+              .map((app) => toView(db, app))
+          : undefined,
+      };
+    },
+    async recommendations(workspaceId) {
+      await latency();
+      fail('recommendations');
+      const { me, membership } = findWorkspaceOfMe(workspaceId);
+      const db = getDb();
+      const session = rules.findSession(db, workspaceId);
+      const myCard = db.cards[me.id];
+      if (!session || membership.role !== 'MEMBER' || !myCard || cardStatus(myCard) !== 'PUBLIC') return [];
+      const workspace = db.workspaces.find((item) => item.id === workspaceId)!;
+      const myTeam = db.teams.find((team) => team.workspaceId === workspaceId && team.memberIds.includes(me.id));
+      if (!myTeam) {
+        return db.teams
+          .filter((team) => team.workspaceId === workspaceId && openSeats(team, session.teamCapacity) > 0)
+          .map((team) => ({ kind: 'TEAM' as const, summary: summarize(db, team, me.id, session.teamCapacity), fit: matchCandidateToTeam(myCard, team, teamCards(db, team)) }))
+          .filter((item) => item.fit.score > 0)
+          .sort((a, b) => b.fit.score - a.fit.score)
+          .slice(0, 3);
+      }
+      const cards = teamCards(db, myTeam);
+      return workspace.members
+        .filter((member) => member.role === 'MEMBER' && !member.teamId && db.cards[member.accountId] && cardStatus(db.cards[member.accountId]) === 'PUBLIC')
+        .map((member) => ({
+          kind: 'MEMBER' as const,
+          member: toMember(db, workspaceId, member.accountId, me.id),
+          fit: matchCandidateToTeam(db.cards[member.accountId], myTeam, cards),
+          canScout: myTeam.leaderId === me.id && session.status === 'OPEN' && openSeats(myTeam, session.teamCapacity) > 0,
+        }))
+        .filter((item) => item.fit.score > 0)
+        .sort((a, b) => b.fit.score - a.fit.score)
+        .slice(0, 3);
+    },
+    async inbox(workspaceId) {
+      await latency();
+      fail('inbox');
+      const { me } = findWorkspaceOfMe(workspaceId);
+      const db = getDb();
+      const session = rules.findSession(db, workspaceId);
+      if (!session) return { received: [], sent: [] };
+      const myTeam = db.teams.find((team) => team.workspaceId === workspaceId && team.memberIds.includes(me.id));
+      const ledTeamId = myTeam?.leaderId === me.id ? myTeam.id : undefined;
+      const apps = db.applications.filter((app) => app.sessionId === session.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      const received = apps.filter((app) => (app.direction === 'SCOUT' ? app.applicantId === me.id : app.teamId === ledTeamId));
+      const sent = apps.filter((app) => (app.direction === 'APPLY' ? app.applicantId === me.id : app.teamId === ledTeamId));
+      return { received: received.map((app) => toView(db, app)), sent: sent.map((app) => toView(db, app)) };
+    },
+    async apply(workspaceId, teamId, message) {
+      const { me } = findWorkspaceOfMe(workspaceId);
+      await mutate('apply', (db) => rules.apply(db, workspaceId, me.id, teamId, message));
+    },
+    async scout(workspaceId, accountId, message) {
+      const { me } = findWorkspaceOfMe(workspaceId);
+      await mutate('scout', (db) => rules.scout(db, workspaceId, me.id, accountId, message));
+    },
+    async accept(workspaceId, applicationId) {
+      const { me } = findWorkspaceOfMe(workspaceId);
+      await mutate('accept', (db) => rules.accept(db, workspaceId, me.id, applicationId));
+    },
+    async decline(workspaceId, applicationId) {
+      const { me } = findWorkspaceOfMe(workspaceId);
+      await mutate('decline', (db) => rules.decline(db, workspaceId, me.id, applicationId));
+    },
+    async withdraw(workspaceId, applicationId) {
+      const { me } = findWorkspaceOfMe(workspaceId);
+      await mutate('withdraw', (db) => rules.withdraw(db, workspaceId, me.id, applicationId));
+    },
+    async createTeam(workspaceId, input) {
+      const { me } = findWorkspaceOfMe(workspaceId);
+      await latency(350);
+      fail('createTeam');
+      const result = rules.createTeam(getDb(), workspaceId, me.id, input);
+      commit(result.db);
+      return { teamId: result.teamId };
     },
   },
 };
@@ -208,6 +379,7 @@ export const mockPersonas = [
   { id: 'u-student', label: '수강생 김수강', description: '2026 하계 부트캠프 멤버, 카드 미작성' },
   { id: 'u-instructor', label: '강사 박강사', description: '2026 하계 부트캠프 개설자' },
   { id: 'u-manager', label: '매니저 정매니저', description: '2026 하계 부트캠프 매니저' },
+  { id: 'u-01', label: '팀장 김철수', description: '2026 하계 부트캠프 알파팀 팀장' },
 ] as const;
 
 export const switchMockPersona = (accountId: string) => commit({ ...getDb(), currentAccountId: accountId });

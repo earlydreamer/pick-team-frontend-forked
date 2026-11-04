@@ -1,5 +1,9 @@
 /** 팀 빌딩 도메인. 근거: docs/renewal/spec/12-team-building.md §5 */
 
+import type { GoalTemperature, Role, TimeSlot } from './card';
+import type { Account, Member } from './workspace';
+import type { MatchResult } from './matching';
+
 export type SessionStatus = 'DRAFT' | 'OPEN' | 'CLOSING' | 'RESOLVED';
 export const SESSION_STATUS_LABEL: Record<SessionStatus, string> = {
   DRAFT: '준비 중',
@@ -17,12 +21,71 @@ export interface TeamBuildingSession {
   teamCapacity: number;
 }
 
+
+export interface RecruitRole {
+  role: Role;
+  count: number;
+  note?: string;
+}
+
+/** 팀. 세션 중에는 모집 공고(TeamRecruitment) 정보를 함께 가진다(12 §6.1). */
 export interface Team {
   id: string;
   workspaceId: string;
   name: string;
   leaderId: string;
   memberIds: string[];
+  /** 모집 공고 소개(한 줄) */
+  intro?: string;
+  goalTemperature?: GoalTemperature;
+  recruitRoles: RecruitRole[];
+}
+
+/** APPLY: 개인 → 팀 지원, SCOUT: 팀 → 개인 제안. 수락 권한은 항상 받은 쪽에 있다(12 §5.2). */
+export type ApplicationDirection = 'APPLY' | 'SCOUT';
+export type ApplicationStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'WITHDRAWN' | 'AUTO_WITHDRAWN' | 'EXPIRED';
+
+export interface TeamApplication {
+  id: string;
+  sessionId: string;
+  direction: ApplicationDirection;
+  /** 지원자 또는 스카우트 대상 멤버 */
+  applicantId: string;
+  teamId: string;
+  message?: string;
+  status: ApplicationStatus;
+  /** 종료 사유(예: 정원 마감, 다른 제안 성립) */
+  reason?: string;
+  createdAt: string;
+  decidedAt?: string;
+}
+
+export const APPLICATION_STATUS_LABEL: Record<ApplicationStatus, string> = {
+  PENDING: '답변 대기',
+  ACCEPTED: '수락됨',
+  DECLINED: '거절됨',
+  WITHDRAWN: '철회됨',
+  AUTO_WITHDRAWN: '자동 철회됨',
+  EXPIRED: '만료됨',
+};
+
+/** 12 §8 결정 사항 */
+export const TEAM_BUILDING_RULES = {
+  /** 12-D4: 동시에 답변 대기 중인 지원은 3건까지 */
+  maxPendingApplies: 3,
+  messageMax: 200,
+  teamNameMax: 20,
+  introMax: 100,
+} as const;
+
+export const openSeats = (team: Team, capacity: number) => Math.max(capacity - team.memberIds.length, 0);
+
+/** 팀 단위 집계(12-D6: 개인값이 아닌 집계만 공개). */
+export interface TeamAggregate {
+  /** 팀원 절반 이상이 고른 시간대 */
+  commonTimeSlots: TimeSlot[];
+  /** 팀원 목표 온도 평균(소수 첫째 자리) */
+  averageTemperature?: number;
 }
 
 /** 마감까지 남은 날(마감 당일 0, 지나면 음수) */
@@ -37,3 +100,60 @@ export const dDayLabel = (iso: string, now = new Date()) => {
   const days = daysUntil(iso, now);
   return days > 0 ? `D-${days}` : days === 0 ? 'D-DAY' : '마감';
 };
+
+/* ── 화면용 조회 모델 ── */
+
+export interface MyTeamBuildingStatus {
+  /** 개설자·매니저는 당사자가 아니다(12 §2) */
+  isParticipant: boolean;
+  cardPublic: boolean;
+  teamId?: string;
+  isLeader: boolean;
+  sentPending: number;
+  receivedPending: number;
+}
+
+export interface TeamSummary {
+  team: Team;
+  capacity: number;
+  openSeats: number;
+  pendingApplies: number;
+  myApplicationStatus?: ApplicationStatus;
+  /** 내가 팀이 없고 카드가 공개 상태일 때만 계산한다 */
+  fit?: MatchResult;
+}
+
+export interface TeamBuildingBoard {
+  session: TeamBuildingSession;
+  me: MyTeamBuildingStatus;
+  teams: TeamSummary[];
+}
+
+export interface TeamDetail extends TeamSummary {
+  members: Member[];
+  aggregate: TeamAggregate;
+  /** 팀장에게만 내려오는 받은 지원 */
+  receivedApplications?: ApplicationView[];
+}
+
+export type Recommendation =
+  | { kind: 'TEAM'; summary: TeamSummary; fit: MatchResult }
+  | { kind: 'MEMBER'; member: Member; fit: MatchResult; canScout: boolean };
+
+export interface ApplicationView {
+  application: TeamApplication;
+  team: Pick<Team, 'id' | 'name'>;
+  applicant: Account;
+}
+
+export interface Inbox {
+  received: ApplicationView[];
+  sent: ApplicationView[];
+}
+
+export interface CreateTeamInput {
+  name: string;
+  intro?: string;
+  goalTemperature?: GoalTemperature;
+  recruitRoles: RecruitRole[];
+}
