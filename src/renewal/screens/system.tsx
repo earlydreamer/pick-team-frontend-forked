@@ -1,0 +1,70 @@
+import React from 'react';
+import { Link, Navigate } from 'react-router-dom';
+import { MapIcon, WrenchScrewdriverIcon, BuildingOffice2Icon } from '@heroicons/react/24/outline';
+import { EmptyState, ErrorState, LoadingState, buttonClassName } from '@/renewal/ui';
+import { useMe, useMyWorkspaces } from '@/renewal/data/queries';
+
+/** 첫 진입. 소속 워크스페이스가 있으면 첫 워크스페이스로, 없으면 무소속 랜딩으로 보낸다. */
+export const RootRedirect: React.FC = () => {
+  const { data, isLoading, isError, refetch } = useMyWorkspaces();
+  if (isLoading) return <LoadingState className="min-h-[60vh]" label="워크스페이스를 불러오는 중이에요" />;
+  if (isError)
+    return (
+      <ErrorState
+        className="min-h-[60vh]"
+        title="워크스페이스를 불러오지 못했어요"
+        description="네트워크 상태를 확인한 뒤 다시 시도해 주세요."
+        action={
+          <button type="button" className={buttonClassName('primary')} onClick={() => refetch()}>
+            다시 시도
+          </button>
+        }
+      />
+    );
+  if (!data || data.length === 0) return <Navigate to="/welcome" replace />;
+  return <Navigate to={`/ws/${data[0].id}`} replace />;
+};
+
+/**
+ * 아직 구현하지 않은 IA 화면. 빈 화면 대신 화면 ID와 상태를 알려 막다른 길을 만들지 않는다.
+ */
+export const PendingScreen: React.FC<{ screenId: string; title: string }> = ({ screenId, title }) => (
+  <EmptyState
+    className="min-h-[60vh]"
+    icon={<WrenchScrewdriverIcon className="h-7 w-7" />}
+    title={`${title} 화면은 준비 중이에요`}
+    description={<span className="tabular-nums">{screenId}</span>}
+    action={
+      <Link to="/" className={buttonClassName('outline')}>
+        홈으로 가기
+      </Link>
+    }
+  />
+);
+
+export const NotFoundScreen: React.FC = () => (
+  <EmptyState
+    className="min-h-[60vh]"
+    icon={<MapIcon className="h-7 w-7" />}
+    title="페이지를 찾을 수 없어요"
+    description="주소가 바뀌었거나 볼 수 없는 페이지예요."
+    action={
+      <Link to="/" className={buttonClassName('primary')}>
+        홈으로 가기
+      </Link>
+    }
+  />
+);
+
+/** SCR-WS-04 무소속 랜딩. 초대 코드 참여와 워크스페이스 개설은 인증·초대 단계에서 구현한다. */
+export const WelcomeScreen: React.FC = () => {
+  const { data: me } = useMe();
+  return (
+    <EmptyState
+      className="min-h-[60vh]"
+      icon={<BuildingOffice2Icon className="h-7 w-7" />}
+      title={`${me?.name ?? ''}님이 참여한 워크스페이스가 없어요`}
+      description="강사에게 받은 초대 링크로 들어오면 워크스페이스에 합류할 수 있어요."
+    />
+  );
+};
