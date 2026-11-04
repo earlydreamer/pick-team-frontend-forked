@@ -7,3 +7,4 @@ export { Avatar, initialOf } from './Avatar';
 export { Badge } from './Badge';
 export { EmptyState, ErrorState, LoadingState, Skeleton } from './StateView';
 export { Toaster, toast } from './Toast';
+export { Switch } from './Switch';

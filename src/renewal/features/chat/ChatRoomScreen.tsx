@@ -6,6 +6,7 @@ import { CHAT_LIMITS, validateMessage, type ChatMessage } from '@/renewal/domain
 import { DataError, data } from '@/renewal/data';
 import {
   keys,
+  notificationKeys,
   useAddChatMembers,
   useChatRoom,
   useDeleteRoom,
@@ -219,12 +220,12 @@ export const ChatRoomScreen: React.FC = () => {
   const count = messages.data?.length ?? 0;
   const ready = Boolean(messages.data && room.data);
 
-  // 들어오거나 새 메시지가 오면 읽음 처리하고 목록의 안 읽은 수를 새로 고친다(15 §4.1).
+  // 들어오거나 새 메시지가 오면 읽음 처리하고 목록의 안 읽은 수와 이 방의 채팅 알림을 새로 고친다(15 §4.1, 16 §6.2).
   useEffect(() => {
     if (!ready) return;
     data.chat
       .markRead(wsId, roomId)
-      .then(() => client.invalidateQueries({ queryKey: keys.chatRooms(wsId), exact: true }))
+      .then(() => Promise.all([client.invalidateQueries({ queryKey: keys.chatRooms(wsId), exact: true }), client.invalidateQueries({ queryKey: notificationKeys.all })]))
       .catch(() => undefined);
   }, [count, wsId, roomId, ready, client]);
 

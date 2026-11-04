@@ -1,9 +1,10 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { PrCard } from '@/renewal/domain/card';
 import type { CreateTeamInput, SessionSettingsInput } from '@/renewal/domain/teamBuilding';
 import type { TaskAction, TaskInput } from '@/renewal/domain/kanban';
 import type { AnnouncementInput, PostInput, ScheduleInput } from '@/renewal/domain/collab';
 import type { TeamInfoInput } from '@/renewal/domain/teamSpace';
+import type { NotificationCategory, NotificationSettings } from '@/renewal/domain/notification';
 import { data } from './index';
 
 /** 쿼리 키를 한곳에서 관리해 무효화 범위를 분명히 한다. */
@@ -212,7 +213,44 @@ export const useLeaveRoom = (id: string, roomId: string) => useChatMutation(id, 
 export const useDeleteRoom = (id: string, roomId: string) => useChatMutation(id, (_: void) => data.chat.deleteRoom(id, roomId));
 export const useSetMuted = (id: string, roomId: string) => useChatMutation(id, (muted: boolean) => data.chat.setMuted(id, roomId, muted));
 
+/** 여러 워크스페이스의 채팅방 목록. 계정 설정의 음소거 목록이 쓴다(16 §4.3). */
+export const useChatRoomsOf = (ids: string[]) =>
+  useQueries({ queries: ids.map((id) => ({ queryKey: keys.chatRooms(id), queryFn: () => data.chat.listRooms(id) })) });
+
 export const useVideoChannels = (id: string, enabled = true) =>
   useQuery({ queryKey: keys.videoChannels(id), queryFn: () => data.video.listChannels(id), enabled: Boolean(id) && enabled });
 export const useVideoChannel = (id: string, channelId: string, live = false) =>
   useQuery({ queryKey: keys.videoChannel(id, channelId), queryFn: () => data.video.getChannel(id, channelId), enabled: Boolean(id && channelId), refetchInterval: live ? CHAT_POLL_MS * 2 : false });
+
+/*
+ * 알림(16). 다른 사람의 행동으로 생기므로 목업은 주기 조회로 가져온다. 알림 쿼리는 워크스페이스 밖(['notifications'])에 둔다.
+ */
+const NOTIFICATION_POLL_MS = 8000;
+export const notificationKeys = {
+  all: ['notifications'] as const,
+  list: (category: string, limit: number) => ['notifications', 'list', category, limit] as const,
+  summary: ['notifications', 'summary'] as const,
+  settings: ['notifications', 'settings'] as const,
+};
+export const useNotifications = (category: NotificationCategory | undefined, limit: number, enabled = true) =>
+  useQuery({
+    queryKey: notificationKeys.list(category ?? 'ALL', limit),
+    queryFn: () => data.notifications.list({ category, limit }),
+    enabled,
+    refetchInterval: NOTIFICATION_POLL_MS,
+    // 더 보기로 limit만 바뀔 때는 이전 목록을 유지한다. 계열이 바뀌면 다른 목록이라 유지하지 않는다.
+    placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[2] === (category ?? 'ALL') ? previous : undefined),
+  });
+export const useUnreadSummary = (enabled = true) =>
+  useQuery({ queryKey: notificationKeys.summary, queryFn: () => data.notifications.unreadSummary(), enabled, refetchInterval: NOTIFICATION_POLL_MS });
+
+const useNotificationMutation = <Input, Output>(fn: (input: Input) => Promise<Output>) => {
+  const client = useQueryClient();
+  return useMutation({ mutationFn: fn, onSettled: () => client.invalidateQueries({ queryKey: notificationKeys.all }) });
+};
+export const useMarkNotificationRead = () => useNotificationMutation((id: string) => data.notifications.markRead(id));
+export const useMarkAllRead = () => useNotificationMutation((category: NotificationCategory | undefined) => data.notifications.markAllRead(category));
+export const useRemoveNotification = () => useNotificationMutation((id: string) => data.notifications.remove(id));
+export const useMarkWorkspaceSeen = () => useNotificationMutation((workspaceId: string) => data.notifications.markWorkspaceSeen(workspaceId));
+export const useNotificationSettings = () => useQuery({ queryKey: notificationKeys.settings, queryFn: () => data.notifications.getSettings() });
+export const useUpdateNotificationSettings = () => useNotificationMutation((settings: NotificationSettings) => data.notifications.updateSettings(settings));

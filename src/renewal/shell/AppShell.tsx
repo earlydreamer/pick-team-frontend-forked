@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { Bars3Icon, BellIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import { data } from '@/renewal/data';
+import { useMarkWorkspaceSeen } from '@/renewal/data/queries';
 import { BrandLockup } from './BrandMark';
 import { WorkspaceRail } from './WorkspaceRail';
 import { ContextNav } from './ContextNav';
 import { AccountMenu } from './AccountMenu';
+import { NotificationBell } from './NotificationBell';
 import { useWorkspaceContext } from './useWorkspaceContext';
 
 /**
@@ -24,6 +26,15 @@ export const AppShell: React.FC = () => {
   const drawerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => setDrawerOpen(false), [location.pathname]);
+
+  // WS 레일 배지는 그 워크스페이스에 들어오면 0이 된다(16-D5). 머무는 동안 온 알림도 나갈 때 본 것으로 친다.
+  const { mutate: markSeen } = useMarkWorkspaceSeen();
+  const routeWsId = location.pathname.match(/^\/ws\/([^/]+)/)?.[1];
+  useEffect(() => {
+    if (!routeWsId) return;
+    markSeen(routeWsId);
+    return () => markSeen(routeWsId);
+  }, [routeWsId, markSeen]);
 
   useEffect(() => {
     if (!drawerOpen) return;
@@ -72,9 +83,7 @@ export const AppShell: React.FC = () => {
           </span>
         )}
         <div className="ml-auto flex items-center gap-1">
-          <Link to="/notifications" aria-label="알림" className="inline-flex h-11 w-11 items-center justify-center rounded-full text-muted hover:bg-surface-container hover:text-ink">
-            <BellIcon className="h-6 w-6" aria-hidden="true" />
-          </Link>
+          <NotificationBell />
           <AccountMenu />
         </div>
       </header>

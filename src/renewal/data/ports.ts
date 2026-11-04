@@ -18,6 +18,7 @@ import type { Schedule, TeamInfoInput, TeamOverview, TeamSpace } from '@/renewal
 import type { AnnouncementInput, Post, PostInput, ScheduleInput, TeamAnnouncement } from '@/renewal/domain/collab';
 import type { Account as ChatAccount } from '@/renewal/domain/workspace';
 import type { ChatMessage, ChatRoom, ChatRoomSummary, VideoChannel } from '@/renewal/domain/chat';
+import type { AppNotification, NotificationCategory, NotificationSettings } from '@/renewal/domain/notification';
 import type { Announcement } from '@/renewal/domain/announcement';
 import type { CreateWorkspaceInput, InviteInfo, JoinResult, OAuthProvider, SignUpInput } from '@/renewal/domain/auth';
 
@@ -209,6 +210,25 @@ export interface VideoPort {
   leave(workspaceId: string, channelId: string): Promise<void>;
 }
 
+/**
+ * 알림(16 §7.2). 계정 단위이며 워크스페이스를 가리지 않는다. 목업은 주기 조회로 새 알림을 가져오고,
+ * http 어댑터는 SSE 알림 이벤트를 받을 때 같은 쿼리를 갱신한다.
+ */
+export interface NotificationPort {
+  /** 최신순. limit만큼 돌려주고 더 있는지 알려 준다(20건 단위 더 보기) */
+  list(input: { category?: NotificationCategory; limit: number }): Promise<{ items: AppNotification[]; hasMore: boolean }>;
+  /** 벨 배지와 WS 레일 배지(16 §6.2) */
+  unreadSummary(): Promise<{ total: number; byWorkspace: Record<string, number> }>;
+  /** 워크스페이스에 들어왔다. 그 워크스페이스의 레일 배지를 0으로 돌린다(16-D5) */
+  markWorkspaceSeen(workspaceId: string): Promise<void>;
+  markRead(id: string): Promise<void>;
+  /** category를 주면 그 계열만 읽음 처리한다 */
+  markAllRead(category?: NotificationCategory): Promise<void>;
+  remove(id: string): Promise<void>;
+  getSettings(): Promise<NotificationSettings>;
+  updateSettings(settings: NotificationSettings): Promise<void>;
+}
+
 /** 초대 링크(10 §4.4, §6.2). 조회는 로그인하지 않아도 된다. */
 export interface InvitePort {
   /** 없는 코드는 NOT_FOUND, 만료·재발급된 코드는 GONE */
@@ -242,5 +262,6 @@ export interface DataSource {
   teamSpace: TeamSpacePort;
   chat: ChatPort;
   video: VideoPort;
+  notifications: NotificationPort;
   announcements: AnnouncementPort;
 }

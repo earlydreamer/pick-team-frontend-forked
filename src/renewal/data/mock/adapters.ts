@@ -10,6 +10,8 @@ import * as kanbanRules from './kanbanRules';
 import * as collabRules from './collabRules';
 import * as teamSettingsRules from './teamSettingsRules';
 import * as chatRules from './chatRules';
+import * as notifyRules from './notifyRules';
+import { defaultSettings, railCounts } from '@/renewal/domain/notification';
 import { progressOf } from '@/renewal/domain/kanban';
 import { INACTIVE_DAYS, type DashboardAlert } from '@/renewal/domain/dashboard';
 import { commit, getDb, latency, shouldFail, type MockDb } from './db';
@@ -418,19 +420,25 @@ export const mockDataSource: DataSource = {
     },
     async apply(workspaceId, teamId, message) {
       const { me } = findWorkspaceOfMe(workspaceId);
-      await mutate('apply', (db) => rules.apply(db, workspaceId, me.id, teamId, message));
+      await mutate('apply', (db) => {
+        const next = rules.apply(db, workspaceId, me.id, teamId, message);
+        return notifyRules.onApplicationCreated(next, workspaceId, notifyRules.lastApplicationId(next), me.id);
+      });
     },
     async scout(workspaceId, accountId, message) {
       const { me } = findWorkspaceOfMe(workspaceId);
-      await mutate('scout', (db) => rules.scout(db, workspaceId, me.id, accountId, message));
+      await mutate('scout', (db) => {
+        const next = rules.scout(db, workspaceId, me.id, accountId, message);
+        return notifyRules.onApplicationCreated(next, workspaceId, notifyRules.lastApplicationId(next), me.id);
+      });
     },
     async accept(workspaceId, applicationId) {
       const { me } = findWorkspaceOfMe(workspaceId);
-      await mutate('accept', (db) => rules.accept(db, workspaceId, me.id, applicationId));
+      await mutate('accept', (db) => notifyRules.onApplicationDecided(rules.accept(db, workspaceId, me.id, applicationId), workspaceId, applicationId, me.id));
     },
     async decline(workspaceId, applicationId) {
       const { me } = findWorkspaceOfMe(workspaceId);
-      await mutate('decline', (db) => rules.decline(db, workspaceId, me.id, applicationId));
+      await mutate('decline', (db) => notifyRules.onApplicationDecided(rules.decline(db, workspaceId, me.id, applicationId), workspaceId, applicationId, me.id));
     },
     async withdraw(workspaceId, applicationId) {
       const { me } = findWorkspaceOfMe(workspaceId);
@@ -476,7 +484,7 @@ export const mockDataSource: DataSource = {
     },
     async openSession(workspaceId) {
       const { me } = findWorkspaceOfMe(workspaceId);
-      await mutate('openSession', (db) => sessionRules.openSession(db, workspaceId, me.id));
+      await mutate('openSession', (db) => notifyRules.onSessionOpened(sessionRules.openSession(db, workspaceId, me.id), workspaceId, me.id));
     },
     async closeSession(workspaceId) {
       const { me } = findWorkspaceOfMe(workspaceId);
@@ -508,7 +516,7 @@ export const mockDataSource: DataSource = {
     },
     async resolveSession(workspaceId) {
       const { me } = findWorkspaceOfMe(workspaceId);
-      await mutate('resolveSession', (db) => sessionRules.resolveSession(db, workspaceId, me.id));
+      await mutate('resolveSession', (db) => notifyRules.onSessionResolved(sessionRules.resolveSession(db, workspaceId, me.id), workspaceId, me.id));
     },
   },
 
@@ -523,7 +531,7 @@ export const mockDataSource: DataSource = {
       fail('join');
       const me = requireMe();
       const { db, result } = await authRules.joinByInvite(getDb(), code, me.id, password);
-      commit(db);
+      commit(result.alreadyMember ? db : notifyRules.onWorkspaceJoined(db, result.workspaceId, me.id));
       return result;
     },
   },
@@ -581,16 +589,25 @@ export const mockDataSource: DataSource = {
       await latency(350);
       fail('createTask');
       const result = kanbanRules.createTask(getDb(), workspaceId, teamId, me.id, input);
-      commit(result.db);
+      commit(notifyRules.onTaskAssigned(result.db, workspaceId, teamId, result.taskId, input.assigneeIds, me.id));
       return { taskId: result.taskId };
     },
     async updateTask(workspaceId, teamId, taskId, input) {
       const me = requireMe();
-      await mutate('updateTask', (db) => kanbanRules.updateTask(db, workspaceId, teamId, me.id, taskId, input));
+      await mutate('updateTask', (db) => {
+        const before = db.tasks.find((task) => task.id === taskId)?.assigneeIds ?? [];
+        const next = kanbanRules.updateTask(db, workspaceId, teamId, me.id, taskId, input);
+        // 새로 맡게 된 사람에게만 알린다.
+        return notifyRules.onTaskAssigned(next, workspaceId, teamId, taskId, input.assigneeIds.filter((id) => !before.includes(id)), me.id);
+      });
     },
     async transitionTask(workspaceId, teamId, taskId, action, note) {
       const me = requireMe();
-      await mutate('transitionTask', (db) => kanbanRules.transition(db, workspaceId, teamId, me.id, taskId, action, note));
+      await mutate('transitionTask', (db) => {
+        const requester = db.tasks.find((task) => task.id === taskId)?.completionRequestedBy;
+        const next = kanbanRules.transition(db, workspaceId, teamId, me.id, taskId, action, note);
+        return notifyRules.onTaskTransition(next, workspaceId, teamId, taskId, action, requester, me.id);
+      });
     },
     async deleteTask(workspaceId, teamId, taskId) {
       const me = requireMe();
@@ -610,7 +627,7 @@ export const mockDataSource: DataSource = {
       await latency(350);
       fail('createSchedule');
       const result = collabRules.createSchedule(getDb(), workspaceId, teamId, me.id, input);
-      commit(result.db);
+      commit(notifyRules.onScheduleCreated(result.db, workspaceId, teamId, result.scheduleId, me.id));
       return { scheduleId: result.scheduleId };
     },
     async updateSchedule(workspaceId, teamId, scheduleId, input) {
@@ -644,7 +661,7 @@ export const mockDataSource: DataSource = {
     },
     async addPostComment(workspaceId, teamId, postId, content) {
       const me = requireMe();
-      await mutate('addPostComment', (db) => collabRules.addPostComment(db, workspaceId, teamId, me.id, postId, content));
+      await mutate('addPostComment', (db) => notifyRules.onPostCommented(collabRules.addPostComment(db, workspaceId, teamId, me.id, postId, content), workspaceId, teamId, postId, me.id));
     },
     async deletePostComment(workspaceId, teamId, postId, commentId) {
       const me = requireMe();
@@ -660,7 +677,7 @@ export const mockDataSource: DataSource = {
       await latency(350);
       fail('createAnnouncement');
       const result = collabRules.createAnnouncement(getDb(), workspaceId, teamId, me.id, input);
-      commit(result.db);
+      commit(notifyRules.onAnnouncementCreated(result.db, workspaceId, teamId, input.title.trim(), me.id));
       return { announcementId: result.announcementId };
     },
     async updateAnnouncement(workspaceId, teamId, announcementId, input) {
@@ -677,7 +694,7 @@ export const mockDataSource: DataSource = {
     },
     async requestDelegation(workspaceId, teamId, targetId) {
       const me = requireMe();
-      await mutate('delegate', (db) => teamSettingsRules.requestDelegation(db, workspaceId, teamId, me.id, targetId));
+      await mutate('delegate', (db) => notifyRules.onDelegationRequested(teamSettingsRules.requestDelegation(db, workspaceId, teamId, me.id, targetId), workspaceId, teamId, me.id));
     },
     async cancelDelegation(workspaceId, teamId) {
       const me = requireMe();
@@ -685,7 +702,11 @@ export const mockDataSource: DataSource = {
     },
     async respondDelegation(workspaceId, teamId, accept) {
       const me = requireMe();
-      await mutate('respondDelegation', (db) => teamSettingsRules.respondDelegation(db, workspaceId, teamId, me.id, accept));
+      await mutate('respondDelegation', (db) => {
+        const previousLeader = db.teams.find((team) => team.id === teamId)?.leaderId ?? '';
+        const next = teamSettingsRules.respondDelegation(db, workspaceId, teamId, me.id, accept);
+        return accept ? notifyRules.onDelegationAccepted(next, workspaceId, teamId, previousLeader, me.id) : next;
+      });
     },
     async removeMember(workspaceId, teamId, accountId) {
       const me = requireMe();
@@ -730,12 +751,12 @@ export const mockDataSource: DataSource = {
       await latency(300);
       fail('sendMessage');
       const result = chatRules.sendMessage(getDb(), workspaceId, roomId, me.id, content);
-      commit(result.db);
+      commit(notifyRules.onChatMessage(result.db, workspaceId, roomId, me.id));
       return result.message;
     },
     async markRead(workspaceId, roomId) {
       const me = requireMe();
-      commit(chatRules.markRead(getDb(), workspaceId, roomId, me.id));
+      commit(notifyRules.readChatNotifications(chatRules.markRead(getDb(), workspaceId, roomId, me.id), roomId, me.id));
     },
     async searchMessages(workspaceId, roomId, keyword) {
       await latency();
@@ -800,6 +821,57 @@ export const mockDataSource: DataSource = {
     async leave(workspaceId, channelId) {
       const me = requireMe();
       await mutate('videoLeave', (db) => chatRules.leaveChannel(db, workspaceId, channelId, me.id));
+    },
+  },
+
+  notifications: {
+    async list({ category, limit }) {
+      await latency(150);
+      fail('notifications');
+      const me = requireMe();
+      const all = getDb()
+        .notifications.filter((item) => item.accountId === me.id && (!category || item.category === category))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      return { items: all.slice(0, limit), hasMore: all.length > limit };
+    },
+    async unreadSummary() {
+      await latency(100);
+      const db = getDb();
+      const me = db.currentAccountId;
+      const mine = db.notifications.filter((item) => item.accountId === me);
+      const seenAt: Record<string, string> = {};
+      Object.entries(db.workspaceSeenAt).forEach(([key, value]) => {
+        const [accountId, workspaceId] = key.split(':');
+        if (accountId === me) seenAt[workspaceId] = value;
+      });
+      return { total: mine.filter((item) => !item.read).length, byWorkspace: railCounts(mine, seenAt) };
+    },
+    async markWorkspaceSeen(workspaceId) {
+      const me = requireMe();
+      await mutate('workspaceSeen', (db) => ({ ...db, workspaceSeenAt: { ...db.workspaceSeenAt, [`${me.id}:${workspaceId}`]: new Date().toISOString() } }));
+    },
+    async markRead(id) {
+      const me = requireMe();
+      await mutate('markNotificationRead', (db) => ({ ...db, notifications: db.notifications.map((item) => (item.id === id && item.accountId === me.id ? { ...item, read: true } : item)) }));
+    },
+    async markAllRead(category) {
+      const me = requireMe();
+      await mutate('markAllRead', (db) => ({
+        ...db,
+        notifications: db.notifications.map((item) => (item.accountId === me.id && (!category || item.category === category) ? { ...item, read: true } : item)),
+      }));
+    },
+    async remove(id) {
+      const me = requireMe();
+      await mutate('removeNotification', (db) => ({ ...db, notifications: db.notifications.filter((item) => !(item.id === id && item.accountId === me.id)) }));
+    },
+    async getSettings() {
+      await latency(150);
+      return getDb().notificationSettings[requireMe().id] ?? defaultSettings();
+    },
+    async updateSettings(settings) {
+      const me = requireMe();
+      await mutate('notificationSettings', (db) => ({ ...db, notificationSettings: { ...db.notificationSettings, [me.id]: settings } }));
     },
   },
 
@@ -881,7 +953,8 @@ export const mockDataSource: DataSource = {
         .filter((member) => memberCardState(db.cards[member.accountId] ?? emptyCard()) === 'NOT_WRITTEN')
         .map((member) => member.accountId);
       if (targets.length === 0) throw new DataError('카드를 쓰지 않은 멤버가 없어요.', 'CONFLICT');
-      commit({ ...db, reminders: [...db.reminders, { workspaceId, accountIds: targets, sentAt: new Date().toISOString() }] });
+      const reminded = { ...db, reminders: [...db.reminders, { workspaceId, accountIds: targets, sentAt: new Date().toISOString() }] };
+      commit(notifyRules.onCardReminder(reminded, workspaceId, targets, me.id));
       return { count: targets.length };
     },
   },
