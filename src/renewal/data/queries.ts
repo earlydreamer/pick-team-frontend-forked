@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { PrCard } from '@/renewal/domain/card';
 import type { CreateTeamInput, SessionSettingsInput } from '@/renewal/domain/teamBuilding';
 import type { TaskAction, TaskInput } from '@/renewal/domain/kanban';
+import type { AnnouncementInput, PostInput, ScheduleInput } from '@/renewal/domain/collab';
 import { data } from './index';
 
 /** 쿼리 키를 한곳에서 관리해 무효화 범위를 분명히 한다. */
@@ -25,6 +26,9 @@ export const keys = {
   team: (id: string, teamId: string) => ['workspaces', id, 'team', teamId] as const,
   teamOverview: (id: string, teamId: string) => ['workspaces', id, 'team', teamId, 'overview'] as const,
   tasks: (id: string, teamId: string) => ['workspaces', id, 'team', teamId, 'tasks'] as const,
+  schedules: (id: string, teamId: string) => ['workspaces', id, 'team', teamId, 'schedules'] as const,
+  posts: (id: string, teamId: string) => ['workspaces', id, 'team', teamId, 'posts'] as const,
+  teamAnnouncements: (id: string, teamId: string) => ['workspaces', id, 'team', teamId, 'announcements'] as const,
 };
 
 export const useMe = () => useQuery({ queryKey: keys.me, queryFn: () => data.session.me() });
@@ -140,3 +144,29 @@ export const useTransitionTask = (id: string, teamId: string) =>
 export const useDeleteTask = (id: string, teamId: string) => useTeamBuildingMutation(id, (taskId: string) => data.teamSpace.deleteTask(id, teamId, taskId));
 export const useAddComment = (id: string, teamId: string) =>
   useTeamBuildingMutation(id, (input: { taskId: string; content: string }) => data.teamSpace.addComment(id, teamId, input.taskId, input.content));
+
+/* 일정·게시판·팀 공지(14 §4.3~§4.5) */
+export const useSchedules = (id: string, teamId: string) =>
+  useQuery({ queryKey: keys.schedules(id, teamId), queryFn: () => data.teamSpace.listSchedules(id, teamId), enabled: Boolean(id && teamId) });
+export const useCreateSchedule = (id: string, teamId: string) => useTeamBuildingMutation(id, (input: ScheduleInput) => data.teamSpace.createSchedule(id, teamId, input));
+export const useUpdateSchedule = (id: string, teamId: string) =>
+  useTeamBuildingMutation(id, (input: { scheduleId: string; schedule: ScheduleInput }) => data.teamSpace.updateSchedule(id, teamId, input.scheduleId, input.schedule));
+export const useDeleteSchedule = (id: string, teamId: string) => useTeamBuildingMutation(id, (scheduleId: string) => data.teamSpace.deleteSchedule(id, teamId, scheduleId));
+
+export const usePosts = (id: string, teamId: string) =>
+  useQuery({ queryKey: keys.posts(id, teamId), queryFn: () => data.teamSpace.listPosts(id, teamId), enabled: Boolean(id && teamId) });
+export const useCreatePost = (id: string, teamId: string) => useTeamBuildingMutation(id, (input: PostInput) => data.teamSpace.createPost(id, teamId, input));
+export const useUpdatePost = (id: string, teamId: string) =>
+  useTeamBuildingMutation(id, (input: { postId: string; post: PostInput }) => data.teamSpace.updatePost(id, teamId, input.postId, input.post));
+export const useDeletePost = (id: string, teamId: string) => useTeamBuildingMutation(id, (postId: string) => data.teamSpace.deletePost(id, teamId, postId));
+export const useAddPostComment = (id: string, teamId: string) =>
+  useTeamBuildingMutation(id, (input: { postId: string; content: string }) => data.teamSpace.addPostComment(id, teamId, input.postId, input.content));
+export const useDeletePostComment = (id: string, teamId: string) =>
+  useTeamBuildingMutation(id, (input: { postId: string; commentId: string }) => data.teamSpace.deletePostComment(id, teamId, input.postId, input.commentId));
+
+export const useTeamAnnouncements = (id: string, teamId: string) =>
+  useQuery({ queryKey: keys.teamAnnouncements(id, teamId), queryFn: () => data.teamSpace.listAnnouncements(id, teamId), enabled: Boolean(id && teamId) });
+export const useCreateAnnouncement = (id: string, teamId: string) => useTeamBuildingMutation(id, (input: AnnouncementInput) => data.teamSpace.createAnnouncement(id, teamId, input));
+export const useUpdateAnnouncement = (id: string, teamId: string) =>
+  useTeamBuildingMutation(id, (input: { announcementId: string; announcement: AnnouncementInput }) => data.teamSpace.updateAnnouncement(id, teamId, input.announcementId, input.announcement));
+export const useDeleteAnnouncement = (id: string, teamId: string) => useTeamBuildingMutation(id, (announcementId: string) => data.teamSpace.deleteAnnouncement(id, teamId, announcementId));

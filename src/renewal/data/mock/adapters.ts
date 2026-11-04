@@ -7,6 +7,7 @@ import * as rules from './rules';
 import * as sessionRules from './sessionRules';
 import * as authRules from './authRules';
 import * as kanbanRules from './kanbanRules';
+import * as collabRules from './collabRules';
 import { progressOf } from '@/renewal/domain/kanban';
 import { INACTIVE_DAYS, type DashboardAlert } from '@/renewal/domain/dashboard';
 import { commit, getDb, latency, shouldFail, type MockDb } from './db';
@@ -596,6 +597,77 @@ export const mockDataSource: DataSource = {
     async addComment(workspaceId, teamId, taskId, content) {
       const me = requireMe();
       await mutate('addComment', (db) => kanbanRules.addComment(db, workspaceId, teamId, me.id, taskId, content));
+    },
+    async listSchedules(workspaceId, teamId) {
+      await latency();
+      fail('schedules');
+      return collabRules.listSchedules(getDb(), workspaceId, teamId, requireMe().id);
+    },
+    async createSchedule(workspaceId, teamId, input) {
+      const me = requireMe();
+      await latency(350);
+      fail('createSchedule');
+      const result = collabRules.createSchedule(getDb(), workspaceId, teamId, me.id, input);
+      commit(result.db);
+      return { scheduleId: result.scheduleId };
+    },
+    async updateSchedule(workspaceId, teamId, scheduleId, input) {
+      const me = requireMe();
+      await mutate('updateSchedule', (db) => collabRules.updateSchedule(db, workspaceId, teamId, me.id, scheduleId, input));
+    },
+    async deleteSchedule(workspaceId, teamId, scheduleId) {
+      const me = requireMe();
+      await mutate('deleteSchedule', (db) => collabRules.deleteSchedule(db, workspaceId, teamId, me.id, scheduleId));
+    },
+    async listPosts(workspaceId, teamId) {
+      await latency();
+      fail('posts');
+      return collabRules.listPosts(getDb(), workspaceId, teamId, requireMe().id);
+    },
+    async createPost(workspaceId, teamId, input) {
+      const me = requireMe();
+      await latency(350);
+      fail('createPost');
+      const result = collabRules.createPost(getDb(), workspaceId, teamId, me.id, input);
+      commit(result.db);
+      return { postId: result.postId };
+    },
+    async updatePost(workspaceId, teamId, postId, input) {
+      const me = requireMe();
+      await mutate('updatePost', (db) => collabRules.updatePost(db, workspaceId, teamId, me.id, postId, input));
+    },
+    async deletePost(workspaceId, teamId, postId) {
+      const me = requireMe();
+      await mutate('deletePost', (db) => collabRules.deletePost(db, workspaceId, teamId, me.id, postId));
+    },
+    async addPostComment(workspaceId, teamId, postId, content) {
+      const me = requireMe();
+      await mutate('addPostComment', (db) => collabRules.addPostComment(db, workspaceId, teamId, me.id, postId, content));
+    },
+    async deletePostComment(workspaceId, teamId, postId, commentId) {
+      const me = requireMe();
+      await mutate('deletePostComment', (db) => collabRules.deletePostComment(db, workspaceId, teamId, me.id, postId, commentId));
+    },
+    async listAnnouncements(workspaceId, teamId) {
+      await latency();
+      fail('teamAnnouncements');
+      return collabRules.listTeamAnnouncements(getDb(), workspaceId, teamId, requireMe().id);
+    },
+    async createAnnouncement(workspaceId, teamId, input) {
+      const me = requireMe();
+      await latency(350);
+      fail('createAnnouncement');
+      const result = collabRules.createAnnouncement(getDb(), workspaceId, teamId, me.id, input);
+      commit(result.db);
+      return { announcementId: result.announcementId };
+    },
+    async updateAnnouncement(workspaceId, teamId, announcementId, input) {
+      const me = requireMe();
+      await mutate('updateAnnouncement', (db) => collabRules.updateAnnouncement(db, workspaceId, teamId, me.id, announcementId, input));
+    },
+    async deleteAnnouncement(workspaceId, teamId, announcementId) {
+      const me = requireMe();
+      await mutate('deleteAnnouncement', (db) => collabRules.deleteAnnouncement(db, workspaceId, teamId, me.id, announcementId));
     },
   },
 

@@ -14,7 +14,8 @@ import type {
 } from '@/renewal/domain/teamBuilding';
 import type { DashboardView } from '@/renewal/domain/dashboard';
 import type { KanbanTask, TaskAction, TaskInput } from '@/renewal/domain/kanban';
-import type { TeamOverview, TeamSpace } from '@/renewal/domain/teamSpace';
+import type { Schedule, TeamOverview, TeamSpace } from '@/renewal/domain/teamSpace';
+import type { AnnouncementInput, Post, PostInput, ScheduleInput, TeamAnnouncement } from '@/renewal/domain/collab';
 import type { Announcement } from '@/renewal/domain/announcement';
 import type { CreateWorkspaceInput, InviteInfo, JoinResult, OAuthProvider, SignUpInput } from '@/renewal/domain/auth';
 
@@ -128,6 +129,26 @@ export interface TeamSpacePort {
   transitionTask(workspaceId: string, teamId: string, taskId: string, action: TaskAction, note?: string): Promise<void>;
   deleteTask(workspaceId: string, teamId: string, taskId: string): Promise<void>;
   addComment(workspaceId: string, teamId: string, taskId: string, content: string): Promise<void>;
+
+  /* 일정(SCR-TM-03). 팀 일정과 내 개인 일정만 돌려준다(14 §5.3) */
+  listSchedules(workspaceId: string, teamId: string): Promise<Schedule[]>;
+  createSchedule(workspaceId: string, teamId: string, input: ScheduleInput): Promise<{ scheduleId: string }>;
+  updateSchedule(workspaceId: string, teamId: string, scheduleId: string, input: ScheduleInput): Promise<void>;
+  deleteSchedule(workspaceId: string, teamId: string, scheduleId: string): Promise<void>;
+
+  /* 게시판(SCR-TM-04). 첨부 파일은 http 어댑터에서 기존 PostAttachController로 연결한다 */
+  listPosts(workspaceId: string, teamId: string): Promise<Post[]>;
+  createPost(workspaceId: string, teamId: string, input: PostInput): Promise<{ postId: string }>;
+  updatePost(workspaceId: string, teamId: string, postId: string, input: PostInput): Promise<void>;
+  deletePost(workspaceId: string, teamId: string, postId: string): Promise<void>;
+  addPostComment(workspaceId: string, teamId: string, postId: string, content: string): Promise<void>;
+  deletePostComment(workspaceId: string, teamId: string, postId: string, commentId: string): Promise<void>;
+
+  /* 팀 공지(SCR-TM-05). 쓰기는 팀장만 */
+  listAnnouncements(workspaceId: string, teamId: string): Promise<TeamAnnouncement[]>;
+  createAnnouncement(workspaceId: string, teamId: string, input: AnnouncementInput): Promise<{ announcementId: string }>;
+  updateAnnouncement(workspaceId: string, teamId: string, announcementId: string, input: AnnouncementInput): Promise<void>;
+  deleteAnnouncement(workspaceId: string, teamId: string, announcementId: string): Promise<void>;
 }
 
 /** 초대 링크(10 §4.4, §6.2). 조회는 로그인하지 않아도 된다. */

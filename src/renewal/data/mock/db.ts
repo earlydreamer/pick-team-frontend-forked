@@ -4,6 +4,7 @@ import type { Team, TeamApplication, TeamBuildingSession } from '@/renewal/domai
 import type { Announcement } from '@/renewal/domain/announcement';
 import type { KanbanTask } from '@/renewal/domain/kanban';
 import type { Schedule } from '@/renewal/domain/teamSpace';
+import type { Post } from '@/renewal/domain/collab';
 
 /**
  * 목업 단계의 데이터 저장소. 브라우저 localStorage에 저장해 새로고침해도 유지된다.
@@ -34,6 +35,7 @@ export interface MockDb {
   /** 칸반 태스크. 강사 대시보드의 진행도·승인 대기·무활동 신호도 여기서 계산한다 */
   tasks: KanbanTask[];
   schedules: Schedule[];
+  posts: Post[];
   /** 결성 직후 체크리스트에서 "역할 확정"을 마친 팀 */
   rolesConfirmedTeamIds: string[];
   /** 이번 기수 차단 이력(위젯 D). 차단된 계정은 멤버 목록에 없다. */
@@ -77,7 +79,7 @@ const SEED_PASSWORD_HASH = 'adb7a220a9fc0f2e7f11eb83d815e591330158c0b16f2db35ee8
 const SEED_WORKSPACE_PASSWORD_HASH = '6b5960ce025fca41a5e127b14ad6a8544685e224ef4566816cf90726d81c4ebc';
 
 const STORAGE_KEY = 'pickteam.renewal.mock';
-const VERSION = 7;
+const VERSION = 8;
 
 const daysFromNow = (days: number, hour = 23, minute = 59) => {
   const date = new Date();
@@ -263,6 +265,28 @@ export const seed = (): MockDb => ({
   ],
   tasks: seedTasks(),
   schedules: seedSchedules(),
+  posts: [
+    {
+      id: 'p-1',
+      teamId: 't-1',
+      title: '회의록: 1주차 킥오프',
+      content: '역할 분담\n- 김철수: 백엔드, 인증\n- 이영희: 프론트엔드, 디자인\n\n다음 회의까지 각자 맡은 화면의 흐름도를 그려 오기로 했어요.',
+      authorId: 'u-01',
+      createdAt: hoursAgo(96),
+      updatedAt: hoursAgo(96),
+      comments: [{ id: 'pc-1', authorId: 'u-02', content: '흐름도는 피그마에 올려 둘게요.', createdAt: hoursAgo(90) }],
+    },
+    {
+      id: 'p-2',
+      teamId: 't-1',
+      title: '참고 자료 모음',
+      content: '디자인 시스템 레퍼런스와 API 설계 가이드를 정리했어요.',
+      authorId: 'u-02',
+      createdAt: hoursAgo(30),
+      updatedAt: hoursAgo(30),
+      comments: [],
+    },
+  ],
   rolesConfirmedTeamIds: ['t-1', 't-2', 't-3'],
   bans: [{ workspaceId: 'ws-1', accountId: 'u-12', bannedAt: hoursAgo(24 * 4) }],
   reminders: [],
