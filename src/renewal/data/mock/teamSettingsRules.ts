@@ -113,6 +113,11 @@ const disband = (db: MockDb, workspaceId: string, teamId: string): MockDb => {
     posts: db.posts.filter((item) => item.teamId !== teamId),
     announcements: db.announcements.filter((item) => item.teamId !== teamId),
     rolesConfirmedTeamIds: db.rolesConfirmedTeamIds.filter((id) => id !== teamId),
+    // 팀 채팅방과 회의실도 함께 정리한다(15-D3 자동 생성의 짝).
+    chatRooms: db.chatRooms.filter((room) => room.teamId !== teamId),
+    chatMessages: db.chatMessages.filter((message) => db.chatRooms.find((room) => room.id === message.roomId)?.teamId !== teamId),
+    videoChannels: db.videoChannels.filter((channel) => channel.teamId !== teamId),
+    videoPresence: db.videoPresence.filter((item) => db.videoChannels.find((channel) => channel.id === item.channelId)?.teamId !== teamId),
     applications: db.applications.map((app) =>
       session && app.sessionId === session.id && app.teamId === teamId && app.status === 'PENDING' ? { ...app, status: 'EXPIRED', reason: '팀 해체', decidedAt: now() } : app,
     ),

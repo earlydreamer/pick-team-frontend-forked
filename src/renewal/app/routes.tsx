@@ -25,6 +25,9 @@ import { KanbanScreen } from '@/renewal/features/teamSpace/KanbanScreen';
 import { CalendarScreen } from '@/renewal/features/teamSpace/CalendarScreen';
 import { AnnouncementsScreen, BoardScreen, PostDetailScreen } from '@/renewal/features/teamSpace/BoardScreens';
 import { TeamSettingsScreen } from '@/renewal/features/teamSpace/TeamSettingsScreen';
+import { ChatListScreen } from '@/renewal/features/chat/ChatListScreen';
+import { ChatRoomScreen } from '@/renewal/features/chat/ChatRoomScreen';
+import { VideoScreen } from '@/renewal/features/chat/VideoScreen';
 
 /**
  * 리뉴얼 라우트. URL 체계는 docs/renewal/spec/02-information-architecture.md §4를 따른다.
@@ -63,6 +66,9 @@ export const AppRoutes: React.FC = () => (
         <Route path="team-building/manage" element={<ManageScreen />} />
         <Route path="dashboard" element={<DashboardScreen />} />
         <Route path="settings" element={<PendingScreen screenId="SCR-WS-03" title="워크스페이스 설정" />} />
+        <Route path="chat" element={<ChatListScreen />} />
+        <Route path="chat/:roomId" element={<ChatRoomScreen />} />
+        <Route path="video/:channelId" element={<VideoScreen />} />
         <Route path="team/:teamId" element={<TeamSpaceLayout />}>
           <Route index element={<OverviewScreen />} />
           <Route path="kanban" element={<KanbanScreen />} />

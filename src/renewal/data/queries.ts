@@ -30,6 +30,11 @@ export const keys = {
   schedules: (id: string, teamId: string) => ['workspaces', id, 'team', teamId, 'schedules'] as const,
   posts: (id: string, teamId: string) => ['workspaces', id, 'team', teamId, 'posts'] as const,
   teamAnnouncements: (id: string, teamId: string) => ['workspaces', id, 'team', teamId, 'announcements'] as const,
+  chatRooms: (id: string) => ['workspaces', id, 'chat'] as const,
+  chatRoom: (id: string, roomId: string) => ['workspaces', id, 'chat', roomId] as const,
+  messages: (id: string, roomId: string) => ['workspaces', id, 'chat', roomId, 'messages'] as const,
+  videoChannels: (id: string) => ['workspaces', id, 'video'] as const,
+  videoChannel: (id: string, channelId: string) => ['workspaces', id, 'video', channelId] as const,
 };
 
 export const useMe = () => useQuery({ queryKey: keys.me, queryFn: () => data.session.me() });
@@ -180,3 +185,34 @@ export const useRespondDelegation = (id: string, teamId: string) => useTeamBuild
 export const useRemoveMember = (id: string, teamId: string) => useTeamBuildingMutation(id, (accountId: string) => data.teamSpace.removeMember(id, teamId, accountId));
 export const useLeaveTeam = (id: string, teamId: string) => useTeamBuildingMutation(id, (_: void) => data.teamSpace.leaveTeam(id, teamId));
 export const useDeleteTeam = (id: string, teamId: string) => useTeamBuildingMutation(id, (confirmName: string) => data.teamSpace.deleteTeam(id, teamId, confirmName));
+
+/*
+ * 채팅·화상회의(15). 목업은 실시간 연결이 없어 주기 조회로 새 메시지와 미읽음을 가져온다.
+ * http 어댑터는 SSE 이벤트를 받을 때 같은 쿼리 키를 무효화하면 된다.
+ */
+const CHAT_POLL_MS = 4000;
+export const useChatRooms = (id: string, enabled = true) =>
+  useQuery({ queryKey: keys.chatRooms(id), queryFn: () => data.chat.listRooms(id), enabled: Boolean(id) && enabled, refetchInterval: CHAT_POLL_MS * 2 });
+export const useChatRoom = (id: string, roomId: string) =>
+  useQuery({ queryKey: keys.chatRoom(id, roomId), queryFn: () => data.chat.getRoom(id, roomId), enabled: Boolean(id && roomId) });
+export const useMessages = (id: string, roomId: string) =>
+  useQuery({ queryKey: keys.messages(id, roomId), queryFn: () => data.chat.listMessages(id, roomId), enabled: Boolean(id && roomId), refetchInterval: CHAT_POLL_MS });
+
+/** 채팅 변경은 채팅 쿼리만 새로 고친다. 메시지 전송마다 워크스페이스 전체를 다시 부르지 않기 위해서다. */
+const useChatMutation = <Input, Output>(id: string, fn: (input: Input) => Promise<Output>) => {
+  const client = useQueryClient();
+  return useMutation({ mutationFn: fn, onSettled: () => client.invalidateQueries({ queryKey: keys.chatRooms(id) }) });
+};
+export const useSendMessage = (id: string, roomId: string) => useChatMutation(id, (content: string) => data.chat.sendMessage(id, roomId, content));
+export const useCreateRoom = (id: string) => useChatMutation(id, (input: { title?: string; memberIds: string[] }) => data.chat.createRoom(id, input));
+export const useOpenDm = (id: string) => useChatMutation(id, (accountId: string) => data.chat.openDm(id, accountId));
+export const useRenameRoom = (id: string, roomId: string) => useChatMutation(id, (title: string) => data.chat.renameRoom(id, roomId, title));
+export const useAddChatMembers = (id: string, roomId: string) => useChatMutation(id, (memberIds: string[]) => data.chat.addMembers(id, roomId, memberIds));
+export const useLeaveRoom = (id: string, roomId: string) => useChatMutation(id, (_: void) => data.chat.leaveRoom(id, roomId));
+export const useDeleteRoom = (id: string, roomId: string) => useChatMutation(id, (_: void) => data.chat.deleteRoom(id, roomId));
+export const useSetMuted = (id: string, roomId: string) => useChatMutation(id, (muted: boolean) => data.chat.setMuted(id, roomId, muted));
+
+export const useVideoChannels = (id: string, enabled = true) =>
+  useQuery({ queryKey: keys.videoChannels(id), queryFn: () => data.video.listChannels(id), enabled: Boolean(id) && enabled });
+export const useVideoChannel = (id: string, channelId: string, live = false) =>
+  useQuery({ queryKey: keys.videoChannel(id, channelId), queryFn: () => data.video.getChannel(id, channelId), enabled: Boolean(id && channelId), refetchInterval: live ? CHAT_POLL_MS * 2 : false });

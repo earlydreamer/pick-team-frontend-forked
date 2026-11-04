@@ -1,9 +1,9 @@
 import React from 'react';
 import { Link, NavLink, Outlet, useLocation, useOutletContext, useParams } from 'react-router-dom';
-import { Cog6ToothIcon, EyeIcon, LockClosedIcon } from '@heroicons/react/24/outline';
+import { Cog6ToothIcon, EyeIcon, LockClosedIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
 import { activeDelegation, type TeamSpace } from '@/renewal/domain/teamSpace';
 import { DataError } from '@/renewal/data';
-import { useMe, useTeamSpace } from '@/renewal/data/queries';
+import { useMe, useTeamSpace, useVideoChannels } from '@/renewal/data/queries';
 import { Avatar, Badge, Button, EmptyState, ErrorState, LoadingState, buttonClassName } from '@/renewal/ui';
 import { NotFoundScreen } from '@/renewal/screens/system';
 
@@ -33,6 +33,7 @@ export const TeamSpaceLayout: React.FC = () => {
   const { wsId = '', teamId = '' } = useParams<{ wsId: string; teamId: string }>();
   const space = useTeamSpace(wsId, teamId);
   const me = useMe();
+  const channels = useVideoChannels(wsId, Boolean(space.data?.access.isMember));
   const { pathname } = useLocation();
   const base = `/ws/${wsId}/team/${teamId}`;
 
@@ -74,6 +75,13 @@ export const TeamSpaceLayout: React.FC = () => {
                 )}
               </p>
             </div>
+            {/* 원클릭 회의 참여(15 US-15-06) */}
+            {access.isMember && channels.data?.find((channel) => channel.teamId === team.id) && (
+              <Link to={`/ws/${wsId}/video/${channels.data.find((channel) => channel.teamId === team.id)!.id}`} className={buttonClassName('outline', 'sm')}>
+                <VideoCameraIcon className="h-4 w-4" aria-hidden="true" />
+                화상회의
+              </Link>
+            )}
           </div>
           <nav aria-label={`${team.name} 메뉴`} className="mt-4 flex gap-1 overflow-x-auto">
             {tabs.map((tab) => (

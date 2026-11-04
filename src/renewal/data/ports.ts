@@ -16,6 +16,8 @@ import type { DashboardView } from '@/renewal/domain/dashboard';
 import type { KanbanTask, TaskAction, TaskInput } from '@/renewal/domain/kanban';
 import type { Schedule, TeamInfoInput, TeamOverview, TeamSpace } from '@/renewal/domain/teamSpace';
 import type { AnnouncementInput, Post, PostInput, ScheduleInput, TeamAnnouncement } from '@/renewal/domain/collab';
+import type { Account as ChatAccount } from '@/renewal/domain/workspace';
+import type { ChatMessage, ChatRoom, ChatRoomSummary, VideoChannel } from '@/renewal/domain/chat';
 import type { Announcement } from '@/renewal/domain/announcement';
 import type { CreateWorkspaceInput, InviteInfo, JoinResult, OAuthProvider, SignUpInput } from '@/renewal/domain/auth';
 
@@ -165,6 +167,48 @@ export interface TeamSpacePort {
   deleteTeam(workspaceId: string, teamId: string, confirmName: string): Promise<void>;
 }
 
+export interface ChatRoomDetail {
+  room: ChatRoom;
+  title: string;
+  members: ChatAccount[];
+  muted: boolean;
+  permissions: { rename: boolean; addMembers: boolean; leave: boolean; delete: boolean };
+}
+
+/**
+ * 채팅(15 §4.1, §6.1). 목업은 주기 조회로 새 메시지를 가져오고, http 어댑터는 기존 SSE(CHAT_MESSAGE_RECEIVED,
+ * CHAT_MEMBER_JOINED/LEFT)를 받아 같은 쿼리를 갱신한다. 멤버가 아닌 방은 NOT_FOUND로 숨긴다.
+ */
+export interface ChatPort {
+  listRooms(workspaceId: string): Promise<ChatRoomSummary[]>;
+  getRoom(workspaceId: string, roomId: string): Promise<ChatRoomDetail>;
+  listMessages(workspaceId: string, roomId: string): Promise<ChatMessage[]>;
+  sendMessage(workspaceId: string, roomId: string, content: string): Promise<ChatMessage>;
+  markRead(workspaceId: string, roomId: string): Promise<void>;
+  searchMessages(workspaceId: string, roomId: string, keyword: string): Promise<ChatMessage[]>;
+  /** 한 명만 고르고 이름이 없으면 DM으로 연다 */
+  createRoom(workspaceId: string, input: { title?: string; memberIds: string[] }): Promise<{ roomId: string }>;
+  /** 이미 있는 DM이면 그 방을 돌려준다(15 US-15-01) */
+  openDm(workspaceId: string, accountId: string): Promise<{ roomId: string }>;
+  renameRoom(workspaceId: string, roomId: string, title: string): Promise<void>;
+  addMembers(workspaceId: string, roomId: string, memberIds: string[]): Promise<void>;
+  leaveRoom(workspaceId: string, roomId: string): Promise<void>;
+  deleteRoom(workspaceId: string, roomId: string): Promise<void>;
+  setMuted(workspaceId: string, roomId: string, muted: boolean): Promise<void>;
+}
+
+/**
+ * 화상회의(15 §4.3, §6.2). 실제 영상 연결은 LiveKit이 맡는다. http 어댑터는 LiveKit 토큰을 응답 본문으로 받아
+ * SDK에 넘기고, URL 쿼리에 토큰을 싣지 않는다(15-D5).
+ */
+export interface VideoPort {
+  listChannels(workspaceId: string): Promise<VideoChannel[]>;
+  getChannel(workspaceId: string, channelId: string): Promise<{ channel: VideoChannel; participants: ChatAccount[] }>;
+  join(workspaceId: string, channelId: string): Promise<void>;
+  /** 나가면 참여 기록(VideoMember)을 지운다 */
+  leave(workspaceId: string, channelId: string): Promise<void>;
+}
+
 /** 초대 링크(10 §4.4, §6.2). 조회는 로그인하지 않아도 된다. */
 export interface InvitePort {
   /** 없는 코드는 NOT_FOUND, 만료·재발급된 코드는 GONE */
@@ -196,5 +240,7 @@ export interface DataSource {
   dashboard: DashboardPort;
   invites: InvitePort;
   teamSpace: TeamSpacePort;
+  chat: ChatPort;
+  video: VideoPort;
   announcements: AnnouncementPort;
 }

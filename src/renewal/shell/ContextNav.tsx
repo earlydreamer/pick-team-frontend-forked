@@ -10,7 +10,9 @@ import {
   UsersIcon,
   UserCircleIcon,
 } from '@heroicons/react/24/outline';
+import { ChatBubbleLeftRightIcon, QueueListIcon, VideoCameraIcon, BellSlashIcon } from '@heroicons/react/24/outline';
 import { dDayLabel } from '@/renewal/domain/teamBuilding';
+import { useChatRooms, useVideoChannels } from '@/renewal/data/queries';
 import { useWorkspaceContext } from './useWorkspaceContext';
 
 const itemClass = ({ isActive }: { isActive: boolean }) =>
@@ -30,11 +32,13 @@ const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title
  * 워크스페이스, 관리(개설자·매니저만), 내 팀, 내 계정 순서로 그린다.
  * 팀 빌딩 항목은 세션이 없으면 숨기고, 모집 중이면 마감 D-day를 붙인다(02 §1-3).
  * 세션 운영은 세션이 없어도 보여 매니저가 세션을 만들 수 있게 한다(12 §5.4-8).
- * 커뮤니케이션(DM·채팅·화상회의)과 공지는 리뉴얼 목업 범위 밖이라 이후 단계에서 추가한다.
+ * 커뮤니케이션 섹션은 최근 채팅방 6개와 미읽음 수, 내 팀 회의실을 보여 준다. 워크스페이스 공지 화면은 아직 없다.
  */
 export const ContextNav: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }) => {
   const { wsId, workspace, isManager, session, myTeams } = useWorkspaceContext();
   const { pathname } = useLocation();
+  const rooms = useChatRooms(workspace ? wsId : '');
+  const channels = useVideoChannels(workspace ? wsId : '');
   if (!workspace) return null;
   const base = `/ws/${wsId}`;
   const showTeamBuilding = session !== null;
@@ -118,6 +122,41 @@ export const ContextNav: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }
           ) : (
             <li className="px-2.5 py-1.5 text-xs text-neutral-500">아직 소속된 팀이 없어요</li>
           )}
+        </Section>
+
+        {/* 커뮤니케이션(02 §2.3, 15 §4.1): 채팅방과 미읽음, 팀 회의실 */}
+        <Section title="커뮤니케이션">
+          {(rooms.data ?? []).slice(0, 6).map((item) => (
+            <li key={item.room.id}>
+              <NavLink to={`${base}/chat/${item.room.id}`} className={itemClass} onClick={onNavigate}>
+                <ChatBubbleLeftRightIcon className="h-5 w-5 shrink-0" aria-hidden="true" />
+                <span className="min-w-0 flex-1 truncate">{item.title}</span>
+                {item.muted && <BellSlashIcon className="h-4 w-4 shrink-0 text-neutral-500" aria-label="알림 꺼짐" />}
+                {item.unread > 0 && (
+                  <>
+                    <span aria-hidden="true" className="rounded-full bg-primary px-1.5 py-0.5 text-[0.6875rem] font-bold leading-4 text-on-primary tabular-nums">
+                      {item.unread > 99 ? '99+' : item.unread}
+                    </span>
+                    <span className="sr-only">, 안 읽은 메시지 {item.unread}개</span>
+                  </>
+                )}
+              </NavLink>
+            </li>
+          ))}
+          <li>
+            <NavLink to={`${base}/chat`} end className={itemClass} onClick={onNavigate}>
+              <QueueListIcon className="h-5 w-5 shrink-0" aria-hidden="true" />
+              {(rooms.data?.length ?? 0) > 6 ? '채팅방 모두 보기' : '채팅방 목록'}
+            </NavLink>
+          </li>
+          {(channels.data ?? []).map((channel) => (
+            <li key={channel.id}>
+              <NavLink to={`${base}/video/${channel.id}`} className={itemClass} onClick={onNavigate}>
+                <VideoCameraIcon className="h-5 w-5 shrink-0" aria-hidden="true" />
+                <span className="truncate">{channel.name}</span>
+              </NavLink>
+            </li>
+          ))}
         </Section>
 
         <Section title="내 계정">
