@@ -39,6 +39,8 @@ export interface Team {
   intro?: string;
   goalTemperature?: GoalTemperature;
   recruitRoles: RecruitRole[];
+  /** 진행 중인 팀장 위임 요청(14 §5.4). 24시간이 지나면 만료로 본다 */
+  delegation?: { targetId: string; requestedAt: string };
 }
 
 /** APPLY: 개인 → 팀 지원, SCOUT: 팀 → 개인 제안. 수락 권한은 항상 받은 쪽에 있다(12 §5.2). */

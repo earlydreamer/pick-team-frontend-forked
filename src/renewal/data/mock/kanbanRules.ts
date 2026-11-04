@@ -1,6 +1,6 @@
 import { TASK_LIMITS, availableActions, validateTask, type KanbanTask, type TaskAction, type TaskInput, type TaskViewer } from '@/renewal/domain/kanban';
 import { isManager } from '@/renewal/domain/workspace';
-import type { TeamSpaceAccess } from '@/renewal/domain/teamSpace';
+import { activeDelegation, type TeamSpaceAccess } from '@/renewal/domain/teamSpace';
 import { DataError } from '../ports';
 import type { MockDb } from './db';
 
@@ -94,6 +94,10 @@ export const transition = (db: MockDb, workspaceId: string, teamId: string, acco
   if (action === 'request') {
     if (task.status === 'IN_PROGRESS' && task.assigneeIds.length === 0) throw new DataError('담당자를 먼저 배정해야 완료 요청을 할 수 있어요.', 'INVALID');
     if (task.status === 'IN_PROGRESS' && viewer.isMember && !task.assigneeIds.includes(accountId)) throw new DataError('담당자만 완료 요청을 할 수 있어요.', 'FORBIDDEN');
+  }
+  // 팀장 위임이 진행 중이면 팀장의 승인·반려를 보류한다. 매니저 개입은 받는다(14 §5.2 승인자 부재).
+  if ((action === 'approve' || action === 'reject') && viewer.isLeader && !viewer.isManager && activeDelegation(db.teams.find((team) => team.id === teamId)!)) {
+    throw new DataError('팀장 위임이 진행 중이라 승인을 잠시 보류해요. 위임이 끝난 뒤 처리해 주세요.', 'CONFLICT');
   }
   if (!availableActions(task, viewer).includes(action)) {
     throw new DataError(viewer.isMember || viewer.isManager ? '지금 상태에서는 할 수 없는 작업이에요. 새로 고침해 주세요.' : '권한이 없어요.', 'CONFLICT');

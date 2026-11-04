@@ -8,6 +8,7 @@ import { keys, useMe, useMyWorkspaces } from '@/renewal/data/queries';
 import { Button, Input, Modal, toast } from '@/renewal/ui';
 import { workspaceEntryPath } from '@/renewal/shell/entry';
 import { PasswordField } from './AuthUi';
+import { josa } from '@/renewal/domain/josa';
 
 const CreateWorkspaceModal: React.FC<{ open: boolean; onClose: () => void }> = ({ open, onClose }) => {
   const navigate = useNavigate();
@@ -34,7 +35,7 @@ const CreateWorkspaceModal: React.FC<{ open: boolean; onClose: () => void }> = (
     try {
       const workspace = await data.workspaces.create({ name: name.trim(), password: password || undefined });
       await client.invalidateQueries({ queryKey: keys.workspaces });
-      toast.success(`${workspace.name}을 만들었어요.`);
+      toast.success(`${josa(workspace.name, '을/를')} 만들었어요.`);
       onClose();
       // 개설자는 처음 들어올 때 대시보드로 간다(02-D4).
       navigate(workspaceEntryPath(me.data?.id, workspace));

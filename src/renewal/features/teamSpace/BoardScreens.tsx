@@ -256,7 +256,7 @@ export const PostDetailScreen: React.FC = () => {
               <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
                 수정
               </Button>
-              <Button size="sm" variant="ghost" className="text-danger" leftIcon={<TrashIcon className="h-4 w-4" />} onClick={() => setConfirmDelete(true)}>
+              <Button size="sm" variant="danger-ghost" leftIcon={<TrashIcon className="h-4 w-4" />} onClick={() => setConfirmDelete(true)}>
                 삭제
               </Button>
             </div>
@@ -387,7 +387,7 @@ export const AnnouncementsScreen: React.FC = () => {
                       <Button size="sm" variant="ghost" onClick={() => setEditing(item)} aria-label={`${item.title} 수정`}>
                         수정
                       </Button>
-                      <Button size="sm" variant="ghost" className="text-danger" onClick={() => setDeleting(item)} aria-label={`${item.title} 삭제`}>
+                      <Button size="sm" variant="danger-ghost" onClick={() => setDeleting(item)} aria-label={`${item.title} 삭제`}>
                         삭제
                       </Button>
                     </div>

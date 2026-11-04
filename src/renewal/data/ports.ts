@@ -14,7 +14,7 @@ import type {
 } from '@/renewal/domain/teamBuilding';
 import type { DashboardView } from '@/renewal/domain/dashboard';
 import type { KanbanTask, TaskAction, TaskInput } from '@/renewal/domain/kanban';
-import type { Schedule, TeamOverview, TeamSpace } from '@/renewal/domain/teamSpace';
+import type { Schedule, TeamInfoInput, TeamOverview, TeamSpace } from '@/renewal/domain/teamSpace';
 import type { AnnouncementInput, Post, PostInput, ScheduleInput, TeamAnnouncement } from '@/renewal/domain/collab';
 import type { Announcement } from '@/renewal/domain/announcement';
 import type { CreateWorkspaceInput, InviteInfo, JoinResult, OAuthProvider, SignUpInput } from '@/renewal/domain/auth';
@@ -149,6 +149,20 @@ export interface TeamSpacePort {
   createAnnouncement(workspaceId: string, teamId: string, input: AnnouncementInput): Promise<{ announcementId: string }>;
   updateAnnouncement(workspaceId: string, teamId: string, announcementId: string, input: AnnouncementInput): Promise<void>;
   deleteAnnouncement(workspaceId: string, teamId: string, announcementId: string): Promise<void>;
+
+  /* 팀 설정(SCR-TM-06, 14 §6.6) */
+  updateTeamInfo(workspaceId: string, teamId: string, input: TeamInfoInput): Promise<void>;
+  /** 팀장 위임 지명. 진행 중인 요청이 있으면 CONFLICT */
+  requestDelegation(workspaceId: string, teamId: string, targetId: string): Promise<void>;
+  cancelDelegation(workspaceId: string, teamId: string): Promise<void>;
+  /** 지명된 팀원의 응답. 24시간이 지나면 GONE */
+  respondDelegation(workspaceId: string, teamId: string, accept: boolean): Promise<void>;
+  /** 팀장·매니저 전용. 팀장은 내보낼 수 없다 */
+  removeMember(workspaceId: string, teamId: string, accountId: string): Promise<void>;
+  /** 혼자 남은 팀장이 나가면 팀을 해체하고 disbanded=true */
+  leaveTeam(workspaceId: string, teamId: string): Promise<{ disbanded: boolean }>;
+  /** 팀 이름을 그대로 입력해야 한다(14 §5.5) */
+  deleteTeam(workspaceId: string, teamId: string, confirmName: string): Promise<void>;
 }
 
 /** 초대 링크(10 §4.4, §6.2). 조회는 로그인하지 않아도 된다. */

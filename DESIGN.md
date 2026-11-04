@@ -103,7 +103,7 @@ Pretendard Variable을 로컬 번들(`src/design-system/fonts.css`, OFL)로 제�
 
 | 컴포넌트 | 상태와 동작 |
 |---|---|
-| `Button` | primary·secondary·outline·ghost·danger, sm(36px)·md(44px)·lg(48px). `loading`이면 비활성화하고 `aria-busy`로 진행을 알림 |
+| `Button` | primary·secondary·outline·ghost·danger, sm(36px)·md(44px)·lg(48px). `loading`이면 비활성화하고 `aria-busy`로 진행을 알림. 리뉴얼 앱(`src/renewal/ui`)은 삭제·내보내기 같은 파괴적 보조 행동에 danger-ghost를 더 둔다 |
 | `Input`·`TextArea` | 라벨과 입력을 `useId`로 연결, `help`·`error`를 `aria-describedby`로 연결, 오류 시 `aria-invalid` |
 | `Modal` | `role=dialog`·제목 연결, 첫 입력으로 포커스 이동, Tab 순환, Escape, 닫으면 여는 요소로 포커스 복귀. 중첩 시 가장 위의 대화상자만 키 입력 처리. 작은 화면에서는 아래 시트 |
 | `Card` | 경계로 구분, 제목 수준(`headingLevel`) 지정 |

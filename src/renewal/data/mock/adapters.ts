@@ -8,6 +8,7 @@ import * as sessionRules from './sessionRules';
 import * as authRules from './authRules';
 import * as kanbanRules from './kanbanRules';
 import * as collabRules from './collabRules';
+import * as teamSettingsRules from './teamSettingsRules';
 import { progressOf } from '@/renewal/domain/kanban';
 import { INACTIVE_DAYS, type DashboardAlert } from '@/renewal/domain/dashboard';
 import { commit, getDb, latency, shouldFail, type MockDb } from './db';
@@ -668,6 +669,38 @@ export const mockDataSource: DataSource = {
     async deleteAnnouncement(workspaceId, teamId, announcementId) {
       const me = requireMe();
       await mutate('deleteAnnouncement', (db) => collabRules.deleteAnnouncement(db, workspaceId, teamId, me.id, announcementId));
+    },
+    async updateTeamInfo(workspaceId, teamId, input) {
+      const me = requireMe();
+      await mutate('updateTeamInfo', (db) => teamSettingsRules.updateTeamInfo(db, workspaceId, teamId, me.id, input));
+    },
+    async requestDelegation(workspaceId, teamId, targetId) {
+      const me = requireMe();
+      await mutate('delegate', (db) => teamSettingsRules.requestDelegation(db, workspaceId, teamId, me.id, targetId));
+    },
+    async cancelDelegation(workspaceId, teamId) {
+      const me = requireMe();
+      await mutate('cancelDelegation', (db) => teamSettingsRules.cancelDelegation(db, workspaceId, teamId, me.id));
+    },
+    async respondDelegation(workspaceId, teamId, accept) {
+      const me = requireMe();
+      await mutate('respondDelegation', (db) => teamSettingsRules.respondDelegation(db, workspaceId, teamId, me.id, accept));
+    },
+    async removeMember(workspaceId, teamId, accountId) {
+      const me = requireMe();
+      await mutate('removeMember', (db) => teamSettingsRules.removeMember(db, workspaceId, teamId, me.id, accountId));
+    },
+    async leaveTeam(workspaceId, teamId) {
+      const me = requireMe();
+      await latency(350);
+      fail('leaveTeam');
+      const result = teamSettingsRules.leaveTeam(getDb(), workspaceId, teamId, me.id);
+      commit(result.db);
+      return { disbanded: result.disbanded };
+    },
+    async deleteTeam(workspaceId, teamId, confirmName) {
+      const me = requireMe();
+      await mutate('deleteTeam', (db) => teamSettingsRules.deleteTeam(db, workspaceId, teamId, me.id, confirmName));
     },
   },
 

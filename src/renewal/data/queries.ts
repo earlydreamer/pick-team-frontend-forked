@@ -3,6 +3,7 @@ import type { PrCard } from '@/renewal/domain/card';
 import type { CreateTeamInput, SessionSettingsInput } from '@/renewal/domain/teamBuilding';
 import type { TaskAction, TaskInput } from '@/renewal/domain/kanban';
 import type { AnnouncementInput, PostInput, ScheduleInput } from '@/renewal/domain/collab';
+import type { TeamInfoInput } from '@/renewal/domain/teamSpace';
 import { data } from './index';
 
 /** 쿼리 키를 한곳에서 관리해 무효화 범위를 분명히 한다. */
@@ -170,3 +171,12 @@ export const useCreateAnnouncement = (id: string, teamId: string) => useTeamBuil
 export const useUpdateAnnouncement = (id: string, teamId: string) =>
   useTeamBuildingMutation(id, (input: { announcementId: string; announcement: AnnouncementInput }) => data.teamSpace.updateAnnouncement(id, teamId, input.announcementId, input.announcement));
 export const useDeleteAnnouncement = (id: string, teamId: string) => useTeamBuildingMutation(id, (announcementId: string) => data.teamSpace.deleteAnnouncement(id, teamId, announcementId));
+
+/* 팀 설정(14 §4.6) */
+export const useUpdateTeamInfo = (id: string, teamId: string) => useTeamBuildingMutation(id, (input: TeamInfoInput) => data.teamSpace.updateTeamInfo(id, teamId, input));
+export const useRequestDelegation = (id: string, teamId: string) => useTeamBuildingMutation(id, (targetId: string) => data.teamSpace.requestDelegation(id, teamId, targetId));
+export const useCancelDelegation = (id: string, teamId: string) => useTeamBuildingMutation(id, (_: void) => data.teamSpace.cancelDelegation(id, teamId));
+export const useRespondDelegation = (id: string, teamId: string) => useTeamBuildingMutation(id, (accept: boolean) => data.teamSpace.respondDelegation(id, teamId, accept));
+export const useRemoveMember = (id: string, teamId: string) => useTeamBuildingMutation(id, (accountId: string) => data.teamSpace.removeMember(id, teamId, accountId));
+export const useLeaveTeam = (id: string, teamId: string) => useTeamBuildingMutation(id, (_: void) => data.teamSpace.leaveTeam(id, teamId));
+export const useDeleteTeam = (id: string, teamId: string) => useTeamBuildingMutation(id, (confirmName: string) => data.teamSpace.deleteTeam(id, teamId, confirmName));

@@ -132,7 +132,7 @@ const ScheduleModal: React.FC<{
       footer={
         <>
           {schedule && canEdit && (
-            <Button variant="ghost" className="mr-auto text-danger" leftIcon={<TrashIcon className="h-4 w-4" />} onClick={onDelete} disabled={pending}>
+            <Button variant="danger-ghost" className="mr-auto" leftIcon={<TrashIcon className="h-4 w-4" />} onClick={onDelete} disabled={pending}>
               삭제
             </Button>
           )}

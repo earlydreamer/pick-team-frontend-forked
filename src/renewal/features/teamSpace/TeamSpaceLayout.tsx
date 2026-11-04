@@ -1,9 +1,9 @@
 import React from 'react';
-import { Link, NavLink, Outlet, useOutletContext, useParams } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation, useOutletContext, useParams } from 'react-router-dom';
 import { Cog6ToothIcon, EyeIcon, LockClosedIcon } from '@heroicons/react/24/outline';
-import type { TeamSpace } from '@/renewal/domain/teamSpace';
+import { activeDelegation, type TeamSpace } from '@/renewal/domain/teamSpace';
 import { DataError } from '@/renewal/data';
-import { useTeamSpace } from '@/renewal/data/queries';
+import { useMe, useTeamSpace } from '@/renewal/data/queries';
 import { Avatar, Badge, Button, EmptyState, ErrorState, LoadingState, buttonClassName } from '@/renewal/ui';
 import { NotFoundScreen } from '@/renewal/screens/system';
 
@@ -32,6 +32,8 @@ const TABS: { to: string; label: string; memberOnly: boolean }[] = [
 export const TeamSpaceLayout: React.FC = () => {
   const { wsId = '', teamId = '' } = useParams<{ wsId: string; teamId: string }>();
   const space = useTeamSpace(wsId, teamId);
+  const me = useMe();
+  const { pathname } = useLocation();
   const base = `/ws/${wsId}/team/${teamId}`;
 
   if (space.isLoading) return <LoadingState className="min-h-[60vh]" label="팀 스페이스를 불러오는 중이에요" />;
@@ -79,7 +81,8 @@ export const TeamSpaceLayout: React.FC = () => {
                 {tab.label}
               </NavLink>
             ))}
-            {access.isMember && (
+            {/* 매니저도 멤버 내보내기와 팀 삭제를 할 수 있어 팀 설정은 함께 보여 준다(14 §2). */}
+            {(access.isMember || access.isManagerViewer) && (
               <NavLink to={`${base}/settings`} className={tabClass}>
                 <Cog6ToothIcon className="h-4 w-4" aria-hidden="true" />
                 팀 설정
@@ -88,9 +91,24 @@ export const TeamSpaceLayout: React.FC = () => {
           </nav>
         </div>
       </header>
+      {(() => {
+        const delegation = activeDelegation(team);
+        // 알림 센터가 생기기 전까지 위임 요청은 팀 스페이스 어디서든 알 수 있게 띄운다(14 §5.4).
+        if (!delegation || delegation.targetId !== me.data?.id || pathname.startsWith(`${base}/settings`)) return null;
+        return (
+          <p role="status" className="mx-auto mt-4 flex max-w-6xl flex-wrap items-center gap-2 px-4 text-sm sm:px-6 lg:px-10">
+            <span className="rounded-card bg-peri-50 px-3 py-2">
+              {members.find((member) => member.account.id === team.leaderId)?.account.name}님이 팀장 위임을 요청했어요.{' '}
+              <Link to={`${base}/settings`} className="font-semibold text-primary underline underline-offset-4">
+                팀 설정에서 답하기
+              </Link>
+            </span>
+          </p>
+        );
+      })()}
       {access.isManagerViewer && (
         <p role="note" className="mx-auto mt-4 max-w-6xl px-4 text-sm text-muted sm:px-6 lg:px-10">
-          팀원이 아니라서 진행 집계와 칸반만 볼 수 있어요. 완료 요청은 승인하거나 반려할 수 있고, 승인하면 승인자로 기록돼요.
+          팀원이 아니라서 진행 집계와 칸반만 볼 수 있어요. 완료 요청은 승인하거나 반려할 수 있고, 팀 설정에서 팀원 내보내기와 팀 삭제를 할 수 있어요.
         </p>
       )}
       <div className="mx-auto max-w-6xl px-4 pt-6 sm:px-6 lg:px-10">
@@ -100,7 +118,7 @@ export const TeamSpaceLayout: React.FC = () => {
   );
 };
 
-/** 팀원만 볼 수 있는 탭(일정·게시판·공지·설정). 매니저에게는 이유를 알려 준다(13-D1). */
+/** 팀원만 볼 수 있는 탭(일정·게시판·공지). 매니저에게는 이유를 알려 준다(13-D1). */
 export const TeamMemberOnly: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { space, base } = useTeamSpaceContext();
   if (space.access.isMember) return <>{children}</>;
