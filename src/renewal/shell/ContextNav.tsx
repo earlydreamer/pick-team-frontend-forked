@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import {
   HomeIcon,
   IdentificationIcon,
@@ -29,13 +29,17 @@ const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title
  * 컨텍스트 내비게이션(02 §2.3).
  * 워크스페이스, 관리(개설자·매니저만), 내 팀, 내 계정 순서로 그린다.
  * 팀 빌딩 항목은 세션이 없으면 숨기고, 모집 중이면 마감 D-day를 붙인다(02 §1-3).
+ * 세션 운영은 세션이 없어도 보여 매니저가 세션을 만들 수 있게 한다(12 §5.4-8).
  * 커뮤니케이션(DM·채팅·화상회의)과 공지는 리뉴얼 목업 범위 밖이라 이후 단계에서 추가한다.
  */
 export const ContextNav: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }) => {
   const { wsId, workspace, isManager, session, myTeams } = useWorkspaceContext();
+  const { pathname } = useLocation();
   if (!workspace) return null;
   const base = `/ws/${wsId}`;
   const showTeamBuilding = session !== null;
+  // 세션 운영도 /team-building 아래에 있으므로 팀 빌딩 항목은 운영 화면에서 활성으로 표시하지 않는다.
+  const teamBuildingActive = pathname.startsWith(`${base}/team-building`) && !pathname.startsWith(`${base}/team-building/manage`);
 
   return (
     <div className="flex h-full w-60 shrink-0 flex-col border-r border-outline-soft bg-surface">
@@ -59,7 +63,12 @@ export const ContextNav: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }
           </li>
           {showTeamBuilding && (
             <li>
-              <NavLink to={`${base}/team-building`} className={itemClass} onClick={onNavigate}>
+              <Link
+                to={`${base}/team-building`}
+                aria-current={teamBuildingActive ? 'page' : undefined}
+                className={itemClass({ isActive: teamBuildingActive })}
+                onClick={onNavigate}
+              >
                 <UserGroupIcon className="h-5 w-5 shrink-0" aria-hidden="true" />
                 <span className="flex-1">팀 빌딩</span>
                 {session.status === 'OPEN' && (
@@ -68,7 +77,7 @@ export const ContextNav: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }
                     <span className="sr-only"> 마감</span>
                   </span>
                 )}
-              </NavLink>
+              </Link>
             </li>
           )}
         </Section>
@@ -81,14 +90,12 @@ export const ContextNav: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }
                 대시보드
               </NavLink>
             </li>
-            {showTeamBuilding && (
-              <li>
-                <NavLink to={`${base}/team-building/manage`} className={itemClass} onClick={onNavigate}>
-                  <AdjustmentsHorizontalIcon className="h-5 w-5 shrink-0" aria-hidden="true" />
-                  세션 운영
-                </NavLink>
-              </li>
-            )}
+            <li>
+              <NavLink to={`${base}/team-building/manage`} className={itemClass} onClick={onNavigate}>
+                <AdjustmentsHorizontalIcon className="h-5 w-5 shrink-0" aria-hidden="true" />
+                세션 운영
+              </NavLink>
+            </li>
             <li>
               <NavLink to={`${base}/settings`} className={itemClass} onClick={onNavigate}>
                 <Cog6ToothIcon className="h-5 w-5 shrink-0" aria-hidden="true" />

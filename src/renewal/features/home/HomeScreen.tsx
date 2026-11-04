@@ -2,14 +2,12 @@ import React from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowRightIcon, IdentificationIcon, MegaphoneIcon, UserGroupIcon, UsersIcon } from '@heroicons/react/24/outline';
 import { cardStatus } from '@/renewal/domain/card';
-import { dDayLabel } from '@/renewal/domain/teamBuilding';
+import { dDayLabel, formatDeadline } from '@/renewal/domain/teamBuilding';
 import { relativeTime } from '@/renewal/domain/announcement';
 import { Avatar, Badge, Button, EmptyState, ErrorState, LoadingState, Skeleton, buttonClassName } from '@/renewal/ui';
 import { useMe, useMembers, useMyCard, useRecentAnnouncements, useSession, useTeams, useWorkspace } from '@/renewal/data/queries';
 import { MemberCardTile } from '@/renewal/features/members/MemberCardTile';
 
-const formatDeadline = (iso: string) =>
-  new Date(iso).toLocaleString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' });
 
 const SummaryCard: React.FC<{ label: string; tone?: 'default' | 'accent' | 'warning'; children: React.ReactNode; labelledBy: string }> = ({
   label,

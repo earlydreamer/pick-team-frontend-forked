@@ -11,7 +11,27 @@ import type { Announcement } from '@/renewal/domain/announcement';
 export interface MockWorkspace {
   id: string;
   name: string;
+  /** 워크스페이스 정원(초대 링크 사용 한도). 없으면 제한 없음 */
+  capacity?: number;
   members: { accountId: string; role: WorkspaceRole; teamId?: string }[];
+}
+
+/** 칸반 집계(위젯 C). 팀 스페이스를 구현하기 전까지 목업 값으로 둔다. */
+export interface MockTeamProgress {
+  teamId: string;
+  completionRate: number;
+  lastActivityAt: string;
+}
+
+export interface MockApproval {
+  id: string;
+  workspaceId: string;
+  teamId: string;
+  taskTitle: string;
+  requesterId: string;
+  requestedAt: string;
+  approvedAt?: string;
+  approverId?: string;
 }
 
 export interface MockDb {
@@ -24,10 +44,16 @@ export interface MockDb {
   teams: Team[];
   announcements: (Announcement & { workspaceId: string })[];
   applications: TeamApplication[];
+  progress: MockTeamProgress[];
+  approvals: MockApproval[];
+  /** 이번 기수 차단 이력(위젯 D). 차단된 계정은 멤버 목록에 없다. */
+  bans: { workspaceId: string; accountId: string; bannedAt: string }[];
+  /** 카드 미작성자 리마인드 발송 기록. 알림 센터가 생기면 실제 알림으로 바꾼다. */
+  reminders: { workspaceId: string; accountIds: string[]; sentAt: string }[];
 }
 
 const STORAGE_KEY = 'pickteam.renewal.mock';
-const VERSION = 4;
+const VERSION = 5;
 
 const daysFromNow = (days: number, hour = 23, minute = 59) => {
   const date = new Date();
@@ -60,6 +86,7 @@ const people: [string, string][] = [
   ['u-09', '장우진'],
   ['u-10', '임채원'],
   ['u-11', '강도윤'],
+  ['u-12', '홍길동'],
 ];
 
 export const seed = (): MockDb => ({
@@ -88,6 +115,7 @@ export const seed = (): MockDb => ({
     {
       id: 'ws-1',
       name: '2026 하계 부트캠프',
+      capacity: 30,
       members: [
         { accountId: 'u-instructor', role: 'OWNER' },
         { accountId: 'u-manager', role: 'ADMIN' },
@@ -122,6 +150,18 @@ export const seed = (): MockDb => ({
     { id: 'app-3', sessionId: 's-1', direction: 'APPLY', applicantId: 'u-03', teamId: 't-1', message: '백엔드 지원합니다. 주말에 집중해서 할 수 있어요.', status: 'PENDING', createdAt: hoursAgo(20) },
     { id: 'app-4', sessionId: 's-1', direction: 'APPLY', applicantId: 'u-07', teamId: 't-1', message: '기획과 일정 관리를 맡고 싶어요.', status: 'PENDING', createdAt: hoursAgo(5) },
   ],
+  progress: [
+    { teamId: 't-1', completionRate: 60, lastActivityAt: hoursAgo(6) },
+    { teamId: 't-2', completionRate: 40, lastActivityAt: hoursAgo(24 * 8) },
+    { teamId: 't-3', completionRate: 80, lastActivityAt: hoursAgo(30) },
+  ],
+  approvals: [
+    { id: 'ap-1', workspaceId: 'ws-1', teamId: 't-1', taskTitle: '로그인 API 완성', requesterId: 'u-01', requestedAt: hoursAgo(72) },
+    { id: 'ap-2', workspaceId: 'ws-1', teamId: 't-3', taskTitle: '와이어프레임 완성', requesterId: 'u-06', requestedAt: hoursAgo(24) },
+    { id: 'ap-3', workspaceId: 'ws-1', teamId: 't-1', taskTitle: 'DB 스키마 설계', requesterId: 'u-02', requestedAt: hoursAgo(5) },
+  ],
+  bans: [{ workspaceId: 'ws-1', accountId: 'u-12', bannedAt: hoursAgo(24 * 4) }],
+  reminders: [],
   announcements: [
     { id: 'a-1', workspaceId: 'ws-1', title: '팀 빌딩 마감 시각 안내', authorName: '박강사', createdAt: hoursAgo(1) },
     { id: 'a-2', workspaceId: 'ws-1', title: 'PR 카드 작성 가이드: 희망 역할과 태그 쓰는 법', authorName: '정매니저', createdAt: hoursAgo(26) },

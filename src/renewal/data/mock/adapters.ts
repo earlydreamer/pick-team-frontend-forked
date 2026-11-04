@@ -4,6 +4,8 @@ import { DataError, type DataSource } from '../ports';
 import { aggregateTeam, matchCandidateToTeam } from '@/renewal/domain/matching';
 import { openSeats, type ApplicationView, type Team, type TeamApplication, type TeamSummary } from '@/renewal/domain/teamBuilding';
 import * as rules from './rules';
+import * as sessionRules from './sessionRules';
+import { INACTIVE_DAYS, type DashboardAlert } from '@/renewal/domain/dashboard';
 import { commit, getDb, latency, shouldFail, type MockDb } from './db';
 
 const requireMe = () => {
@@ -370,6 +372,150 @@ export const mockDataSource: DataSource = {
       const result = rules.createTeam(getDb(), workspaceId, me.id, input);
       commit(result.db);
       return { teamId: result.teamId };
+    },
+
+    async getManageView(workspaceId) {
+      await latency();
+      fail('manage');
+      const { me } = findWorkspaceOfMe(workspaceId);
+      const db = getDb();
+      sessionRules.requireManager(db, workspaceId, me.id);
+      const session = rules.findSession(db, workspaceId);
+      const participants = sessionRules.participantsOf(db, workspaceId);
+      const capacity = session?.teamCapacity ?? 0;
+      return {
+        session,
+        participants: participants.length,
+        assigned: participants.filter((member) => member.teamId).length,
+        unassigned: participants.filter((member) => !member.teamId).map((member) => toMember(db, workspaceId, member.accountId, me.id)),
+        cardNotWritten: participants.filter((member) => memberCardState(db.cards[member.accountId] ?? emptyCard()) === 'NOT_WRITTEN').length,
+        teams: db.teams
+          .filter((team) => team.workspaceId === workspaceId)
+          .map((team) => ({ team, members: team.memberIds.map((id) => toMember(db, workspaceId, id, me.id)), openSeats: openSeats(team, capacity) })),
+        pendingApplications: session ? db.applications.filter((app) => app.sessionId === session.id && app.status === 'PENDING').length : 0,
+      };
+    },
+    async createSession(workspaceId, input) {
+      const { me } = findWorkspaceOfMe(workspaceId);
+      await mutate('createSession', (db) => sessionRules.createSession(db, workspaceId, me.id, input));
+    },
+    async updateSession(workspaceId, input) {
+      const { me } = findWorkspaceOfMe(workspaceId);
+      await mutate('updateSession', (db) => sessionRules.updateSession(db, workspaceId, me.id, input));
+    },
+    async openSession(workspaceId) {
+      const { me } = findWorkspaceOfMe(workspaceId);
+      await mutate('openSession', (db) => sessionRules.openSession(db, workspaceId, me.id));
+    },
+    async closeSession(workspaceId) {
+      const { me } = findWorkspaceOfMe(workspaceId);
+      await mutate('closeSession', (db) => sessionRules.closeSession(db, workspaceId, me.id));
+    },
+    async assignMember(workspaceId, accountId, teamId) {
+      const { me } = findWorkspaceOfMe(workspaceId);
+      await mutate('assign', (db) => sessionRules.assignMember(db, workspaceId, me.id, accountId, teamId));
+    },
+    async unassignMember(workspaceId, accountId) {
+      const { me } = findWorkspaceOfMe(workspaceId);
+      await mutate('unassign', (db) => sessionRules.unassignMember(db, workspaceId, me.id, accountId));
+    },
+    async addTeamSlot(workspaceId, name) {
+      const { me } = findWorkspaceOfMe(workspaceId);
+      await latency(350);
+      fail('addTeamSlot');
+      const result = sessionRules.addTeamSlot(getDb(), workspaceId, me.id, name);
+      commit(result.db);
+      return { teamId: result.teamId };
+    },
+    async randomAssign(workspaceId) {
+      const { me } = findWorkspaceOfMe(workspaceId);
+      await latency(350);
+      fail('randomAssign');
+      const result = sessionRules.randomAssign(getDb(), workspaceId, me.id);
+      commit(result.db);
+      return { assigned: result.assigned, remaining: result.remaining };
+    },
+    async resolveSession(workspaceId) {
+      const { me } = findWorkspaceOfMe(workspaceId);
+      await mutate('resolveSession', (db) => sessionRules.resolveSession(db, workspaceId, me.id));
+    },
+  },
+
+  dashboard: {
+    async get(workspaceId) {
+      await latency();
+      fail('dashboard');
+      const { me, workspace } = findWorkspaceOfMe(workspaceId);
+      const db = getDb();
+      sessionRules.requireManager(db, workspaceId, me.id);
+      const participants = sessionRules.participantsOf(db, workspaceId);
+      const written = participants.filter((member) => memberCardState(db.cards[member.accountId] ?? emptyCard()) !== 'NOT_WRITTEN').length;
+      const session = rules.findSession(db, workspaceId);
+      const teams = db.teams.filter((team) => team.workspaceId === workspaceId);
+      const pending = db.approvals.filter((item) => item.workspaceId === workspaceId && !item.approvedAt).sort((a, b) => b.requestedAt.localeCompare(a.requestedAt));
+      const account = (id: string) => db.accounts.find((item) => item.id === id)!;
+      const teamName = (id: string) => teams.find((team) => team.id === id)?.name ?? '알 수 없는 팀';
+      const inactive: DashboardAlert[] = teams.flatMap((team) => {
+        const progress = db.progress.find((item) => item.teamId === team.id);
+        if (!progress) return [];
+        const days = Math.floor((Date.now() - new Date(progress.lastActivityAt).getTime()) / 86_400_000);
+        return days >= INACTIVE_DAYS ? [{ kind: 'INACTIVE_TEAM' as const, teamId: team.id, teamName: team.name, days }] : [];
+      });
+      const banCounts = new Map<string, number>();
+      db.bans.filter((ban) => ban.workspaceId === workspaceId).forEach((ban) => banCounts.set(ban.accountId, (banCounts.get(ban.accountId) ?? 0) + 1));
+      return {
+        workspace: { name: workspace.name, memberCount: workspace.members.length, capacity: workspace.capacity },
+        cards: { participants: participants.length, written, notWritten: participants.length - written },
+        teamBuilding: session
+          ? {
+              status: session.status,
+              closesAt: session.closesAt,
+              assigned: participants.filter((member) => member.teamId).length,
+              unassigned: participants.filter((member) => !member.teamId).length,
+            }
+          : null,
+        progress: teams
+          .filter((team) => team.memberIds.length > 0)
+          .map((team) => ({
+            teamId: team.id,
+            teamName: team.name,
+            completionRate: db.progress.find((item) => item.teamId === team.id)?.completionRate ?? 0,
+            pendingApprovals: pending.filter((item) => item.teamId === team.id).length,
+          })),
+        approvals: pending.map((item) => ({
+          id: item.id,
+          teamId: item.teamId,
+          teamName: teamName(item.teamId),
+          taskTitle: item.taskTitle,
+          requester: account(item.requesterId),
+          requestedAt: item.requestedAt,
+        })),
+        alerts: [...inactive, ...[...banCounts.entries()].map(([accountId, count]) => ({ kind: 'BAN_HISTORY' as const, account: account(accountId), count }))],
+      };
+    },
+    async approve(workspaceId, approvalId) {
+      const { me } = findWorkspaceOfMe(workspaceId);
+      await mutate('approve', (db) => {
+        sessionRules.requireManager(db, workspaceId, me.id);
+        const target = db.approvals.find((item) => item.id === approvalId && item.workspaceId === workspaceId);
+        if (!target) throw new DataError('승인 요청을 찾을 수 없어요.', 'NOT_FOUND');
+        if (target.approvedAt) throw new DataError('이미 승인된 요청이에요.', 'CONFLICT');
+        return { ...db, approvals: db.approvals.map((item) => (item.id === approvalId ? { ...item, approvedAt: new Date().toISOString(), approverId: me.id } : item)) };
+      });
+    },
+    async remindCardWriters(workspaceId) {
+      const { me } = findWorkspaceOfMe(workspaceId);
+      await latency(350);
+      fail('remind');
+      const db = getDb();
+      sessionRules.requireManager(db, workspaceId, me.id);
+      const targets = sessionRules
+        .participantsOf(db, workspaceId)
+        .filter((member) => memberCardState(db.cards[member.accountId] ?? emptyCard()) === 'NOT_WRITTEN')
+        .map((member) => member.accountId);
+      if (targets.length === 0) throw new DataError('카드를 쓰지 않은 멤버가 없어요.', 'CONFLICT');
+      commit({ ...db, reminders: [...db.reminders, { workspaceId, accountIds: targets, sentAt: new Date().toISOString() }] });
+      return { count: targets.length };
     },
   },
 };
