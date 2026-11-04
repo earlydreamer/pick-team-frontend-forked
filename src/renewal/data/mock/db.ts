@@ -5,6 +5,7 @@ import type { Announcement } from '@/renewal/domain/announcement';
 import type { KanbanTask } from '@/renewal/domain/kanban';
 import type { Schedule } from '@/renewal/domain/teamSpace';
 import type { Post } from '@/renewal/domain/collab';
+import type { ChatMessage, ChatRoom, VideoChannel } from '@/renewal/domain/chat';
 
 /**
  * 목업 단계의 데이터 저장소. 브라우저 localStorage에 저장해 새로고침해도 유지된다.
@@ -36,6 +37,16 @@ export interface MockDb {
   tasks: KanbanTask[];
   schedules: Schedule[];
   posts: Post[];
+  /** 채팅방. 팀 방은 멤버를 팀 소속에서 계산하므로 memberIds를 비워 둔다 */
+  chatRooms: ChatRoom[];
+  chatMessages: ChatMessage[];
+  /** 마지막으로 읽은 시각. 키는 `방:계정` */
+  chatReads: Record<string, string>;
+  /** 알림을 끈 방. 값은 `방:계정` */
+  chatMutes: string[];
+  videoChannels: VideoChannel[];
+  /** 회의에 들어와 있는 사람(VideoMember). 나가면 지운다 */
+  videoPresence: { channelId: string; accountId: string; joinedAt: string }[];
   /** 결성 직후 체크리스트에서 "역할 확정"을 마친 팀 */
   rolesConfirmedTeamIds: string[];
   /** 이번 기수 차단 이력(위젯 D). 차단된 계정은 멤버 목록에 없다. */
@@ -79,7 +90,7 @@ const SEED_PASSWORD_HASH = 'adb7a220a9fc0f2e7f11eb83d815e591330158c0b16f2db35ee8
 const SEED_WORKSPACE_PASSWORD_HASH = '6b5960ce025fca41a5e127b14ad6a8544685e224ef4566816cf90726d81c4ebc';
 
 const STORAGE_KEY = 'pickteam.renewal.mock';
-const VERSION = 8;
+const VERSION = 9;
 
 const daysFromNow = (days: number, hour = 23, minute = 59) => {
   const date = new Date();
@@ -265,6 +276,31 @@ export const seed = (): MockDb => ({
   ],
   tasks: seedTasks(),
   schedules: seedSchedules(),
+  chatRooms: [
+    { id: 'cr-t1', workspaceId: 'ws-1', kind: 'TEAM', title: '알파팀 채팅방', teamId: 't-1', memberIds: [], createdBy: 'u-01', createdAt: hoursAgo(130) },
+    { id: 'cr-t2', workspaceId: 'ws-1', kind: 'TEAM', title: '데이터 크루 채팅방', teamId: 't-2', memberIds: [], createdBy: 'u-05', createdAt: hoursAgo(260) },
+    { id: 'cr-t3', workspaceId: 'ws-1', kind: 'TEAM', title: '달빛 채팅방', teamId: 't-3', memberIds: [], createdBy: 'u-08', createdAt: hoursAgo(150) },
+    { id: 'cr-dm1', workspaceId: 'ws-1', kind: 'DM', memberIds: ['u-01', 'u-02'], createdBy: 'u-01', createdAt: hoursAgo(50) },
+    { id: 'cr-g1', workspaceId: 'ws-1', kind: 'GROUP', title: '백엔드 스터디', memberIds: ['u-01', 'u-03', 'u-student'], createdBy: 'u-01', createdAt: hoursAgo(40) },
+  ],
+  chatMessages: [
+    { id: 'm-1', roomId: 'cr-t1', content: '알파팀 채팅방이 만들어졌어요.', createdAt: hoursAgo(130) },
+    { id: 'm-2', roomId: 'cr-t1', authorId: 'u-01', content: '안녕하세요! 이번 주 목요일 저녁에 첫 회의 어때요?', createdAt: hoursAgo(73) },
+    { id: 'm-3', roomId: 'cr-t1', authorId: 'u-02', content: '좋아요. 화면 흐름도는 그 전에 공유할게요.', createdAt: hoursAgo(72) },
+    { id: 'm-4', roomId: 'cr-t1', authorId: 'u-02', content: 'DB 스키마 완료 요청 보냈어요. 확인 부탁드려요.', createdAt: hoursAgo(4) },
+    { id: 'm-5', roomId: 'cr-dm1', authorId: 'u-02', content: '프로필 화면 디자인 시안 봐 주실 수 있나요?', createdAt: hoursAgo(26) },
+    { id: 'm-6', roomId: 'cr-dm1', authorId: 'u-01', content: '네, 오늘 밤에 볼게요.', createdAt: hoursAgo(25) },
+    { id: 'm-7', roomId: 'cr-g1', authorId: 'u-01', content: '스프링 시큐리티 같이 공부하실 분들 모였어요.', createdAt: hoursAgo(40) },
+    { id: 'm-8', roomId: 'cr-g1', authorId: 'u-03', content: '저 JWT 부분 정리해 올게요.', createdAt: hoursAgo(10) },
+  ],
+  chatReads: { 'cr-t1:u-01': hoursAgo(71), 'cr-dm1:u-01': hoursAgo(25), 'cr-g1:u-01': hoursAgo(20) },
+  chatMutes: [],
+  videoChannels: [
+    { id: 'vc-t1', workspaceId: 'ws-1', teamId: 't-1', name: '알파팀 회의실' },
+    { id: 'vc-t2', workspaceId: 'ws-1', teamId: 't-2', name: '데이터 크루 회의실' },
+    { id: 'vc-t3', workspaceId: 'ws-1', teamId: 't-3', name: '달빛 회의실' },
+  ],
+  videoPresence: [{ channelId: 'vc-t1', accountId: 'u-02', joinedAt: hoursAgo(0.2) }],
   posts: [
     {
       id: 'p-1',

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { ArrowLeftIcon, ArrowTopRightOnSquareIcon, ClockIcon, CalendarDaysIcon, LockClosedIcon, PaperAirplaneIcon, PencilSquareIcon } from '@heroicons/react/24/outline';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeftIcon, ArrowTopRightOnSquareIcon, ChatBubbleLeftRightIcon, ClockIcon, CalendarDaysIcon, LockClosedIcon, PaperAirplaneIcon, PencilSquareIcon } from '@heroicons/react/24/outline';
 import {
   TIME_SLOT_LABEL,
   WEEKLY_HOURS_LABEL,
@@ -10,7 +10,7 @@ import {
 } from '@/renewal/domain/card';
 import { Avatar, Badge, Button, EmptyState, ErrorState, LoadingState, buttonClassName, toast } from '@/renewal/ui';
 import { DataError } from '@/renewal/data';
-import { useBoard, useInbox, useMe, useMember, useScout } from '@/renewal/data/queries';
+import { useBoard, useInbox, useMe, useMember, useOpenDm, useScout } from '@/renewal/data/queries';
 import { NotFoundScreen } from '@/renewal/screens/system';
 import { CardRequiredModal, ProposalModal, useActionErrorHandler } from '@/renewal/features/teamBuilding/shared';
 import { RoleBadges } from './MemberCardTile';
@@ -37,6 +37,8 @@ export const MemberDetailScreen: React.FC = () => {
   const leading = Boolean(board.data?.me.isLeader && board.data.session.status === 'OPEN');
   const inbox = useInbox(leading ? wsId : '');
   const scout = useScout(wsId);
+  const openDm = useOpenDm(wsId);
+  const navigate = useNavigate();
   const errors = useActionErrorHandler();
   const [scouting, setScouting] = useState(false);
   const back = `/ws/${wsId}/members`;
@@ -98,6 +100,24 @@ export const MemberDetailScreen: React.FC = () => {
               <PencilSquareIcon className="h-5 w-5" aria-hidden="true" />
               편집
             </Link>
+          )}
+          {/* DM 시작(15 US-15-01): 이미 있으면 그 방으로, 없으면 새로 만든다. */}
+          {!isMe && (
+            <Button
+              variant="outline"
+              leftIcon={<ChatBubbleLeftRightIcon className="h-5 w-5" />}
+              loading={openDm.isPending}
+              onClick={async () => {
+                try {
+                  const result = await openDm.mutateAsync(account.id);
+                  navigate(`/ws/${wsId}/chat/${result.roomId}`);
+                } catch (error) {
+                  toast.error(error instanceof Error ? error.message : 'DM을 열지 못했어요.');
+                }
+              }}
+            >
+              DM 보내기
+            </Button>
           )}
           {scoutable &&
             (scoutSent ? (

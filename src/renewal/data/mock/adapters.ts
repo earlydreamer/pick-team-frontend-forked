@@ -9,6 +9,7 @@ import * as authRules from './authRules';
 import * as kanbanRules from './kanbanRules';
 import * as collabRules from './collabRules';
 import * as teamSettingsRules from './teamSettingsRules';
+import * as chatRules from './chatRules';
 import { progressOf } from '@/renewal/domain/kanban';
 import { INACTIVE_DAYS, type DashboardAlert } from '@/renewal/domain/dashboard';
 import { commit, getDb, latency, shouldFail, type MockDb } from './db';
@@ -701,6 +702,104 @@ export const mockDataSource: DataSource = {
     async deleteTeam(workspaceId, teamId, confirmName) {
       const me = requireMe();
       await mutate('deleteTeam', (db) => teamSettingsRules.deleteTeam(db, workspaceId, teamId, me.id, confirmName));
+    },
+  },
+
+  chat: {
+    async listRooms(workspaceId) {
+      await latency(150);
+      fail('chatRooms');
+      const me = requireMe();
+      // 팀이 생기면 팀 방과 회의실을 바로 만든다(15-D3).
+      const db = chatRules.ensureTeamRooms(getDb(), workspaceId);
+      if (db !== getDb()) commit(db);
+      return chatRules.listRooms(db, workspaceId, me.id);
+    },
+    async getRoom(workspaceId, roomId) {
+      await latency(150);
+      fail('chatRoom');
+      return chatRules.getRoom(chatRules.ensureTeamRooms(getDb(), workspaceId), workspaceId, roomId, requireMe().id);
+    },
+    async listMessages(workspaceId, roomId) {
+      await latency(150);
+      fail('messages');
+      return chatRules.listMessages(getDb(), workspaceId, roomId, requireMe().id);
+    },
+    async sendMessage(workspaceId, roomId, content) {
+      const me = requireMe();
+      await latency(300);
+      fail('sendMessage');
+      const result = chatRules.sendMessage(getDb(), workspaceId, roomId, me.id, content);
+      commit(result.db);
+      return result.message;
+    },
+    async markRead(workspaceId, roomId) {
+      const me = requireMe();
+      commit(chatRules.markRead(getDb(), workspaceId, roomId, me.id));
+    },
+    async searchMessages(workspaceId, roomId, keyword) {
+      await latency();
+      fail('searchMessages');
+      return chatRules.search(getDb(), workspaceId, roomId, requireMe().id, keyword);
+    },
+    async createRoom(workspaceId, input) {
+      const me = requireMe();
+      await latency(300);
+      fail('createRoom');
+      const result = chatRules.createGroup(getDb(), workspaceId, me.id, input);
+      commit(result.db);
+      return { roomId: result.roomId };
+    },
+    async openDm(workspaceId, accountId) {
+      const me = requireMe();
+      await latency(200);
+      fail('openDm');
+      const result = chatRules.openDm(getDb(), workspaceId, me.id, accountId);
+      commit(result.db);
+      return { roomId: result.roomId };
+    },
+    async renameRoom(workspaceId, roomId, title) {
+      const me = requireMe();
+      await mutate('renameRoom', (db) => chatRules.renameRoom(db, workspaceId, roomId, me.id, title));
+    },
+    async addMembers(workspaceId, roomId, memberIds) {
+      const me = requireMe();
+      await mutate('addMembers', (db) => chatRules.addMembers(db, workspaceId, roomId, me.id, memberIds));
+    },
+    async leaveRoom(workspaceId, roomId) {
+      const me = requireMe();
+      await mutate('leaveRoom', (db) => chatRules.leaveRoom(db, workspaceId, roomId, me.id));
+    },
+    async deleteRoom(workspaceId, roomId) {
+      const me = requireMe();
+      await mutate('deleteRoom', (db) => chatRules.deleteRoom(db, workspaceId, roomId, me.id));
+    },
+    async setMuted(workspaceId, roomId, muted) {
+      const me = requireMe();
+      await mutate('setMuted', (db) => chatRules.setMuted(db, workspaceId, roomId, me.id, muted));
+    },
+  },
+
+  video: {
+    async listChannels(workspaceId) {
+      await latency(150);
+      const me = requireMe();
+      const db = chatRules.ensureTeamRooms(getDb(), workspaceId);
+      if (db !== getDb()) commit(db);
+      return chatRules.listChannels(db, workspaceId, me.id);
+    },
+    async getChannel(workspaceId, channelId) {
+      await latency();
+      fail('videoChannel');
+      return chatRules.getChannel(getDb(), workspaceId, channelId, requireMe().id);
+    },
+    async join(workspaceId, channelId) {
+      const me = requireMe();
+      await mutate('videoJoin', (db) => chatRules.joinChannel(db, workspaceId, channelId, me.id));
+    },
+    async leave(workspaceId, channelId) {
+      const me = requireMe();
+      await mutate('videoLeave', (db) => chatRules.leaveChannel(db, workspaceId, channelId, me.id));
     },
   },
 
