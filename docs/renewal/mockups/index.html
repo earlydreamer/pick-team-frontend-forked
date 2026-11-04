@@ -1,0 +1,375 @@
+<!-- 로우파이 목업 · 근거: 02-information-architecture.md §3 화면 인벤토리 -->
+<title>Pick Team MVP 2.0 — 목업 목차</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Pretendard', 'Noto Sans KR', system-ui, sans-serif;
+    font-size: 14px;
+    background: #f5f5f5;
+    color: #1a1a1a;
+    min-width: 900px;
+    padding: 0;
+  }
+  .spec-bar {
+    background: #fafafa;
+    border-bottom: 1px solid #e0e0e0;
+    font-size: 11px;
+    color: #888;
+    padding: 4px 24px;
+    letter-spacing: 0.02em;
+  }
+  .page-wrap {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 24px 60px;
+  }
+  .page-header {
+    margin-bottom: 32px;
+  }
+  .page-header h1 {
+    font-size: 24px; font-weight: 800; color: #111;
+    margin-bottom: 6px;
+  }
+  .page-header p {
+    font-size: 13px; color: #6b7280;
+    line-height: 1.6;
+  }
+  .header-meta {
+    display: flex; align-items: center; gap: 10px;
+    margin-top: 12px;
+  }
+  .meta-chip {
+    background: #e0e7ff; color: #3730a3;
+    font-size: 11px; font-weight: 600;
+    padding: 2px 9px; border-radius: 10px;
+  }
+  .meta-chip.gray { background: #f3f4f6; color: #6b7280; }
+
+  .section-label {
+    font-size: 11px; font-weight: 700;
+    color: #6b7280; letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .mockup-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 32px;
+  }
+
+  .mockup-card {
+    background: #fff;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+    padding: 18px 20px;
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    transition: box-shadow 0.15s, border-color 0.15s;
+  }
+  .mockup-card:hover {
+    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+    border-color: #3B82F6;
+  }
+  /* 관리자 전용 카드 — 보라 점선 */
+  .mockup-card.admin {
+    border: 1.5px dashed #7C3AED;
+  }
+  .mockup-card.admin:hover {
+    border-color: #7C3AED;
+    box-shadow: 0 3px 10px rgba(124,58,237,0.12);
+  }
+
+  .card-top {
+    display: flex; align-items: flex-start; gap: 10px;
+  }
+  .card-scr-id {
+    font-size: 10px; font-weight: 700;
+    color: #9ca3af; letter-spacing: 0.05em;
+    padding: 2px 7px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .card-scr-id.admin-id {
+    color: #7C3AED;
+    border-color: #ddd6fe;
+    background: #f5f3ff;
+  }
+  .card-title {
+    font-size: 15px; font-weight: 700; color: #111;
+    flex: 1;
+  }
+  .card-desc {
+    font-size: 12px; color: #6b7280;
+    line-height: 1.55;
+  }
+  .card-footer {
+    display: flex; align-items: center; gap: 6px;
+    margin-top: 4px;
+    flex-wrap: wrap;
+  }
+  .doc-ref {
+    font-size: 10px; font-weight: 600;
+    color: #3B82F6;
+    background: #eff6ff;
+    padding: 1px 7px; border-radius: 6px;
+  }
+  .doc-ref.purple {
+    color: #7C3AED; background: #f5f3ff;
+  }
+  .status-chip {
+    font-size: 10px; font-weight: 600;
+    padding: 1px 7px; border-radius: 6px;
+  }
+  .status-chip.new { background: #dcfce7; color: #166534; }
+  .status-chip.revised { background: #fef3c7; color: #92400e; }
+  .status-chip.admin-only {
+    background: #f5f3ff; color: #7C3AED;
+    border: 1px dashed #7C3AED;
+  }
+  .open-link {
+    margin-left: auto;
+    font-size: 12px; font-weight: 600;
+    color: #3B82F6;
+  }
+  .mockup-card.admin .open-link { color: #7C3AED; }
+
+  /* 범례 */
+  .legend {
+    background: #fff;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+    padding: 14px 18px;
+    display: flex; gap: 20px; flex-wrap: wrap;
+    margin-bottom: 32px;
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 12px; color: #555;
+  }
+  .legend-box {
+    width: 24px; height: 16px;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+  .legend-box.normal { background: #fff; border: 1px solid #e5e7eb; }
+  .legend-box.admin-box { background: #f5f3ff; border: 1.5px dashed #7C3AED; }
+
+  /* 스펙 문서 참조 테이블 */
+  .ref-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    background: #fff;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid #e5e7eb;
+  }
+  .ref-table th {
+    background: #f9fafb;
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 700; color: #374151;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  .ref-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #f3f4f6;
+    color: #555;
+    vertical-align: top;
+  }
+  .ref-table tr:last-child td { border-bottom: none; }
+  .ref-table tr:hover td { background: #f9fafb; }
+  .ref-code {
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    color: #3B82F6;
+  }
+</style>
+
+<!-- 주석 바 -->
+<div class="spec-bar">로우파이 목업 &nbsp;·&nbsp; 근거: 02-information-architecture.md §3 화면 인벤토리 &nbsp;·&nbsp; Pick Team MVP 2.0 목업 목차</div>
+
+<div class="page-wrap">
+  <div class="page-header">
+    <h1>Pick Team MVP 2.0 — 로우파이 목업 목차</h1>
+    <p>기획 문서(01~13)를 근거로 제작된 화면 목업 모음입니다.<br>
+      각 카드를 클릭하면 해당 목업 파일로 이동합니다. 보라 점선 테두리는 관리자(개설자·매니저) 전용 화면입니다.</p>
+    <div class="header-meta">
+      <span class="meta-chip">MVP 2.0</span>
+      <span class="meta-chip gray">로우파이 · 그레이스케일 + #3B82F6</span>
+      <span class="meta-chip gray">기준 뷰포트: 1280px</span>
+      <span class="meta-chip gray">2026-07-04</span>
+    </div>
+  </div>
+
+  <!-- 범례 -->
+  <div class="legend">
+    <div class="legend-item">
+      <div class="legend-box normal"></div>
+      일반 멤버 화면
+    </div>
+    <div class="legend-item">
+      <div class="legend-box admin-box"></div>
+      관리자(개설자·매니저) 전용 화면 — 보라 점선
+    </div>
+    <div class="legend-item">
+      <span class="status-chip new">신규</span> 신규 화면
+    </div>
+    <div class="legend-item">
+      <span class="status-chip revised">개편</span> 기존 화면 재설계
+    </div>
+  </div>
+
+  <!-- 목업 카드 목록 -->
+  <div class="section-label">화면 목업 6개</div>
+  <div class="mockup-grid">
+
+    <!-- 1. 온보딩 위저드 -->
+    <a class="mockup-card" href="onboarding.html">
+      <div class="card-top">
+        <span class="card-scr-id">SCR-ONB-01</span>
+        <span class="card-title">온보딩 위저드 (PR 카드 작성)</span>
+      </div>
+      <div class="card-desc">초대 합류 직후 노출되는 PR 카드 작성 위저드. 필수 입력 2개(희망 역할·주간 가용 시간)로 최소화, 건너뛰기 허용. 카드 없이는 팀 빌딩 지원 불가.</div>
+      <div class="card-footer">
+        <span class="doc-ref">01 §3</span>
+        <span class="doc-ref">11-profile-pr-card.md</span>
+        <span class="status-chip new">신규</span>
+        <span class="open-link">열기 →</span>
+      </div>
+    </a>
+
+    <!-- 2. PR 카드 편집 -->
+    <a class="mockup-card" href="pr-card-edit.html">
+      <div class="card-top">
+        <span class="card-scr-id">SCR-MY-02</span>
+        <span class="card-title">내 PR 카드 편집</span>
+      </div>
+      <div class="card-desc">마이페이지에서 접근하는 카드 편집 화면. 카드 v2 구조로 재편 — 희망 역할·기술 태그·한 줄 소개·주간 가용 시간·목표 온도. demo 데이터 전면 폐기.</div>
+      <div class="card-footer">
+        <span class="doc-ref">02 §3.5</span>
+        <span class="doc-ref">11-profile-pr-card.md</span>
+        <span class="status-chip revised">개편</span>
+        <span class="open-link">열기 →</span>
+      </div>
+    </a>
+
+    <!-- 3. 멤버 카드 갤러리 -->
+    <a class="mockup-card" href="card-gallery.html">
+      <div class="card-top">
+        <span class="card-scr-id">SCR-WS-02</span>
+        <span class="card-title">멤버 카드 갤러리</span>
+      </div>
+      <div class="card-desc">워크스페이스 전체 멤버 카드 목록. 역할·태그·가용 시간 필터, 카드 클릭 시 상세(SCR-PRF-01) 이동. 팀 빌딩 OPEN 중에는 스카우트 제안 버튼 노출.</div>
+      <div class="card-footer">
+        <span class="doc-ref">02 §3.2</span>
+        <span class="doc-ref">11-profile-pr-card.md</span>
+        <span class="status-chip new">신규</span>
+        <span class="open-link">열기 →</span>
+      </div>
+    </a>
+
+    <!-- 4. 팀 빌딩 세션 운영 -->
+    <a class="mockup-card admin" href="team-building-session.html">
+      <div class="card-top">
+        <span class="card-scr-id admin-id">SCR-TB-04</span>
+        <span class="card-title">팀 빌딩 세션 운영 (관리자)</span>
+      </div>
+      <div class="card-desc">개설자·매니저 전용. 세션 상태 전환(DRAFT→OPEN→CLOSING→RESOLVED), 미배정자 수동 DnD 배치, 랜덤 폴백 실행. 강사 대시보드 위젯 B에서 딥링크.</div>
+      <div class="card-footer">
+        <span class="doc-ref purple">02 §3.3</span>
+        <span class="doc-ref purple">12-team-building.md §4</span>
+        <span class="status-chip new">신규</span>
+        <span class="status-chip admin-only">관리자 전용</span>
+        <span class="open-link">열기 →</span>
+      </div>
+    </a>
+
+    <!-- 5. 강사 대시보드 (완성) -->
+    <a class="mockup-card admin" href="instructor-dashboard.html">
+      <div class="card-top">
+        <span class="card-scr-id admin-id">SCR-DSH-01</span>
+        <span class="card-title">강사 대시보드</span>
+      </div>
+      <div class="card-desc">개설자·매니저의 기본 진입점. 위젯 A(가입·카드 현황·리마인드), B(팀 빌딩·D-day·배정/미배정), C(팀별 칸반 완료율·승인 대기), D(이상 신호). 하단 승인 큐 인라인 패널.</div>
+      <div class="card-footer">
+        <span class="doc-ref purple">13 §4.4~4.5</span>
+        <span class="doc-ref purple">01 §6</span>
+        <span class="doc-ref purple">02 §3.2</span>
+        <span class="status-chip new">신규</span>
+        <span class="status-chip admin-only">관리자 전용</span>
+        <span class="open-link">열기 →</span>
+      </div>
+    </a>
+
+    <!-- 6. 워크스페이스 홈 (완성) -->
+    <a class="mockup-card" href="workspace-home.html">
+      <div class="card-top">
+        <span class="card-scr-id">SCR-WS-01</span>
+        <span class="card-title">워크스페이스 홈 (멤버)</span>
+      </div>
+      <div class="card-desc">멤버의 기본 진입점. 내 상태 요약(내 팀 카드·팀 빌딩 D-day 배너·카드 작성 유도 배너 3열), 최근 공지 목록, 멤버 카드 미리보기 4장 + 모두 보기.</div>
+      <div class="card-footer">
+        <span class="doc-ref">02 §3.2</span>
+        <span class="doc-ref">01 §3</span>
+        <span class="status-chip revised">개편</span>
+        <span class="open-link">열기 →</span>
+      </div>
+    </a>
+
+  </div>
+
+  <!-- 근거 문서 참조 테이블 -->
+  <div class="section-label" style="margin-top: 8px;">근거 문서 참조</div>
+  <table class="ref-table">
+    <thead>
+      <tr>
+        <th>문서</th>
+        <th>제목</th>
+        <th>참조 섹션</th>
+        <th>관련 목업</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="ref-code">01-e2e-flows.md</span></td>
+        <td>E2E Flows — 사용 시나리오와 화면 연결</td>
+        <td>§3 F2 온보딩, §5 F4 협업, §6 F5 감독 루프</td>
+        <td>전체</td>
+      </tr>
+      <tr>
+        <td><span class="ref-code">02-information-architecture.md</span></td>
+        <td>Information Architecture — 네비게이션·화면 인벤토리</td>
+        <td>§2.1 데스크톱 레이아웃, §2.3 Context Nav, §3 화면 인벤토리</td>
+        <td>전체 셸 구조</td>
+      </tr>
+      <tr>
+        <td><span class="ref-code">11-profile-pr-card.md</span></td>
+        <td>프로필·PR 카드</td>
+        <td>카드 v2 구조, 온보딩 위저드, 갤러리 필터</td>
+        <td>SCR-ONB-01, SCR-MY-02, SCR-WS-02</td>
+      </tr>
+      <tr>
+        <td><span class="ref-code">12-team-building.md</span></td>
+        <td>팀 빌딩 세션</td>
+        <td>§4 세션 운영, CLOSING 단계 수동 배치</td>
+        <td>SCR-TB-04</td>
+      </tr>
+      <tr>
+        <td><span class="ref-code">13-workspace-admin.md</span></td>
+        <td>워크스페이스 관리자 — 강사 대시보드</td>
+        <td>§4.4 4종 위젯 레이아웃, §4.5 승인 큐 인라인 패널</td>
+        <td>SCR-DSH-01</td>
+      </tr>
+    </tbody>
+  </table>
+</div>

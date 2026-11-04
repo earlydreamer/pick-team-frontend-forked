@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<!-- 로우파이 목업 · 근거: 11-profile-pr-card.md §4.4 (SCR-WS-02) + §4.5 (SCR-PRF-01) -->
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SCR-WS-02 멤버 카드 갤러리 · 로우파이 목업</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Pretendard', 'Noto Sans KR', system-ui, sans-serif;
+      background: #1E293B;
+      min-height: 100vh;
+      display: flex;
+      overflow-x: hidden;
+    }
+
+    /* ── WS 레일 64px ── */
+    .ws-rail {
+      width: 64px;
+      min-height: 100vh;
+      background: #0F172A;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px 0;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    .ws-logo {
+      width: 40px; height: 40px;
+      background: #3B82F6;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 16px; font-weight: 800;
+      margin-bottom: 6px;
+    }
+    .ws-icon {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      background: #1E293B;
+      display: flex; align-items: center; justify-content: center;
+      color: #64748B; font-size: 13px; font-weight: 700;
+      cursor: pointer;
+    }
+    .ws-icon.active { background: #3B82F6; color: #fff; border-radius: 14px; }
+    .ws-rail-divider { width: 32px; border-top: 1px solid #334155; }
+    .ws-add {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      border: 1.5px dashed #334155;
+      display: flex; align-items: center; justify-content: center;
+      color: #475569; font-size: 18px; cursor: pointer;
+    }
+
+    /* ── Context Nav 240px ── */
+    .ctx-nav {
+      width: 240px;
+      min-height: 100vh;
+      background: #1E293B;
+      border-right: 1px solid #334155;
+      flex-shrink: 0;
+    }
+    .ctx-nav-header {
+      padding: 18px 16px 14px;
+      border-bottom: 1px solid #334155;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .ctx-ws-name { font-size: 14px; font-weight: 700; color: #F1F5F9; }
+    .ctx-settings-btn { font-size: 15px; color: #64748B; cursor: pointer; }
+    .nav-section-label {
+      font-size: 10px; font-weight: 700; color: #475569;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      padding: 14px 16px 4px;
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 16px;
+      font-size: 13px; color: #94A3B8;
+      cursor: pointer;
+      transition: background 0.12s, color 0.12s;
+    }
+    .nav-item:hover { background: #334155; color: #E2E8F0; }
+    .nav-item.active { background: #1D4ED8; color: #fff; font-weight: 600; }
+    .nav-item .icon { font-size: 14px; width: 18px; text-align: center; }
+    .nav-badge {
+      margin-left: auto; background: #EF4444; color: #fff;
+      font-size: 10px; font-weight: 700; border-radius: 8px; padding: 1px 6px;
+    }
+    .nav-divider { border: none; border-top: 1px solid #334155; margin: 8px 0; }
+
+    /* ── Content Area ── */
+    .content-area {
+      flex: 1; background: #F8FAFC;
+      display: flex; flex-direction: column; min-height: 100vh;
+    }
+    .global-header {
+      height: 56px; background: #fff;
+      border-bottom: 1px solid #E5E7EB;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 24px; flex-shrink: 0;
+    }
+    .header-logo { font-size: 15px; font-weight: 800; color: #1E293B; }
+    .header-logo span { color: #3B82F6; }
+    .header-right { display: flex; align-items: center; gap: 14px; }
+    .header-bell { font-size: 18px; color: #64748B; cursor: pointer; position: relative; }
+    .header-bell .badge {
+      position: absolute; top: -2px; right: -4px;
+      width: 8px; height: 8px; background: #EF4444; border-radius: 50%;
+    }
+    .header-avatar {
+      width: 30px; height: 30px; border-radius: 50%;
+      background: #3B82F6; color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; cursor: pointer;
+    }
+
+    .mockup-banner {
+      background: #1E293B; color: #64748B;
+      font-size: 11px; padding: 5px 24px; letter-spacing: 0.02em;
+    }
+
+    /* ── 갤러리 메인 ── */
+    .main { flex: 1; padding: 24px 28px 60px; }
+
+    .gallery-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .gallery-title { font-size: 20px; font-weight: 700; color: #111827; }
+    .gallery-meta { font-size: 13px; color: #6B7280; margin-left: 10px; }
+    .btn {
+      padding: 8px 16px; border-radius: 6px;
+      font-size: 13px; font-family: inherit; font-weight: 500;
+      cursor: pointer; border: none; transition: background 0.15s;
+    }
+    .btn-outline { background: #fff; color: #374151; border: 1.5px solid #D1D5DB; }
+    .btn-outline:hover { background: #F9FAFB; }
+    .btn-primary { background: #3B82F6; color: #fff; }
+    .btn-primary:hover { background: #2563EB; }
+
+    /* ── 필터 바 ── */
+    .filter-bar {
+      background: #fff;
+      border: 1px solid #E5E7EB;
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin-bottom: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+    .filter-label { font-size: 12px; color: #6B7280; font-weight: 600; margin-right: 2px; }
+    .filter-select {
+      border: 1.5px solid #D1D5DB;
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: 12px;
+      font-family: inherit;
+      outline: none;
+      background: #fff;
+      cursor: pointer;
+    }
+    .filter-select:focus { border-color: #3B82F6; }
+    .filter-tag {
+      background: #EFF6FF;
+      border: 1px solid #BFDBFE;
+      color: #1D4ED8;
+      font-size: 12px;
+      border-radius: 12px;
+      padding: 3px 10px;
+      display: flex; align-items: center; gap: 4px;
+    }
+    .filter-remove { cursor: pointer; color: #93C5FD; }
+    .filter-divider { width: 1px; height: 20px; background: #E5E7EB; margin: 0 4px; }
+    .filter-reset {
+      font-size: 12px; color: #9CA3AF; cursor: pointer;
+      background: none; border: none; font-family: inherit; padding: 4px 6px;
+    }
+    .filter-reset:hover { color: #374151; }
+
+    /* ── 카드 그리드 ── */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+
+    .member-card {
+      background: #fff;
+      border: 1px solid #E5E7EB;
+      border-radius: 10px;
+      padding: 16px 14px;
+      cursor: pointer;
+      transition: box-shadow 0.15s, border-color 0.15s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+    .member-card:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      border-color: #93C5FD;
+    }
+    .member-card.no-card {
+      border-style: dashed;
+      background: #F9FAFB;
+      cursor: default;
+    }
+    .member-card.no-card:hover { box-shadow: none; border-color: #D1D5DB; }
+
+    .card-avatar {
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; font-weight: 700;
+      color: #fff;
+      margin-bottom: 10px;
+      flex-shrink: 0;
+    }
+    .card-name {
+      font-size: 14px; font-weight: 700; color: #111827; margin-bottom: 6px;
+    }
+    .card-roles {
+      display: flex; flex-wrap: wrap; justify-content: center; gap: 4px;
+      margin-bottom: 8px;
+    }
+    .role-badge {
+      font-size: 11px; font-weight: 600;
+      background: #EFF6FF; color: #1D4ED8;
+      border: 1px solid #BFDBFE;
+      border-radius: 4px;
+      padding: 2px 7px;
+    }
+    .role-badge.rank2 {
+      background: #F8FAFC; color: #64748B;
+      border-color: #CBD5E1;
+    }
+    .card-meta {
+      font-size: 11px; color: #6B7280;
+      margin-bottom: 4px;
+      display: flex; align-items: center; gap: 4px;
+      justify-content: center;
+    }
+    .card-temp {
+      font-size: 11px; color: #6B7280; margin-bottom: 8px;
+    }
+    .card-tags {
+      display: flex; flex-wrap: wrap; justify-content: center; gap: 4px;
+    }
+    .card-tag {
+      font-size: 10px;
+      background: #F3F4F6; color: #6B7280;
+      border-radius: 4px; padding: 2px 6px;
+    }
+
+    .no-card-avatar {
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      background: #E5E7EB;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; color: #9CA3AF; font-weight: 700;
+      margin-bottom: 10px;
+    }
+    .no-card-name { font-size: 13px; font-weight: 600; color: #9CA3AF; margin-bottom: 4px; }
+    .no-card-msg { font-size: 11px; color: #9CA3AF; }
+    .no-card-warn {
+      font-size: 10px; color: #D97706;
+      background: #FFFBEB; border-radius: 4px; padding: 2px 6px;
+      margin-top: 6px;
+    }
+
+    .load-more {
+      text-align: center;
+      margin-top: 20px;
+    }
+    .load-more-btn {
+      background: #fff; border: 1.5px solid #D1D5DB;
+      color: #374151; border-radius: 6px;
+      padding: 10px 28px; font-size: 13px;
+      font-family: inherit; cursor: pointer;
+    }
+    .load-more-btn:hover { background: #F9FAFB; }
+
+    /* ══════════════════════════════════════════════ */
+    /*  카드 상세 오버레이 (SCR-PRF-01)              */
+    /* ══════════════════════════════════════════════ */
+    .overlay-backdrop {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    .overlay-backdrop.open { display: flex; }
+
+    .detail-panel {
+      background: #fff;
+      border-radius: 12px;
+      width: 480px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 48px rgba(0,0,0,0.18);
+    }
+
+    .detail-header {
+      position: sticky; top: 0;
+      background: #fff;
+      border-bottom: 1px solid #E5E7EB;
+      padding: 14px 20px;
+      display: flex; align-items: center; gap: 8px;
+      z-index: 1;
+    }
+    .detail-back {
+      font-size: 13px; color: #6B7280; cursor: pointer;
+      display: flex; align-items: center; gap: 4px;
+    }
+    .detail-back:hover { color: #374151; }
+    .detail-close {
+      margin-left: auto;
+      width: 28px; height: 28px;
+      border-radius: 50%; background: #F3F4F6;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; color: #6B7280; cursor: pointer;
+    }
+    .detail-close:hover { background: #E5E7EB; }
+
+    .detail-body { padding: 24px 24px 32px; }
+
+    .detail-hero {
+      display: flex;
+      align-items: flex-start;
+      gap: 18px;
+      margin-bottom: 20px;
+    }
+    .detail-avatar {
+      width: 72px; height: 72px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px; font-weight: 800;
+      color: #fff; flex-shrink: 0;
+    }
+    .detail-name { font-size: 20px; font-weight: 700; color: #111827; margin-bottom: 4px; }
+    .detail-mbti { font-size: 12px; color: #9CA3AF; }
+    .detail-roles { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+
+    .detail-divider { border: none; border-top: 1px solid #F3F4F6; margin: 16px 0; }
+
+    .detail-section-title {
+      font-size: 12px; font-weight: 700; color: #9CA3AF;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .detail-row {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 13px; color: #374151; margin-bottom: 6px;
+    }
+    .detail-row .icon { font-size: 14px; }
+
+    .detail-temp-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .detail-temp-dot {
+      width: 16px; height: 16px; border-radius: 50%;
+      background: #E5E7EB;
+    }
+    .detail-temp-dot.filled { background: #3B82F6; }
+    .detail-temp-label { font-size: 12px; color: #6B7280; margin-left: 4px; }
+
+    .detail-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+    .detail-tag {
+      background: #EFF6FF; border: 1px solid #BFDBFE;
+      color: #1D4ED8; font-size: 12px;
+      border-radius: 6px; padding: 3px 10px;
+    }
+
+    .detail-collab-list {
+      font-size: 13px; color: #374151; margin-bottom: 4px;
+    }
+    .collab-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 4px; }
+    .collab-chip-detail {
+      font-size: 11px;
+      background: #F3F4F6; color: #374151;
+      border-radius: 4px; padding: 3px 8px;
+    }
+    .collab-chip-detail.avoid {
+      background: #FFF7ED; color: #C2410C;
+    }
+
+    .detail-intro {
+      font-size: 13px; color: #374151;
+      line-height: 1.6; margin-bottom: 6px;
+    }
+    .detail-portfolio {
+      font-size: 13px; color: #3B82F6; text-decoration: underline; cursor: pointer;
+    }
+
+    .detail-action-row {
+      margin-top: 20px;
+      display: flex; gap: 10px;
+    }
+    .btn-scout {
+      background: #3B82F6; color: #fff;
+      border: none; border-radius: 6px;
+      padding: 10px 24px; font-size: 14px;
+      font-family: inherit; font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-scout:hover { background: #2563EB; }
+    .detail-note {
+      font-size: 11px; color: #9CA3AF; margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- WS 레일 -->
+  <div class="ws-rail">
+    <div class="ws-logo">P</div>
+    <div class="ws-icon active">B4</div>
+    <div class="ws-icon">FE</div>
+    <div class="ws-rail-divider"></div>
+    <div class="ws-add">+</div>
+  </div>
+
+  <!-- Context Nav -->
+  <div class="ctx-nav">
+    <div class="ctx-nav-header">
+      <span class="ctx-ws-name">프로그래머스 BE4기</span>
+      <span class="ctx-settings-btn">⚙️</span>
+    </div>
+    <div class="nav-section-label">워크스페이스</div>
+    <div class="nav-item"><span class="icon">🏠</span>홈</div>
+    <div class="nav-item active"><span class="icon">👤</span>멤버 카드</div>
+    <div class="nav-item"><span class="icon">🔴</span>팀 빌딩<span class="nav-badge">D-3</span></div>
+    <div class="nav-item"><span class="icon">📢</span>공지</div>
+    <div class="nav-divider"></div>
+    <div class="nav-section-label">내 팀</div>
+    <div class="nav-item"><span class="icon">👥</span>백엔드 드림팀</div>
+    <div class="nav-divider"></div>
+    <div class="nav-section-label">커뮤니케이션</div>
+    <div class="nav-item"><span class="icon">💬</span>DM</div>
+    <div class="nav-item"><span class="icon">🗪</span>그룹 채팅</div>
+    <div class="nav-item"><span class="icon">📹</span>화상회의</div>
+  </div>
+
+  <!-- 콘텐츠 -->
+  <div class="content-area">
+    <div class="global-header">
+      <div class="header-logo"><span>Pick</span>Team</div>
+      <div class="header-right">
+        <div class="header-bell">🔔<div class="badge"></div></div>
+        <div class="header-avatar">박</div>
+      </div>
+    </div>
+
+    <div class="mockup-banner">로우파이 목업 · 근거: 11-profile-pr-card.md §4.4 갤러리 + §4.5 카드 상세 오버레이</div>
+
+    <div class="main">
+
+      <!-- 갤러리 헤더 -->
+      <div class="gallery-header">
+        <div style="display:flex;align-items:baseline;gap:10px;">
+          <div class="gallery-title">멤버 카드</div>
+          <div class="gallery-meta">전체 32명 · 작성 완료 28명</div>
+        </div>
+        <button class="btn btn-outline" onclick="window.location='pr-card-edit.html'">내 카드 편집 →</button>
+      </div>
+
+      <!-- 필터 바 -->
+      <div class="filter-bar">
+        <span class="filter-label">역할</span>
+        <select class="filter-select">
+          <option value="">전체</option>
+          <option selected value="BE">백엔드</option>
+          <option value="FE">프론트엔드</option>
+          <option value="FS">풀스택</option>
+          <option value="PM">PM·기획</option>
+          <option value="DS">디자인</option>
+          <option value="IF">인프라·DevOps</option>
+          <option value="AI">AI·데이터</option>
+        </select>
+        <select class="filter-select">
+          <option value="">전체</option>
+          <option value="FE">프론트엔드</option>
+          <option value="FS">풀스택</option>
+        </select>
+
+        <div class="filter-divider"></div>
+
+        <span class="filter-label">가용</span>
+        <select class="filter-select">
+          <option value="">전체</option>
+          <option value="lt10">10h 미만</option>
+          <option selected value="10-20">10~20h</option>
+          <option value="20-30">20~30h</option>
+          <option value="gt30">30h 이상</option>
+        </select>
+
+        <div class="filter-divider"></div>
+
+        <span class="filter-label">태그</span>
+        <div class="filter-tag">React <span class="filter-remove" onclick="this.parentElement.remove()">×</span></div>
+        <div class="filter-tag">Spring <span class="filter-remove" onclick="this.parentElement.remove()">×</span></div>
+
+        <button class="filter-reset" onclick="resetFilter()">필터 초기화</button>
+      </div>
+
+      <!-- 카드 그리드 -->
+      <div class="card-grid">
+
+        <!-- 카드 1 — 박재현 -->
+        <div class="member-card" onclick="openDetail('jaehyun')">
+          <div class="card-avatar" style="background:#3B82F6;">박</div>
+          <div class="card-name">박재현</div>
+          <div class="card-roles">
+            <span class="role-badge">백엔드</span>
+            <span class="role-badge rank2">프론트엔드</span>
+          </div>
+          <div class="card-meta">⏰ 20~30시간</div>
+          <div class="card-temp">🌡️ 4/5</div>
+          <div class="card-tags">
+            <span class="card-tag">Spring Boot</span>
+            <span class="card-tag">React</span>
+            <span class="card-tag">Java</span>
+          </div>
+        </div>
+
+        <!-- 카드 2 — 김민지 -->
+        <div class="member-card" onclick="openDetail('minji')">
+          <div class="card-avatar" style="background:#64748B;">김</div>
+          <div class="card-name">김민지</div>
+          <div class="card-roles">
+            <span class="role-badge">프론트엔드</span>
+            <span class="role-badge rank2">디자인</span>
+          </div>
+          <div class="card-meta">⏰ 10~20시간</div>
+          <div class="card-temp">🌡️ 3/5</div>
+          <div class="card-tags">
+            <span class="card-tag">React</span>
+            <span class="card-tag">Figma</span>
+          </div>
+        </div>
+
+        <!-- 카드 3 — 이승우 -->
+        <div class="member-card" onclick="openDetail('seungwoo')">
+          <div class="card-avatar" style="background:#374151;">이</div>
+          <div class="card-name">이승우</div>
+          <div class="card-roles">
+            <span class="role-badge">풀스택</span>
+            <span class="role-badge rank2">백엔드</span>
+          </div>
+          <div class="card-meta">⏰ 30시간 이상</div>
+          <div class="card-temp">🌡️ 5/5</div>
+          <div class="card-tags">
+            <span class="card-tag">Java</span>
+            <span class="card-tag">Spring</span>
+            <span class="card-tag">TypeScript</span>
+          </div>
+        </div>
+
+        <!-- 카드 4 — 최수연 -->
+        <div class="member-card" onclick="openDetail('suyeon')">
+          <div class="card-avatar" style="background:#6B7280;">최</div>
+          <div class="card-name">최수연</div>
+          <div class="card-roles">
+            <span class="role-badge">PM·기획</span>
+            <span class="role-badge rank2">프론트엔드</span>
+          </div>
+          <div class="card-meta">⏰ 10~20시간</div>
+          <div class="card-temp">🌡️ 2/5</div>
+          <div class="card-tags">
+            <span class="card-tag">기획</span>
+            <span class="card-tag">Notion</span>
+          </div>
+        </div>
+
+        <!-- 카드 5 — 정다은 -->
+        <div class="member-card" onclick="openDetail('daeun')">
+          <div class="card-avatar" style="background:#475569;">정</div>
+          <div class="card-name">정다은</div>
+          <div class="card-roles">
+            <span class="role-badge">백엔드</span>
+            <span class="role-badge rank2">인프라·DevOps</span>
+          </div>
+          <div class="card-meta">⏰ 20~30시간</div>
+          <div class="card-temp">🌡️ 4/5</div>
+          <div class="card-tags">
+            <span class="card-tag">Python</span>
+            <span class="card-tag">Django</span>
+            <span class="card-tag">Docker</span>
+          </div>
+        </div>
+
+        <!-- 카드 6 — 윤지호 -->
+        <div class="member-card" onclick="openDetail('jiho')">
+          <div class="card-avatar" style="background:#334155;">윤</div>
+          <div class="card-name">윤지호</div>
+          <div class="card-roles">
+            <span class="role-badge">AI·데이터</span>
+            <span class="role-badge rank2">백엔드</span>
+          </div>
+          <div class="card-meta">⏰ 10~20시간</div>
+          <div class="card-temp">🌡️ 3/5</div>
+          <div class="card-tags">
+            <span class="card-tag">Python</span>
+            <span class="card-tag">ML</span>
+          </div>
+        </div>
+
+        <!-- 카드 7 — 한소희 -->
+        <div class="member-card" onclick="openDetail('sohee')">
+          <div class="card-avatar" style="background:#94A3B8; color:#1E293B;">한</div>
+          <div class="card-name">한소희</div>
+          <div class="card-roles">
+            <span class="role-badge">디자인</span>
+            <span class="role-badge rank2">프론트엔드</span>
+          </div>
+          <div class="card-meta">⏰ 10~20시간</div>
+          <div class="card-temp">🌡️ 3/5</div>
+          <div class="card-tags">
+            <span class="card-tag">Figma</span>
+            <span class="card-tag">Vue</span>
+          </div>
+        </div>
+
+        <!-- 카드 8 — 미작성자 (홍길동) · §4.4 11-D3 -->
+        <div class="member-card no-card">
+          <div class="no-card-avatar">홍</div>
+          <div class="no-card-name">홍00</div>
+          <div class="no-card-msg">아직 PR 카드를 작성하지 않았어요.</div>
+          <div class="no-card-warn">⚠️ 미작성</div>
+        </div>
+
+      </div><!-- /.card-grid -->
+
+      <div class="load-more">
+        <button class="load-more-btn">더 보기 ↓ (21명 더)</button>
+      </div>
+
+    </div><!-- /.main -->
+  </div><!-- /.content-area -->
+
+  <!-- ══════════════════════════════════════════════ -->
+  <!--  카드 상세 오버레이 (SCR-PRF-01)              -->
+  <!-- ══════════════════════════════════════════════ -->
+  <div class="overlay-backdrop" id="detail-overlay" onclick="closeDetailOutside(event)">
+    <div class="detail-panel" id="detail-panel">
+
+      <div class="detail-header">
+        <div class="detail-back" onclick="closeDetail()">← 멤버 카드</div>
+        <div class="detail-close" onclick="closeDetail()">✕</div>
+      </div>
+
+      <div class="detail-body">
+
+        <!-- 히어로 -->
+        <div class="detail-hero">
+          <div class="detail-avatar" id="d-avatar" style="background:#3B82F6;">박</div>
+          <div>
+            <div class="detail-name" id="d-name">박재현</div>
+            <div class="detail-mbti" id="d-mbti">INTJ</div>
+            <div class="detail-roles" id="d-roles">
+              <span class="role-badge">백엔드 1순위</span>
+              <span class="role-badge rank2">프론트엔드 2순위</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-divider"></div>
+
+        <!-- 가용성 -->
+        <div class="detail-section-title">가용성</div>
+        <div class="detail-row" id="d-hours"><span class="icon">⏰</span> 주간 가용 20~30시간</div>
+        <div class="detail-row" id="d-slots"><span class="icon">🕐</span> 선호 시간대: 저녁 · 주말</div>
+
+        <div class="detail-divider"></div>
+
+        <!-- 목표 온도 -->
+        <div class="detail-section-title">목표 온도</div>
+        <div class="detail-temp-row" id="d-temp-row">
+          <div class="detail-temp-dot filled"></div>
+          <div class="detail-temp-dot filled"></div>
+          <div class="detail-temp-dot filled"></div>
+          <div class="detail-temp-dot filled"></div>
+          <div class="detail-temp-dot"></div>
+          <span class="detail-temp-label" id="d-temp-label">수상 지향에 가까움 (4/5)</span>
+        </div>
+
+        <div class="detail-divider"></div>
+
+        <!-- 기술 스택 -->
+        <div class="detail-section-title">기술 스택·강점</div>
+        <div class="detail-tags" id="d-tags">
+          <span class="detail-tag">Spring Boot</span>
+          <span class="detail-tag">React</span>
+          <span class="detail-tag">Java</span>
+          <span class="detail-tag">TypeScript</span>
+          <span class="detail-tag">MySQL</span>
+        </div>
+
+        <div class="detail-divider"></div>
+
+        <!-- 협업 스타일 -->
+        <div class="detail-section-title">협업 스타일</div>
+        <div style="font-size:12px;color:#6B7280;margin-bottom:5px;font-weight:600;">선호</div>
+        <div class="collab-chips" id="d-collab-prefer">
+          <span class="collab-chip-detail">빠른 실행</span>
+          <span class="collab-chip-detail">비동기 우선</span>
+        </div>
+        <div style="font-size:12px;color:#6B7280;margin-bottom:5px;margin-top:8px;font-weight:600;">피함</div>
+        <div class="collab-chips" id="d-collab-avoid">
+          <span class="collab-chip-detail avoid">지나친 형식 절차</span>
+        </div>
+        <div class="detail-intro" id="d-collab-text" style="margin-top:10px;font-style:italic;color:#6B7280;">
+          "아이디어를 빠르게 검증하는 팀을 좋아합니다."
+        </div>
+
+        <div class="detail-divider"></div>
+
+        <!-- 자기소개 -->
+        <div class="detail-section-title">자기소개</div>
+        <div class="detail-intro" id="d-intro">
+          백엔드 2년 경험의 수강생입니다. Java와 Spring Boot를 주로 사용하며, 팀 프로젝트에서 협업을 즐깁니다.
+        </div>
+
+        <div class="detail-divider"></div>
+
+        <!-- 포트폴리오 -->
+        <div class="detail-section-title">포트폴리오</div>
+        <div class="detail-portfolio" id="d-portfolio">github.com/parkjaehyun ↗</div>
+
+        <div class="detail-divider"></div>
+
+        <!-- 액션 -->
+        <div class="detail-action-row">
+          <button class="btn-scout" onclick="alert('[목업] 스카우트 제안을 보냅니다.\n(팀 빌딩 세션 OPEN 중 · 팀 소속 시 활성)')">스카우트 제안</button>
+        </div>
+        <div class="detail-note">팀 빌딩 세션 OPEN 상태 + 팀 소속 시 활성. 상세 조건: 12-team-building.md 참조.</div>
+
+      </div><!-- /.detail-body -->
+    </div><!-- /.detail-panel -->
+  </div><!-- /.overlay-backdrop -->
+
+  <script>
+    // 카드 데이터
+    const cards = {
+      jaehyun: {
+        initial: '박', bg: '#3B82F6',
+        name: '박재현', mbti: 'INTJ (본인 동의)',
+        role1: '백엔드', role2: '프론트엔드',
+        hours: '20~30시간', slots: '저녁 · 주말',
+        temp: 4, tempLabel: '수상 지향에 가까움 (4/5)',
+        tags: ['Spring Boot', 'React', 'Java', 'TypeScript', 'MySQL'],
+        prefer: ['빠른 실행', '비동기 우선'],
+        avoid: ['지나친 형식 절차'],
+        collabText: '"아이디어를 빠르게 검증하는 팀을 좋아합니다."',
+        intro: '백엔드 2년 경험의 수강생입니다. Java와 Spring Boot를 주로 사용하며, 팀 프로젝트에서 협업을 즐깁니다.',
+        portfolio: 'github.com/parkjaehyun ↗',
+      },
+      minji: {
+        initial: '김', bg: '#64748B',
+        name: '김민지', mbti: '(표시 안 함)',
+        role1: '프론트엔드', role2: '디자인',
+        hours: '10~20시간', slots: '오후 · 저녁',
+        temp: 3, tempLabel: '중간 (3/5)',
+        tags: ['React', 'Figma', 'CSS', 'Storybook'],
+        prefer: ['꼼꼼한 문서화', '유연한 진행'],
+        avoid: ['빠른 실행 우선'],
+        collabText: '"디자인 시스템 구축에 관심이 많습니다."',
+        intro: '프론트엔드와 UI/UX 디자인 경계에서 작업하는 것을 즐깁니다.',
+        portfolio: 'velog.io/@minji-dev ↗',
+      },
+      seungwoo: {
+        initial: '이', bg: '#374151',
+        name: '이승우', mbti: 'ENTJ',
+        role1: '풀스택', role2: '백엔드',
+        hours: '30시간 이상', slots: '저녁 · 주말',
+        temp: 5, tempLabel: '수상 지향 (5/5)',
+        tags: ['Java', 'Spring', 'TypeScript', 'Kubernetes'],
+        prefer: ['빠른 실행', '계획 중심'],
+        avoid: ['비동기 우선'],
+        collabText: '"목표를 명확히 하고 전력 질주하는 팀을 원합니다."',
+        intro: '풀스택 개발자로 수상 경험이 있습니다. 팀장 역할도 가능합니다.',
+        portfolio: 'github.com/seungwoo-dev ↗',
+      },
+      suyeon: {
+        initial: '최', bg: '#6B7280',
+        name: '최수연', mbti: 'ENFP',
+        role1: 'PM·기획', role2: '프론트엔드',
+        hours: '10~20시간', slots: '오전 · 주말',
+        temp: 2, tempLabel: '완주 지향에 가까움 (2/5)',
+        tags: ['기획', 'Notion', 'Figma'],
+        prefer: ['유연한 진행', '비동기 우선'],
+        avoid: ['지나친 형식 절차'],
+        collabText: '"팀원 모두가 즐길 수 있는 협업을 추구합니다."',
+        intro: 'PM 인턴 경험이 있으며 팀 목표 설정과 일정 관리를 잘합니다.',
+        portfolio: 'notion.so/suyeon ↗',
+      },
+      daeun: {
+        initial: '정', bg: '#475569',
+        name: '정다은', mbti: 'ISTJ',
+        role1: '백엔드', role2: '인프라·DevOps',
+        hours: '20~30시간', slots: '저녁',
+        temp: 4, tempLabel: '수상 지향에 가까움 (4/5)',
+        tags: ['Python', 'Django', 'Docker', 'AWS'],
+        prefer: ['꼼꼼한 문서화', '계획 중심'],
+        avoid: ['빠른 실행 우선'],
+        collabText: '"체계적인 설계 후 구현을 선호합니다."',
+        intro: 'Python 백엔드와 클라우드 인프라에 관심이 많습니다.',
+        portfolio: 'github.com/daeun-dev ↗',
+      },
+      jiho: {
+        initial: '윤', bg: '#334155',
+        name: '윤지호', mbti: '(표시 안 함)',
+        role1: 'AI·데이터', role2: '백엔드',
+        hours: '10~20시간', slots: '오후',
+        temp: 3, tempLabel: '중간 (3/5)',
+        tags: ['Python', 'ML', 'FastAPI'],
+        prefer: ['비동기 우선'],
+        avoid: ['동기 선호'],
+        collabText: '"데이터 분석 결과를 제품에 연결하는 일을 좋아합니다."',
+        intro: 'AI·데이터 분석을 백엔드와 연계하는 경험을 쌓고 싶습니다.',
+        portfolio: 'kaggle.com/jiho ↗',
+      },
+      sohee: {
+        initial: '한', bg: '#94A3B8',
+        bgText: '#1E293B',
+        name: '한소희', mbti: 'INFP',
+        role1: '디자인', role2: '프론트엔드',
+        hours: '10~20시간', slots: '주말',
+        temp: 3, tempLabel: '중간 (3/5)',
+        tags: ['Figma', 'Vue', 'CSS'],
+        prefer: ['유연한 진행'],
+        avoid: ['계획 중심'],
+        collabText: '"사용자 경험을 우선시하는 팀을 원합니다."',
+        intro: 'UI/UX 디자인과 프론트엔드 개발을 병행합니다.',
+        portfolio: 'behance.net/sohee ↗',
+      },
+    };
+
+    function openDetail(id) {
+      const d = cards[id];
+      if (!d) return;
+
+      document.getElementById('d-avatar').style.background = d.bg;
+      document.getElementById('d-avatar').style.color = d.bgText || '#fff';
+      document.getElementById('d-avatar').textContent = d.initial;
+      document.getElementById('d-name').textContent = d.name;
+      document.getElementById('d-mbti').textContent = d.mbti;
+
+      document.getElementById('d-roles').innerHTML =
+        `<span class="role-badge">${d.role1} 1순위</span>
+         <span class="role-badge rank2">${d.role2} 2순위</span>`;
+
+      document.getElementById('d-hours').innerHTML = `<span class="icon">⏰</span> 주간 가용 ${d.hours}`;
+      document.getElementById('d-slots').innerHTML = `<span class="icon">🕐</span> 선호 시간대: ${d.slots}`;
+
+      // 목표 온도
+      const dots = document.getElementById('d-temp-row');
+      dots.innerHTML = '';
+      for (let i = 1; i <= 5; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'detail-temp-dot' + (i <= d.temp ? ' filled' : '');
+        dots.appendChild(dot);
+      }
+      const tLabel = document.createElement('span');
+      tLabel.className = 'detail-temp-label';
+      tLabel.textContent = d.tempLabel;
+      dots.appendChild(tLabel);
+
+      document.getElementById('d-tags').innerHTML = d.tags.map(t => `<span class="detail-tag">${t}</span>`).join('');
+      document.getElementById('d-collab-prefer').innerHTML = d.prefer.map(t => `<span class="collab-chip-detail">${t}</span>`).join('');
+      document.getElementById('d-collab-avoid').innerHTML = d.avoid.map(t => `<span class="collab-chip-detail avoid">${t}</span>`).join('');
+      document.getElementById('d-collab-text').textContent = d.collabText;
+      document.getElementById('d-intro').textContent = d.intro;
+      document.getElementById('d-portfolio').textContent = d.portfolio;
+
+      document.getElementById('detail-overlay').classList.add('open');
+    }
+
+    function closeDetail() {
+      document.getElementById('detail-overlay').classList.remove('open');
+    }
+
+    function closeDetailOutside(e) {
+      if (e.target === document.getElementById('detail-overlay')) closeDetail();
+    }
+
+    function resetFilter() {
+      alert('[목업] 필터를 초기화합니다. 전체 멤버 카드가 표시됩니다.');
+    }
+
+    // ESC 키로 오버레이 닫기
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeDetail();
+    });
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,1230 @@
+<!-- 로우파이 목업 · 근거: 12-team-building.md §4.1~4.3 -->
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1280" />
+  <title>Pick Team — 팀 빌딩 세션 목업 (SCR-TB-01~03)</title>
+  <style>
+    /* ── 리셋 & 기반 ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Pretendard', 'Noto Sans KR', system-ui, sans-serif;
+      font-size: 14px;
+      background: #f3f4f6;
+      color: #111827;
+      min-height: 100vh;
+    }
+
+    /* ── 컬러 팔레트 (그레이스케일 + 포인트 1색) ── */
+    :root {
+      --blue:   #3B82F6;
+      --blue-lt: #EFF6FF;
+      --blue-md: #BFDBFE;
+      --gray-50:  #F9FAFB;
+      --gray-100: #F3F4F6;
+      --gray-200: #E5E7EB;
+      --gray-300: #D1D5DB;
+      --gray-400: #9CA3AF;
+      --gray-500: #6B7280;
+      --gray-600: #4B5563;
+      --gray-700: #374151;
+      --gray-800: #1F2937;
+      --gray-900: #111827;
+      --white:    #FFFFFF;
+    }
+
+    /* ── 주석 바 ── */
+    .annotation-bar {
+      background: #FEF9C3;
+      border-bottom: 1px solid #FDE68A;
+      text-align: center;
+      padding: 5px 16px;
+      font-size: 11px;
+      color: #92400E;
+      letter-spacing: 0.02em;
+    }
+
+    /* ── 전역 레이아웃: 02 §2.1 ── */
+    .app-shell {
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 32px); /* annotation-bar 제외 */
+    }
+
+    /* Global Header */
+    .global-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 56px;
+      background: var(--gray-900);
+      padding: 0 20px;
+      flex-shrink: 0;
+    }
+    .g-logo {
+      display: flex; align-items: center; gap: 8px;
+      color: var(--white); font-weight: 700; font-size: 15px;
+    }
+    .g-logo .logo-mark {
+      width: 28px; height: 28px;
+      background: var(--blue);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 900;
+    }
+    .g-actions { display: flex; align-items: center; gap: 12px; }
+    .g-btn {
+      background: none; border: none; cursor: pointer;
+      color: var(--gray-300);
+      font-size: 13px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      display: flex; align-items: center; gap: 4px;
+    }
+    .g-btn:hover { background: var(--gray-700); color: var(--white); }
+    .notif-badge {
+      background: #EF4444;
+      color: #fff; font-size: 10px; font-weight: 700;
+      border-radius: 9px; min-width: 16px; height: 16px;
+      padding: 0 4px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .avatar-chip {
+      width: 30px; height: 30px; border-radius: 50%;
+      background: var(--blue);
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 12px; font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* 본문 row */
+    .app-body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* WS 레일 (64px) */
+    .ws-rail {
+      width: 64px;
+      background: var(--gray-800);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 12px 0;
+      gap: 8px;
+      flex-shrink: 0;
+      overflow-y: auto;
+    }
+    .ws-icon {
+      width: 40px; height: 40px; border-radius: 10px;
+      background: var(--gray-600);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--gray-200); font-size: 11px; font-weight: 700;
+      cursor: pointer;
+      position: relative;
+    }
+    .ws-icon.active {
+      background: var(--blue);
+      color: #fff;
+      border-radius: 14px;
+    }
+    .ws-icon:hover:not(.active) { border-radius: 14px; background: var(--gray-500); }
+    .ws-badge {
+      position: absolute; top: -4px; right: -4px;
+      background: #EF4444;
+      color: #fff; font-size: 9px; font-weight: 700;
+      border-radius: 8px; min-width: 14px; height: 14px;
+      padding: 0 3px;
+      display: flex; align-items: center; justify-content: center;
+      border: 2px solid var(--gray-800);
+    }
+
+    /* Context Nav (240px) */
+    .context-nav {
+      width: 240px;
+      background: var(--gray-50);
+      border-right: 1px solid var(--gray-200);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow-y: auto;
+    }
+    .nav-ws-header {
+      padding: 14px 16px 10px;
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--gray-800);
+      border-bottom: 1px solid var(--gray-200);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-section-label {
+      padding: 14px 16px 4px;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--gray-400);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 16px;
+      font-size: 13px;
+      color: var(--gray-600);
+      cursor: pointer;
+      border-radius: 0;
+    }
+    .nav-item:hover { background: var(--gray-200); color: var(--gray-900); }
+    .nav-item.active {
+      background: var(--blue-lt);
+      color: var(--blue);
+      font-weight: 600;
+    }
+    .nav-badge {
+      background: var(--blue);
+      color: #fff; font-size: 10px; font-weight: 700;
+      border-radius: 9px; min-width: 34px; height: 18px;
+      padding: 0 5px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .nav-badge.red { background: #EF4444; }
+
+    /* Content Area */
+    .content-area {
+      flex: 1;
+      overflow-y: auto;
+      background: var(--white);
+    }
+
+    /* ── 뷰 탭 네비 ── */
+    .view-tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 2px solid var(--gray-200);
+      background: var(--gray-50);
+      padding: 0 24px;
+    }
+    .view-tab {
+      padding: 12px 20px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--gray-500);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: color 0.15s, border-color 0.15s;
+      white-space: nowrap;
+    }
+    .view-tab:hover { color: var(--gray-800); }
+    .view-tab.active {
+      color: var(--blue);
+      border-bottom-color: var(--blue);
+      font-weight: 700;
+    }
+    .view-tab .tab-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      background: var(--blue);
+      color: #fff; font-size: 10px; font-weight: 700;
+      border-radius: 9px; min-width: 18px; height: 18px;
+      padding: 0 5px;
+      margin-left: 6px;
+    }
+
+    /* ── 뷰 패널 ── */
+    .view-panel { display: none; }
+    .view-panel.active { display: block; }
+
+    /* ── SCR-TB-01 팀 빌딩 홈 ── */
+    .status-bar {
+      background: var(--gray-800);
+      color: var(--gray-100);
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .status-bar-left h2 {
+      font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 4px;
+    }
+    .status-row {
+      display: flex; align-items: center; gap: 12px;
+      font-size: 12px; color: var(--gray-300);
+    }
+    .status-tag {
+      background: var(--gray-700);
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 11px;
+      color: var(--gray-200);
+    }
+    .status-tag.warn { background: #78350F; color: #FDE68A; }
+    .status-tag.info { background: #1E3A5F; color: #93C5FD; }
+    .dday-badge {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 14px; font-weight: 700; color: #FDE68A;
+    }
+
+    .section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 24px 12px;
+    }
+    .section-title {
+      font-size: 14px; font-weight: 700; color: var(--gray-700);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .link-btn {
+      font-size: 12px; color: var(--blue);
+      background: none; border: none; cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+    .link-btn:hover { background: var(--blue-lt); }
+
+    /* 추천 레일 */
+    .rec-rail {
+      padding: 0 24px 20px;
+      display: flex; gap: 14px;
+      overflow-x: auto;
+    }
+    .rec-card {
+      flex: 0 0 200px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: 10px;
+      padding: 14px;
+      background: var(--white);
+      display: flex; flex-direction: column; gap: 8px;
+      transition: box-shadow 0.15s, border-color 0.15s;
+    }
+    .rec-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.08); border-color: var(--gray-300); }
+    .rec-card-type {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--gray-400);
+    }
+    .rec-card-name {
+      font-size: 14px; font-weight: 700; color: var(--gray-900);
+    }
+    .rec-card-sub {
+      font-size: 12px; color: var(--gray-500);
+    }
+    .rec-reason {
+      background: var(--gray-100);
+      border-radius: 5px;
+      padding: 6px 9px;
+      font-size: 11px; color: var(--gray-600);
+      line-height: 1.5;
+    }
+    .rec-reason strong { color: var(--blue); font-weight: 600; }
+    .rec-actions {
+      display: flex; gap: 6px; margin-top: 2px;
+    }
+    .btn-sm {
+      flex: 1; padding: 6px 0;
+      font-size: 12px; font-weight: 600;
+      border-radius: 5px; cursor: pointer;
+      border: none;
+    }
+    .btn-outline {
+      background: var(--white);
+      border: 1.5px solid var(--gray-300);
+      color: var(--gray-700);
+    }
+    .btn-outline:hover { border-color: var(--blue); color: var(--blue); }
+    .btn-primary {
+      background: var(--blue); color: #fff;
+    }
+    .btn-primary:hover { background: #2563EB; }
+
+    /* 구분선 */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--gray-200);
+      margin: 0 24px;
+    }
+
+    /* 팀 목록 */
+    .team-list {
+      padding: 0 24px 24px;
+    }
+    .team-row {
+      display: flex; align-items: center;
+      padding: 12px 14px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: 8px;
+      margin-bottom: 8px;
+      gap: 12px;
+      transition: border-color 0.15s;
+    }
+    .team-row:hover { border-color: var(--gray-400); }
+    .team-avatar {
+      width: 36px; height: 36px; border-radius: 8px;
+      background: var(--gray-200);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; color: var(--gray-600);
+      flex-shrink: 0;
+    }
+    .team-info { flex: 1; min-width: 0; }
+    .team-name { font-size: 14px; font-weight: 700; color: var(--gray-900); }
+    .team-meta {
+      font-size: 12px; color: var(--gray-500); margin-top: 2px;
+      display: flex; gap: 8px; flex-wrap: wrap;
+    }
+    .team-meta .sep { color: var(--gray-300); }
+    .chip {
+      display: inline-flex; align-items: center;
+      background: var(--gray-100); border-radius: 4px;
+      padding: 1px 6px; font-size: 11px; color: var(--gray-600);
+    }
+    .chip.role { background: var(--blue-lt); color: #1D4ED8; }
+    .team-row-action { flex-shrink: 0; }
+
+    /* 팀 만들기 버튼 */
+    .btn-create {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: var(--white);
+      border: 1.5px solid var(--blue);
+      color: var(--blue);
+      padding: 7px 14px; border-radius: 6px;
+      font-size: 12px; font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-create:hover { background: var(--blue-lt); }
+
+    /* ── SCR-TB-02 팀 모집 상세 ── */
+    .detail-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid var(--gray-200);
+      gap: 16px;
+    }
+    .detail-header-left h2 {
+      font-size: 18px; font-weight: 800; color: var(--gray-900); margin-bottom: 4px;
+    }
+    .detail-header-left .header-meta {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 12px; color: var(--gray-500);
+    }
+    .status-pill {
+      display: inline-flex; align-items: center;
+      padding: 2px 8px; border-radius: 12px;
+      font-size: 11px; font-weight: 700;
+    }
+    .status-pill.recruiting { background: #DCFCE7; color: #166534; }
+    .detail-intro {
+      font-size: 13px; color: var(--gray-600); margin-top: 8px; font-style: italic;
+    }
+    .btn-apply {
+      background: var(--blue); color: #fff;
+      border: none; border-radius: 8px;
+      padding: 10px 20px; font-size: 14px; font-weight: 700;
+      cursor: pointer; white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .btn-apply:hover { background: #2563EB; }
+
+    .detail-body {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+    }
+    .detail-col {
+      padding: 20px 24px;
+    }
+    .detail-col:first-child {
+      border-right: 1px solid var(--gray-200);
+    }
+    .col-title {
+      font-size: 12px; font-weight: 700;
+      color: var(--gray-500);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 14px;
+    }
+
+    /* 팀원 미니 카드 */
+    .member-cards {
+      display: flex; gap: 10px; flex-wrap: wrap;
+    }
+    .member-mini {
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+    }
+    .mini-avatar {
+      width: 48px; height: 48px; border-radius: 50%;
+      background: var(--gray-200);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700; color: var(--gray-700);
+    }
+    .mini-name { font-size: 11px; font-weight: 600; color: var(--gray-700); }
+    .mini-role { font-size: 10px; color: var(--gray-400); }
+
+    /* 모집 역할 */
+    .recruit-role-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 12px;
+      background: var(--gray-50);
+      border-radius: 6px;
+      margin-bottom: 8px;
+    }
+    .recruit-role-name { font-size: 13px; font-weight: 600; color: var(--gray-800); }
+    .recruit-role-status { font-size: 11px; color: var(--gray-500); }
+    .recruit-role-status .cnt { color: var(--blue); font-weight: 700; }
+
+    .avail-time {
+      margin-top: 14px;
+      background: var(--gray-50); border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 12px; color: var(--gray-600);
+    }
+
+    /* 적합도 패널 */
+    .fit-panel {
+      margin: 0 24px 24px;
+      border: 1.5px solid var(--blue-md);
+      border-radius: 10px;
+      background: var(--blue-lt);
+      padding: 16px 20px;
+      display: flex; align-items: flex-start; gap: 16px;
+    }
+    .fit-score-col { flex-shrink: 0; }
+    .fit-label { font-size: 11px; color: var(--blue); font-weight: 700; margin-bottom: 4px; }
+    .fit-stars { font-size: 22px; letter-spacing: 2px; }
+    .fit-reason { font-size: 13px; color: var(--gray-700); line-height: 1.6; }
+    .fit-reason strong { color: var(--blue); }
+
+    /* ── SCR-TB-03 제안함 ── */
+    .inbox-tabs {
+      display: flex; gap: 0;
+      border-bottom: 1px solid var(--gray-200);
+      padding: 0 24px;
+    }
+    .inbox-tab {
+      padding: 12px 18px;
+      font-size: 13px; font-weight: 500; color: var(--gray-500);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+    }
+    .inbox-tab:hover { color: var(--gray-800); }
+    .inbox-tab.active { color: var(--blue); border-bottom-color: var(--blue); font-weight: 700; }
+    .inbox-tab .badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      background: var(--blue); color: #fff;
+      font-size: 10px; font-weight: 700;
+      border-radius: 9px; min-width: 18px; height: 18px;
+      padding: 0 4px; margin-left: 6px;
+    }
+
+    .inbox-panel { display: none; padding: 16px 24px; }
+    .inbox-panel.active { display: block; }
+
+    .inbox-section-title {
+      font-size: 11px; font-weight: 700;
+      color: var(--gray-400); text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 0 0 10px;
+      border-bottom: 1px solid var(--gray-200);
+      margin-bottom: 12px;
+    }
+
+    .proposal-row {
+      display: flex; align-items: flex-start;
+      gap: 12px; padding: 14px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: 8px;
+      margin-bottom: 10px;
+      transition: border-color 0.15s;
+    }
+    .proposal-row:hover { border-color: var(--gray-400); }
+    .proposal-row.dimmed { opacity: 0.45; }
+
+    .proposal-icon {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: var(--gray-200);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700; color: var(--gray-600);
+      flex-shrink: 0;
+    }
+    .proposal-icon.scout { background: #F3E8FF; color: #7C3AED; }
+    .proposal-icon.apply { background: var(--blue-lt); color: var(--blue); }
+
+    .proposal-body { flex: 1; min-width: 0; }
+    .proposal-type-row {
+      display: flex; align-items: center; gap: 6px; margin-bottom: 4px;
+    }
+    .proposal-type-tag {
+      font-size: 10px; font-weight: 700;
+      padding: 1px 6px; border-radius: 4px;
+    }
+    .proposal-type-tag.scout { background: #F3E8FF; color: #7C3AED; }
+    .proposal-type-tag.apply { background: var(--blue-lt); color: var(--blue); }
+    .proposal-parties { font-size: 13px; font-weight: 600; color: var(--gray-800); }
+    .proposal-message {
+      font-size: 12px; color: var(--gray-600); margin: 4px 0;
+      font-style: italic;
+    }
+    .proposal-meta {
+      font-size: 11px; color: var(--gray-400);
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    .proposal-actions {
+      display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
+      flex-shrink: 0;
+    }
+    .action-row { display: flex; gap: 6px; }
+    .btn-accept {
+      padding: 6px 14px; border-radius: 5px;
+      background: var(--blue); color: #fff;
+      font-size: 12px; font-weight: 700;
+      border: none; cursor: pointer;
+    }
+    .btn-accept:hover { background: #2563EB; }
+    .btn-decline {
+      padding: 6px 14px; border-radius: 5px;
+      background: var(--white);
+      border: 1.5px solid var(--gray-300);
+      color: var(--gray-700);
+      font-size: 12px; font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-decline:hover { border-color: #EF4444; color: #EF4444; }
+    .btn-card {
+      font-size: 11px; color: var(--blue);
+      background: none; border: none; cursor: pointer;
+    }
+    .btn-card:hover { text-decoration: underline; }
+    .proposal-status-tag {
+      font-size: 10px; font-weight: 700;
+      padding: 2px 8px; border-radius: 4px;
+    }
+    .status-withdrawn { background: #FEF2F2; color: #991B1B; }
+    .status-pending { background: #FFFBEB; color: #92400E; }
+    .status-accepted { background: #DCFCE7; color: #166534; }
+
+    /* ── 수락 확인 모달 ── */
+    .modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 1000;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal {
+      background: var(--white);
+      border-radius: 12px;
+      padding: 28px 28px 24px;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+    }
+    .modal h3 {
+      font-size: 16px; font-weight: 800; color: var(--gray-900);
+      margin-bottom: 12px;
+    }
+    .modal-body {
+      font-size: 13px; color: var(--gray-600); line-height: 1.6;
+      margin-bottom: 20px;
+    }
+    .modal-body .highlight {
+      background: #FEF9C3; border-radius: 5px;
+      padding: 10px 12px; margin-top: 10px;
+      font-size: 12px; color: #78350F;
+    }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .btn-modal-cancel {
+      padding: 9px 18px; border-radius: 6px;
+      background: var(--white);
+      border: 1.5px solid var(--gray-300);
+      color: var(--gray-600);
+      font-size: 13px; font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-modal-cancel:hover { background: var(--gray-100); }
+    .btn-modal-confirm {
+      padding: 9px 18px; border-radius: 6px;
+      background: var(--blue); color: #fff;
+      border: none;
+      font-size: 13px; font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-modal-confirm:hover { background: #2563EB; }
+
+    /* 빈 상태 */
+    .empty-state {
+      text-align: center; padding: 40px 24px;
+      color: var(--gray-400); font-size: 13px;
+    }
+
+    /* 구분 */
+    .goal-temp { font-size: 13px; }
+    .seats { font-size: 13px; color: var(--gray-600); }
+
+    /* 스크롤 */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--gray-300); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<!-- 상단 주석 바 -->
+<div class="annotation-bar">
+  로우파이 목업 &middot; 근거: 12-team-building.md §4.1~4.3 &nbsp;|&nbsp; 뷰포트 1280px 고정 &nbsp;|&nbsp; 수강생 시점(미소속·OPEN 세션)
+</div>
+
+<div class="app-shell">
+
+  <!-- Global Header -->
+  <header class="global-header">
+    <div class="g-logo">
+      <div class="logo-mark">P</div>
+      Pick Team
+    </div>
+    <div class="g-actions">
+      <button class="g-btn">
+        🔔
+        <span class="notif-badge">3</span>
+      </button>
+      <div class="avatar-chip" title="박재현">박</div>
+    </div>
+  </header>
+
+  <div class="app-body">
+
+    <!-- WS 레일 -->
+    <nav class="ws-rail">
+      <div class="ws-icon active" title="3기 파이널">3기</div>
+      <div class="ws-icon" title="스터디 모임" style="position:relative;">
+        스터
+        <span class="ws-badge">2</span>
+      </div>
+      <div class="ws-icon" style="color:var(--gray-400); font-size:18px;">+</div>
+    </nav>
+
+    <!-- Context Nav -->
+    <nav class="context-nav">
+      <div class="nav-ws-header">
+        3기 파이널 프로젝트
+        <span style="font-size:16px; cursor:pointer; color:var(--gray-400);">⚙</span>
+      </div>
+
+      <div class="nav-section-label">워크스페이스</div>
+      <div class="nav-item">🏠 홈</div>
+      <div class="nav-item">👥 멤버 카드</div>
+      <div class="nav-item active">
+        🏗 팀 빌딩
+        <span class="nav-badge">D-3</span>
+      </div>
+      <div class="nav-item">📢 공지</div>
+
+      <div class="nav-section-label">내 팀</div>
+      <div class="nav-item" style="color:var(--gray-400); font-style:italic; font-size:12px; padding:6px 16px;">
+        아직 팀 미배정
+      </div>
+
+      <div class="nav-section-label">커뮤니케이션</div>
+      <div class="nav-item">💬 DM</div>
+      <div class="nav-item">
+        👥 그룹 채팅
+        <span class="nav-badge red">1</span>
+      </div>
+      <div class="nav-item">📹 화상회의</div>
+    </nav>
+
+    <!-- Content Area -->
+    <main class="content-area">
+
+      <!-- 뷰 전환 탭 -->
+      <div class="view-tabs">
+        <div class="view-tab active" onclick="switchView('tb01', this)">
+          SCR-TB-01 &nbsp;팀 빌딩 홈
+        </div>
+        <div class="view-tab" onclick="switchView('tb02', this)">
+          SCR-TB-02 &nbsp;팀 모집 상세
+        </div>
+        <div class="view-tab" onclick="switchView('tb03', this)">
+          SCR-TB-03 &nbsp;제안함
+          <span class="tab-badge">2</span>
+        </div>
+      </div>
+
+      <!-- ════════════════════════════════════════
+           SCR-TB-01  팀 빌딩 홈
+           ════════════════════════════════════════ -->
+      <div id="tb01" class="view-panel active">
+
+        <!-- 상단 상태 바 -->
+        <div class="status-bar">
+          <div class="status-bar-left">
+            <h2>팀 빌딩 · 3기 파이널 프로젝트</h2>
+            <div class="status-row">
+              <span class="status-tag warn">미소속</span>
+              <span class="status-tag info">보낸 지원 1건</span>
+              <span class="status-tag info">받은 스카우트 2건</span>
+              <button class="link-btn" onclick="switchView('tb03', document.querySelectorAll('.view-tab')[2])">
+                제안함 →
+              </button>
+            </div>
+          </div>
+          <div class="dday-badge">
+            ⏳ 마감까지 D-3
+          </div>
+        </div>
+
+        <!-- 추천 레일 -->
+        <div class="section-header">
+          <div class="section-title">✨ 추천</div>
+          <button class="link-btn">멤버 카드 →</button>
+        </div>
+        <div class="rec-rail">
+
+          <!-- 추천 카드 1: 팀 추천 -->
+          <div class="rec-card">
+            <div class="rec-card-type">팀 추천</div>
+            <div class="rec-card-name">팀 "코드블루"</div>
+            <div class="rec-card-sub">백엔드 1자리 모집 중</div>
+            <div class="rec-reason">
+              <strong>추천 사유</strong><br>
+              백엔드 희망 역할 일치 + 저녁 가용 시간 겹침
+            </div>
+            <div class="rec-actions">
+              <button class="btn-sm btn-outline" onclick="switchView('tb02', document.querySelectorAll('.view-tab')[1])">상세</button>
+              <button class="btn-sm btn-primary">지원</button>
+            </div>
+          </div>
+
+          <!-- 추천 카드 2: 사람 추천 -->
+          <div class="rec-card">
+            <div class="rec-card-type">멤버 추천</div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <div class="mini-avatar" style="width:36px;height:36px;font-size:12px;">김</div>
+              <div>
+                <div class="rec-card-name">김OO</div>
+                <div class="rec-card-sub">프론트엔드 희망</div>
+              </div>
+            </div>
+            <div class="rec-reason">
+              <strong>추천 사유</strong><br>
+              저녁 가용 일치 · 협업 스타일 2개 일치
+            </div>
+            <div class="rec-actions">
+              <button class="btn-sm btn-outline">카드 보기</button>
+              <button class="btn-sm btn-primary">스카우트</button>
+            </div>
+          </div>
+
+          <!-- 추천 카드 3: 팀 추천 -->
+          <div class="rec-card">
+            <div class="rec-card-type">팀 추천</div>
+            <div class="rec-card-name">팀 "달빛"</div>
+            <div class="rec-card-sub">프론트 1자리 모집 중</div>
+            <div class="rec-reason">
+              <strong>추천 사유</strong><br>
+              목표 온도 근접 (완주 지향) · 토요일 가용 일치
+            </div>
+            <div class="rec-actions">
+              <button class="btn-sm btn-outline" onclick="switchView('tb02', document.querySelectorAll('.view-tab')[1])">상세</button>
+              <button class="btn-sm btn-primary">지원</button>
+            </div>
+          </div>
+
+        </div>
+
+        <hr class="divider" />
+
+        <!-- 모집 중 팀 목록 -->
+        <div class="section-header" style="margin-top:8px;">
+          <div class="section-title">모집 중인 팀 <span style="color:var(--gray-400);font-weight:400;">(5)</span></div>
+          <button class="btn-create">
+            <span style="font-size:15px; line-height:1;">+</span> 팀 만들기
+          </button>
+        </div>
+
+        <div class="team-list">
+          <!-- 팀 행 1 -->
+          <div class="team-row">
+            <div class="team-avatar" style="background:#DBEAFE;color:#1D4ED8;">CB</div>
+            <div class="team-info">
+              <div class="team-name">코드블루</div>
+              <div class="team-meta">
+                <span class="seats">3/5명</span>
+                <span class="sep">·</span>
+                <span>모집:</span>
+                <span class="chip role">BE 1</span>
+                <span class="chip role">디자인 1</span>
+                <span class="sep">·</span>
+                <span class="goal-temp">목표 🔥 수상 지향</span>
+              </div>
+            </div>
+            <div class="team-row-action">
+              <button class="btn-sm btn-primary" style="padding:7px 16px;font-size:12px;border-radius:5px;">지원</button>
+            </div>
+          </div>
+
+          <!-- 팀 행 2 -->
+          <div class="team-row">
+            <div class="team-avatar" style="background:#F0FDF4;color:#166534;">달</div>
+            <div class="team-info">
+              <div class="team-name">달빛</div>
+              <div class="team-meta">
+                <span class="seats">2/4명</span>
+                <span class="sep">·</span>
+                <span>모집:</span>
+                <span class="chip role">FE 1</span>
+                <span class="chip role">PM 1</span>
+                <span class="sep">·</span>
+                <span class="goal-temp">목표 🌱 완주 지향</span>
+              </div>
+            </div>
+            <div class="team-row-action">
+              <button class="btn-sm btn-primary" style="padding:7px 16px;font-size:12px;border-radius:5px;">지원</button>
+            </div>
+          </div>
+
+          <!-- 팀 행 3 -->
+          <div class="team-row">
+            <div class="team-avatar" style="background:#FEF9C3;color:#92400E;">알</div>
+            <div class="team-info">
+              <div class="team-name">알파팀</div>
+              <div class="team-meta">
+                <span class="seats">4/5명</span>
+                <span class="sep">·</span>
+                <span>모집:</span>
+                <span class="chip role">FE 1</span>
+                <span class="sep">·</span>
+                <span class="goal-temp">목표 🔥 수상 지향</span>
+              </div>
+            </div>
+            <div class="team-row-action">
+              <button class="btn-sm btn-primary" style="padding:7px 16px;font-size:12px;border-radius:5px;">지원</button>
+            </div>
+          </div>
+
+          <!-- 팀 행 4 -->
+          <div class="team-row">
+            <div class="team-avatar">GR</div>
+            <div class="team-info">
+              <div class="team-name">그린팀</div>
+              <div class="team-meta">
+                <span class="seats">3/4명</span>
+                <span class="sep">·</span>
+                <span>모집:</span>
+                <span class="chip role">BE 1</span>
+                <span class="sep">·</span>
+                <span class="goal-temp">목표 🌱 완주 지향</span>
+              </div>
+            </div>
+            <div class="team-row-action">
+              <button class="btn-sm btn-primary" style="padding:7px 16px;font-size:12px;border-radius:5px;">지원</button>
+            </div>
+          </div>
+
+          <!-- 팀 행 5 -->
+          <div class="team-row">
+            <div class="team-avatar">SS</div>
+            <div class="team-info">
+              <div class="team-name">선셋팀</div>
+              <div class="team-meta">
+                <span class="seats">2/5명</span>
+                <span class="sep">·</span>
+                <span>모집:</span>
+                <span class="chip role">BE 2</span>
+                <span class="chip role">디자인 1</span>
+                <span class="sep">·</span>
+                <span class="goal-temp">목표 🔥 수상 지향</span>
+              </div>
+            </div>
+            <div class="team-row-action">
+              <button class="btn-sm btn-primary" style="padding:7px 16px;font-size:12px;border-radius:5px;">지원</button>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /tb01 -->
+
+
+      <!-- ════════════════════════════════════════
+           SCR-TB-02  팀 모집 상세
+           ════════════════════════════════════════ -->
+      <div id="tb02" class="view-panel">
+
+        <!-- 팀 헤더 -->
+        <div class="detail-header">
+          <div class="detail-header-left">
+            <h2>팀 코드블루</h2>
+            <div class="header-meta">
+              <span class="status-pill recruiting">모집 중</span>
+              <span>3 / 5명</span>
+              <span style="color:var(--gray-300);">|</span>
+              <span class="goal-temp">목표 🔥 수상 지향</span>
+            </div>
+            <div class="detail-intro">"실서비스 수준까지 가보고 싶습니다. 열정 있는 분 환영합니다."</div>
+          </div>
+          <button class="btn-apply">지원하기</button>
+        </div>
+
+        <!-- 2칼럼 본문 -->
+        <div class="detail-body">
+
+          <!-- 좌: 현재 팀원 -->
+          <div class="detail-col">
+            <div class="col-title">현재 팀원 (3)</div>
+            <div class="member-cards">
+              <div class="member-mini">
+                <div class="mini-avatar" style="background:#DBEAFE;color:#1D4ED8;">李</div>
+                <div class="mini-name">이OO</div>
+                <div class="mini-role">PM / 팀장</div>
+              </div>
+              <div class="member-mini">
+                <div class="mini-avatar" style="background:#F3E8FF;color:#7C3AED;">朴</div>
+                <div class="mini-name">박OO</div>
+                <div class="mini-role">백엔드</div>
+              </div>
+              <div class="member-mini">
+                <div class="mini-avatar" style="background:#FEF9C3;color:#92400E;">崔</div>
+                <div class="mini-name">최OO</div>
+                <div class="mini-role">프론트</div>
+              </div>
+            </div>
+
+            <div class="avail-time">
+              📅 <strong>공통 가용 시간</strong><br>
+              <span style="font-size:12px;color:var(--gray-600);">평일 저녁 (19:00~22:00) · 토요일</span>
+            </div>
+          </div>
+
+          <!-- 우: 모집 중인 역할 -->
+          <div class="detail-col">
+            <div class="col-title">모집 중인 역할</div>
+
+            <div class="recruit-role-item">
+              <div>
+                <div class="recruit-role-name">백엔드</div>
+                <div style="font-size:11px;color:var(--gray-500);margin-top:2px;">Spring Boot / JPA 경험 우대</div>
+              </div>
+              <div class="recruit-role-status">
+                지원 <span class="cnt">2</span>명 대기
+              </div>
+            </div>
+
+            <div class="recruit-role-item">
+              <div>
+                <div class="recruit-role-name">디자인</div>
+                <div style="font-size:11px;color:var(--gray-500);margin-top:2px;">Figma 사용 가능자</div>
+              </div>
+              <div class="recruit-role-status">
+                지원 <span class="cnt">0</span>명
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- 나와의 적합도 -->
+        <div class="fit-panel">
+          <div class="fit-score-col">
+            <div class="fit-label">나와의 적합도</div>
+            <div class="fit-stars">★★★★☆</div>
+          </div>
+          <div>
+            <div class="fit-label">추천 사유</div>
+            <div class="fit-reason">
+              <strong>백엔드 희망 역할 일치</strong> · <strong>저녁 가용 겹침 3일</strong> · 목표 온도 근접 (수상 지향)
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /tb02 -->
+
+
+      <!-- ════════════════════════════════════════
+           SCR-TB-03  제안함
+           ════════════════════════════════════════ -->
+      <div id="tb03" class="view-panel">
+
+        <!-- 받은/보낸 2탭 -->
+        <div class="inbox-tabs">
+          <div class="inbox-tab active" id="inbox-received-tab" onclick="switchInbox('received')">
+            받은 제안
+            <span class="badge">2</span>
+          </div>
+          <div class="inbox-tab" id="inbox-sent-tab" onclick="switchInbox('sent')">
+            보낸 제안
+            <span class="badge" style="background:var(--gray-500);">1</span>
+          </div>
+        </div>
+
+        <!-- 받은 제안 -->
+        <div id="inbox-received" class="inbox-panel active">
+          <div class="inbox-section-title">받은 제안 — 2건</div>
+
+          <!-- 받은 항목 1: 스카우트 -->
+          <div class="proposal-row">
+            <div class="proposal-icon scout">팀</div>
+            <div class="proposal-body">
+              <div class="proposal-type-row">
+                <span class="proposal-type-tag scout">스카우트</span>
+                <span class="proposal-parties">팀 달빛 → 나</span>
+              </div>
+              <div class="proposal-message">"프론트 포지션 어떠세요? 저녁에 같이 할 수 있을 것 같아서요."</div>
+              <div class="proposal-meta">
+                <span>받은 지 2시간</span>
+                <span>·</span>
+                <button class="btn-card">카드 보기</button>
+              </div>
+            </div>
+            <div class="proposal-actions">
+              <div class="action-row">
+                <button class="btn-accept" onclick="openAcceptModal('달빛 스카우트')">수락</button>
+                <button class="btn-decline">거절</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 받은 항목 2: 지원 (내 팀이 받은 것 — 팀장 시점 아닌 일반 멤버 시점이므로 생략하고, 받은 스카우트 하나 더) -->
+          <div class="proposal-row">
+            <div class="proposal-icon scout">팀</div>
+            <div class="proposal-body">
+              <div class="proposal-type-row">
+                <span class="proposal-type-tag scout">스카우트</span>
+                <span class="proposal-parties">팀 선셋 → 나</span>
+              </div>
+              <div class="proposal-message">"백엔드 자리 있어요. 한번 같이 해봐요!"</div>
+              <div class="proposal-meta">
+                <span>받은 지 1일</span>
+                <span>·</span>
+                <button class="btn-card">카드 보기</button>
+              </div>
+            </div>
+            <div class="proposal-actions">
+              <div class="action-row">
+                <button class="btn-accept" onclick="openAcceptModal('선셋 스카우트')">수락</button>
+                <button class="btn-decline">거절</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 만료 항목 (흐리게) -->
+          <div class="proposal-row dimmed">
+            <div class="proposal-icon" style="background:#F1F5F9;color:#94A3B8;">팀</div>
+            <div class="proposal-body">
+              <div class="proposal-type-row">
+                <span class="proposal-type-tag" style="background:#F1F5F9;color:#94A3B8;">스카우트</span>
+                <span class="proposal-parties" style="color:var(--gray-500);">팀 알파 → 나</span>
+              </div>
+              <div class="proposal-message">"같이 하실래요?"</div>
+              <div class="proposal-meta">
+                <span>3일 전</span>
+                <span>·</span>
+                <span class="proposal-status-tag status-withdrawn">만료됨</span>
+              </div>
+            </div>
+            <div class="proposal-actions">
+              <div style="font-size:11px;color:var(--gray-400);">처리 불가</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 보낸 제안 -->
+        <div id="inbox-sent" class="inbox-panel">
+          <div class="inbox-section-title">보낸 제안 — 1건</div>
+
+          <!-- 보낸 항목 1: 지원 -->
+          <div class="proposal-row">
+            <div class="proposal-icon apply">나</div>
+            <div class="proposal-body">
+              <div class="proposal-type-row">
+                <span class="proposal-type-tag apply">지원</span>
+                <span class="proposal-parties">나 → 팀 코드블루</span>
+              </div>
+              <div class="proposal-message">"백엔드 지원합니다. 저녁 시간 가용하고 Spring Boot 경험 있습니다."</div>
+              <div class="proposal-meta">
+                <span>보낸 지 5시간</span>
+                <span>·</span>
+                <button class="btn-card">팀 상세</button>
+                <span>·</span>
+                <span class="proposal-status-tag status-pending">답변 대기</span>
+              </div>
+            </div>
+            <div class="proposal-actions">
+              <button class="btn-decline" style="font-size:11px;padding:4px 10px;">철회</button>
+            </div>
+          </div>
+
+        </div>
+
+      </div><!-- /tb03 -->
+
+    </main>
+  </div>
+</div>
+
+<!-- ── 수락 확인 모달 ── -->
+<div class="modal-overlay" id="acceptModal">
+  <div class="modal">
+    <h3>제안을 수락하시겠어요?</h3>
+    <div class="modal-body">
+      <div><strong id="modalTarget"></strong> 제안을 수락합니다.</div>
+      <div class="highlight">
+        ⚠️ 수락하면 팀 합류가 확정되고,<br>
+        <strong>내가 보낸 다른 지원 1건은 자동 철회됩니다.</strong><br>
+        이 작업은 되돌릴 수 없습니다.
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="closeModal()">취소</button>
+      <button class="btn-modal-confirm" onclick="confirmAccept()">수락 확정</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ── 뷰 전환 ── */
+  function switchView(viewId, tabEl) {
+    // 모든 패널 숨기기
+    document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('active'));
+    // 모든 탭 비활성화
+    document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
+    // 선택 패널·탭 활성화
+    document.getElementById(viewId).classList.add('active');
+    if (tabEl) tabEl.classList.add('active');
+  }
+
+  /* ── 제안함 내부 탭 전환 ── */
+  function switchInbox(box) {
+    document.querySelectorAll('.inbox-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.inbox-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('inbox-' + box).classList.add('active');
+    document.getElementById('inbox-' + box + '-tab').classList.add('active');
+  }
+
+  /* ── 수락 모달 ── */
+  var _pendingTarget = '';
+
+  function openAcceptModal(target) {
+    _pendingTarget = target;
+    document.getElementById('modalTarget').textContent = target;
+    document.getElementById('acceptModal').classList.add('show');
+  }
+
+  function closeModal() {
+    document.getElementById('acceptModal').classList.remove('show');
+  }
+
+  function confirmAccept() {
+    closeModal();
+    alert('[목업] "' + _pendingTarget + '" 수락 완료. 팀 합류 확정 + 보낸 지원 자동 철회 처리되었습니다.');
+  }
+
+  /* 모달 오버레이 클릭 시 닫기 */
+  document.getElementById('acceptModal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+</script>
+
+</body>
+</html>
