@@ -212,3 +212,16 @@ export const onDelegationAccepted = (db: MockDb, workspaceId: string, teamId: st
   if (!team) return db;
   return notify(db, [previousLeaderId], { type: 'TEAM_LEADER_DELEGATED', workspaceId, link: `/ws/${workspaceId}/team/${teamId}`, title: `${nameOf(db, actorId)}님이 ${team.name} 팀장을 맡았어요.` }, actorId);
 };
+
+/** 차단 당사자에게 알린다(§5.6). 차단되면 워크스페이스 화면을 볼 수 없으므로 무소속 랜딩으로 보낸다. */
+export const onMemberBanned = (db: MockDb, workspaceId: string, targetId: string, actorId: string) => {
+  const workspace = db.workspaces.find((item) => item.id === workspaceId);
+  return notify(db, [targetId], { type: 'WS_MEMBER_BANNED', workspaceId, link: '/welcome', title: `${workspace?.name ?? '워크스페이스'}에서 차단됐어요. 더 이상 참여할 수 없어요.` }, actorId);
+};
+
+/** 팀장이 워크스페이스에서 빠져 팀장을 이어받은 사람에게 알린다. */
+export const onLeaderSucceeded = (db: MockDb, workspaceId: string, teamId: string, accountId: string, actorId: string) => {
+  const team = teamOf(db, teamId);
+  if (!team) return db;
+  return notify(db, [accountId], { type: 'TEAM_LEADER_DELEGATED', workspaceId, link: `/ws/${workspaceId}/team/${teamId}`, title: `이전 팀장이 워크스페이스를 떠나 ${team.name} 팀장을 맡게 됐어요.` }, actorId);
+};

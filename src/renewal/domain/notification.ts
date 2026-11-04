@@ -36,6 +36,7 @@ export type NotificationType =
   | 'POST_COMMENT_ADDED'
   | 'NEW_CHAT_MESSAGE'
   | 'WS_MEMBER_JOINED'
+  | 'WS_MEMBER_BANNED'
   | 'TEAM_LEADER_DELEGATION_REQUESTED'
   | 'TEAM_LEADER_DELEGATED';
 
@@ -59,6 +60,7 @@ export const TYPE_META: Record<NotificationType, { category: NotificationCategor
   POST_COMMENT_ADDED: { category: 'ANNOUNCEMENT', priority: 'MEDIUM' },
   NEW_CHAT_MESSAGE: { category: 'CHAT', priority: 'MEDIUM' },
   WS_MEMBER_JOINED: { category: 'MEMBERSHIP', priority: 'LOW' },
+  WS_MEMBER_BANNED: { category: 'MEMBERSHIP', priority: 'HIGH' },
   TEAM_LEADER_DELEGATION_REQUESTED: { category: 'MEMBERSHIP', priority: 'HIGH' },
   TEAM_LEADER_DELEGATED: { category: 'MEMBERSHIP', priority: 'HIGH' },
 };
@@ -92,11 +94,12 @@ export const defaultSettings = (): NotificationSettings => ({
   categories: { TEAM_BUILDING: true, KANBAN: true, SCHEDULE: true, ANNOUNCEMENT: true, CHAT: true, MEMBERSHIP: true },
 });
 
-/**
- * 이 알림을 남길지(§6.4 수신 설정 OFF 계열은 기록도 생략).
- * 우선순위 높음 중 계열을 꺼도 남기는 예외(CHAT_MENTION, WS_MEMBER_BANNED)는 아직 발생하지 않아 다루지 않는다.
- */
-export const shouldDeliver = (type: NotificationType, settings: NotificationSettings) => settings.enabled && settings.categories[TYPE_META[type].category];
+/** 계열을 꺼도 남기는 알림(16-D9). 마스터 스위치는 따른다. 멘션은 아직 발생하지 않는다. */
+const ALWAYS_DELIVER: NotificationType[] = ['WS_MEMBER_BANNED'];
+
+/** 이 알림을 남길지(§6.4 수신 설정 OFF 계열은 기록도 생략). */
+export const shouldDeliver = (type: NotificationType, settings: NotificationSettings) =>
+  settings.enabled && (ALWAYS_DELIVER.includes(type) || settings.categories[TYPE_META[type].category]);
 
 /** 드롭다운 미리보기(§4.1, §6.3): 낮음 우선순위를 빼고 최신순 5개. */
 export const previewItems = (items: AppNotification[], limit = 5) =>

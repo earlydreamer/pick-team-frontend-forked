@@ -40,7 +40,9 @@ export const useWorkspaceContext = () => {
     if (routeWsId && accountId) rememberPath(accountId, routeWsId, pathname + search);
   }, [routeWsId, accountId, pathname, search]);
 
-  const fallbackId = pathname.startsWith('/me') ? readLastWorkspace() || workspaces.data?.[0]?.id || '' : '';
+  // 마지막 워크스페이스에서 나갔거나 지워졌으면 첫 워크스페이스로 대신한다.
+  const last = readLastWorkspace();
+  const fallbackId = pathname.startsWith('/me') ? (workspaces.data?.some((item) => item.id === last) ? last : workspaces.data?.[0]?.id ?? '') : '';
   const wsId = routeWsId || fallbackId;
   const workspace = workspaces.data?.find((item) => item.id === wsId);
   const session = useSession(workspace ? wsId : '');

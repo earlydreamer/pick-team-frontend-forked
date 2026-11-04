@@ -30,6 +30,7 @@ import { ChatRoomScreen } from '@/renewal/features/chat/ChatRoomScreen';
 import { VideoScreen } from '@/renewal/features/chat/VideoScreen';
 import { NotificationsScreen } from '@/renewal/features/notifications/NotificationsScreen';
 import { AccountSettingsScreen } from '@/renewal/features/account/AccountSettingsScreen';
+import { WorkspaceSettingsScreen } from '@/renewal/features/workspaceSettings/WorkspaceSettingsScreen';
 
 /**
  * 리뉴얼 라우트. URL 체계는 docs/renewal/spec/02-information-architecture.md §4를 따른다.
@@ -67,7 +68,7 @@ export const AppRoutes: React.FC = () => (
         <Route path="team-building/inbox" element={<InboxScreen />} />
         <Route path="team-building/manage" element={<ManageScreen />} />
         <Route path="dashboard" element={<DashboardScreen />} />
-        <Route path="settings" element={<PendingScreen screenId="SCR-WS-03" title="워크스페이스 설정" />} />
+        <Route path="settings" element={<WorkspaceSettingsScreen />} />
         <Route path="chat" element={<ChatListScreen />} />
         <Route path="chat/:roomId" element={<ChatRoomScreen />} />
         <Route path="video/:channelId" element={<VideoScreen />} />

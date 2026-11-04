@@ -156,7 +156,9 @@ export const ConfirmModal: React.FC<{
   pending: boolean;
   onClose: () => void;
   onConfirm: () => void;
-}> = ({ open, title, description, confirmLabel, pending, onClose, onConfirm }) => (
+  /** 되돌리기 어려운 행동이면 danger로 확인 버튼을 빨갛게 한다 */
+  tone?: 'default' | 'danger';
+}> = ({ open, title, description, confirmLabel, pending, onClose, onConfirm, tone = 'default' }) => (
   <Modal
     isOpen={open}
     onClose={onClose}
@@ -169,7 +171,7 @@ export const ConfirmModal: React.FC<{
         <Button variant="outline" onClick={onClose} disabled={pending}>
           취소
         </Button>
-        <Button onClick={onConfirm} loading={pending}>
+        <Button variant={tone === 'danger' ? 'danger' : 'primary'} onClick={onConfirm} loading={pending}>
           {confirmLabel}
         </Button>
       </>

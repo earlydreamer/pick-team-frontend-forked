@@ -33,7 +33,7 @@ const replaceTeam = (db: MockDb, teamId: string, patch: Partial<MockDb['teams'][
 });
 
 /** 팀에서 한 명을 뺀다. 팀원 목록, 멤버의 소속, 담당 태스크를 함께 정리한다. */
-const detach = (db: MockDb, workspaceId: string, teamId: string, accountId: string): MockDb => {
+export const detach = (db: MockDb, workspaceId: string, teamId: string, accountId: string): MockDb => {
   const team = teamOf(db, teamId);
   return {
     ...db,
@@ -99,7 +99,7 @@ export const deleteTeam = (db: MockDb, workspaceId: string, teamId: string, acco
   return disband(db, workspaceId, teamId);
 };
 
-const disband = (db: MockDb, workspaceId: string, teamId: string): MockDb => {
+export const disband = (db: MockDb, workspaceId: string, teamId: string): MockDb => {
   const team = teamOf(db, teamId);
   const session = findSession(db, workspaceId);
   return {
