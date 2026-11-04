@@ -116,3 +116,6 @@ export const useDashboard = (id: string, enabled = true) =>
   useQuery({ queryKey: keys.dashboard(id), queryFn: () => data.dashboard.get(id), enabled: Boolean(id) && enabled });
 export const useApprove = (id: string) => useTeamBuildingMutation(id, (approvalId: string) => data.dashboard.approve(id, approvalId));
 export const useRemindCardWriters = (id: string) => useTeamBuildingMutation(id, (_: void) => data.dashboard.remindCardWriters(id));
+
+/* 인증·초대(10). 초대 정보의 "이미 멤버" 여부는 로그인 계정에 따라 달라지므로 인증이 바뀌면 캐시를 비운다(useCompleteAuth). */
+export const useInvite = (code: string) => useQuery({ queryKey: ['invite', code] as const, queryFn: () => data.invites.get(code), enabled: Boolean(code) });

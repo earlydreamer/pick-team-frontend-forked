@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useMatch } from 'react-router-dom';
+import { PlusIcon } from '@heroicons/react/24/outline';
 import { useMe, useMyWorkspaces } from '@/renewal/data/queries';
 import { workspaceEntryPath } from './entry';
 
@@ -11,7 +12,7 @@ const railLabel = (name: string) => {
 
 /**
  * WS 레일(02 §2.1). 가입한 워크스페이스를 세로로 나열한다. 링크는 역할별 진입 경로(02-D4)를 따른다.
- * 워크스페이스 생성·참여 버튼과 미확인 알림 배지는 인증·초대와 알림 단계에서 추가한다.
+ * 맨 아래 추가 버튼은 워크스페이스 참여·만들기(SCR-WS-04)로 간다. 미확인 알림 배지는 알림 단계에서 추가한다.
  */
 export const WorkspaceRail: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }) => {
   const { data: workspaces, isLoading } = useMyWorkspaces();
@@ -45,6 +46,15 @@ export const WorkspaceRail: React.FC<{ onNavigate?: () => void }> = ({ onNavigat
           );
         })}
       </ul>
+      <Link
+        to="/welcome"
+        onClick={onNavigate}
+        aria-label="워크스페이스 참여하거나 만들기"
+        title="워크스페이스 참여하거나 만들기"
+        className="flex h-10 w-10 items-center justify-center rounded-[10px] border border-dashed border-outline text-muted hover:border-primary hover:text-primary"
+      >
+        <PlusIcon className="h-5 w-5" aria-hidden="true" />
+      </Link>
     </nav>
   );
 };

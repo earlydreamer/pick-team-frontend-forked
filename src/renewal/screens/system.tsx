@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { MapIcon, WrenchScrewdriverIcon, BuildingOffice2Icon, LockClosedIcon } from '@heroicons/react/24/outline';
+import { MapIcon, WrenchScrewdriverIcon, LockClosedIcon } from '@heroicons/react/24/outline';
 import { EmptyState, ErrorState, LoadingState, buttonClassName } from '@/renewal/ui';
 import { useMe, useMyWorkspaces } from '@/renewal/data/queries';
 import { workspaceEntryPath } from '@/renewal/shell/entry';
@@ -60,19 +60,6 @@ export const NotFoundScreen: React.FC = () => (
     }
   />
 );
-
-/** SCR-WS-04 무소속 랜딩. 초대 코드 참여와 워크스페이스 개설은 인증·초대 단계에서 구현한다. */
-export const WelcomeScreen: React.FC = () => {
-  const { data: me } = useMe();
-  return (
-    <EmptyState
-      className="min-h-[60vh]"
-      icon={<BuildingOffice2Icon className="h-7 w-7" />}
-      title={`${me?.name ?? ''}님이 참여한 워크스페이스가 없어요`}
-      description="강사에게 받은 초대 링크로 들어오면 워크스페이스에 합류할 수 있어요."
-    />
-  );
-};
 
 /**
  * 관리 화면에 권한 없이 들어왔을 때의 안내(02-D2: 관리 화면은 403 안내, 비공개 자원은 404 은닉).
