@@ -1,5 +1,5 @@
 import { cardStatus, emptyCard, isRequiredComplete, type PrCard } from '@/renewal/domain/card';
-import type { Member, Workspace } from '@/renewal/domain/workspace';
+import type { Member, MemberCardState, Workspace } from '@/renewal/domain/workspace';
 import { DataError, type DataSource } from '../ports';
 import { commit, getDb, latency, shouldFail } from './db';
 
@@ -49,6 +49,11 @@ const toSmallDataUrl = async (file: File) => {
   const height = bitmap.height * scale;
   context.drawImage(bitmap, (size - width) / 2, (size - height) / 2, width, height);
   return canvas.toDataURL('image/jpeg', 0.85);
+};
+
+const memberCardState = (card: PrCard): MemberCardState => {
+  const status = cardStatus(card);
+  return status === 'PUBLIC' ? 'PUBLIC' : status === 'PRIVATE' ? 'PRIVATE' : 'NOT_WRITTEN';
 };
 
 export const mockDataSource: DataSource = {
@@ -104,6 +109,7 @@ export const mockDataSource: DataSource = {
         account: db.accounts.find((account) => account.id === member.accountId)!,
         role: member.role,
         teamId: member.teamId,
+        cardState: memberCardState(db.cards[member.accountId] ?? emptyCard()),
         card: visibleCard(db.cards[member.accountId] ?? emptyCard(), member.accountId === me.id),
       }));
     },
@@ -117,6 +123,7 @@ export const mockDataSource: DataSource = {
         account: db.accounts.find((account) => account.id === accountId)!,
         role: member.role,
         teamId: member.teamId,
+        cardState: memberCardState(db.cards[accountId] ?? emptyCard()),
         card: visibleCard(db.cards[accountId] ?? emptyCard(), accountId === me.id),
       };
     },
