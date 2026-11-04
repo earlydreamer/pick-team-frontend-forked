@@ -1,6 +1,7 @@
 import { emptyCard, type PrCard } from '@/renewal/domain/card';
 import type { Account, WorkspaceRole } from '@/renewal/domain/workspace';
 import type { Team, TeamBuildingSession } from '@/renewal/domain/teamBuilding';
+import type { Announcement } from '@/renewal/domain/announcement';
 
 /**
  * 목업 단계의 데이터 저장소. 브라우저 localStorage에 저장해 새로고침해도 유지된다.
@@ -21,10 +22,11 @@ export interface MockDb {
   workspaces: MockWorkspace[];
   sessions: TeamBuildingSession[];
   teams: Team[];
+  announcements: (Announcement & { workspaceId: string })[];
 }
 
 const STORAGE_KEY = 'pickteam.renewal.mock';
-const VERSION = 2;
+const VERSION = 3;
 
 const daysFromNow = (days: number, hour = 23, minute = 59) => {
   const date = new Date();
@@ -32,6 +34,8 @@ const daysFromNow = (days: number, hour = 23, minute = 59) => {
   date.setHours(hour, minute, 0, 0);
   return date.toISOString();
 };
+
+const hoursAgo = (hours: number) => new Date(Date.now() - hours * 3_600_000).toISOString();
 
 const consented = (card: Partial<PrCard>): PrCard => ({
   ...emptyCard(),
@@ -111,6 +115,11 @@ export const seed = (): MockDb => ({
     },
   ],
   sessions: [{ id: 's-1', workspaceId: 'ws-1', status: 'OPEN', closesAt: daysFromNow(3), teamCapacity: 4 }],
+  announcements: [
+    { id: 'a-1', workspaceId: 'ws-1', title: '팀 빌딩 마감 시각 안내', authorName: '박강사', createdAt: hoursAgo(1) },
+    { id: 'a-2', workspaceId: 'ws-1', title: 'PR 카드 작성 가이드: 희망 역할과 태그 쓰는 법', authorName: '정매니저', createdAt: hoursAgo(26) },
+    { id: 'a-3', workspaceId: 'ws-1', title: '알파팀 첫 회의 일정', authorName: '김철수', teamName: '알파팀', createdAt: hoursAgo(72) },
+  ],
   teams: [
     { id: 't-1', workspaceId: 'ws-1', name: '알파팀', leaderId: 'u-01', memberIds: ['u-01', 'u-02'] },
     { id: 't-2', workspaceId: 'ws-1', name: '데이터 크루', leaderId: 'u-05', memberIds: ['u-04', 'u-05'] },

@@ -6,6 +6,7 @@ import { OnboardingScreen } from '@/renewal/features/card/OnboardingScreen';
 import { CardEditScreen } from '@/renewal/features/card/CardEditScreen';
 import { GalleryScreen } from '@/renewal/features/members/GalleryScreen';
 import { MemberDetailScreen } from '@/renewal/features/members/MemberDetailScreen';
+import { HomeScreen } from '@/renewal/features/home/HomeScreen';
 
 /**
  * 리뉴얼 라우트. URL 체계는 docs/renewal/spec/02-information-architecture.md §4를 따른다.
@@ -24,10 +25,11 @@ export const AppRoutes: React.FC = () => (
       <Route path="privacy" element={<PendingScreen screenId="17-policy-operations.md" title="개인정보 처리방침" />} />
       <Route path="me/settings" element={<PendingScreen screenId="SCR-MY-03" title="계정 설정" />} />
       <Route path="ws/:wsId">
-        <Route index element={<PendingScreen screenId="SCR-WS-01" title="워크스페이스 홈" />} />
+        <Route index element={<HomeScreen />} />
         <Route path="members" element={<GalleryScreen />} />
         <Route path="members/:accountId" element={<MemberDetailScreen />} />
         <Route path="team-building" element={<PendingScreen screenId="SCR-TB-01" title="팀 빌딩" />} />
+        <Route path="team-building/inbox" element={<PendingScreen screenId="SCR-TB-03" title="제안함" />} />
         <Route path="team-building/manage" element={<PendingScreen screenId="SCR-TB-04" title="세션 운영" />} />
         <Route path="dashboard" element={<PendingScreen screenId="SCR-DSH-01" title="강사 대시보드" />} />
         <Route path="settings" element={<PendingScreen screenId="SCR-WS-03" title="워크스페이스 설정" />} />

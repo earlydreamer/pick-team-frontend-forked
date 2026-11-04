@@ -12,6 +12,7 @@ export const keys = {
   myCard: ['me', 'card'] as const,
   session: (id: string) => ['workspaces', id, 'team-building', 'session'] as const,
   teams: (id: string) => ['workspaces', id, 'teams'] as const,
+  announcements: (id: string) => ['workspaces', id, 'announcements'] as const,
 };
 
 export const useMe = () => useQuery({ queryKey: keys.me, queryFn: () => data.session.me() });
@@ -23,6 +24,9 @@ export const useMember = (id: string, accountId: string) =>
 export const useMyCard = () => useQuery({ queryKey: keys.myCard, queryFn: () => data.cards.getMine() });
 export const useSession = (id: string) => useQuery({ queryKey: keys.session(id), queryFn: () => data.teamBuilding.getSession(id), enabled: Boolean(id) });
 export const useTeams = (id: string) => useQuery({ queryKey: keys.teams(id), queryFn: () => data.teamBuilding.listTeams(id), enabled: Boolean(id) });
+
+export const useRecentAnnouncements = (id: string, limit = 3) =>
+  useQuery({ queryKey: [...keys.announcements(id), limit], queryFn: () => data.announcements.listRecent(id, limit), enabled: Boolean(id) });
 
 /** 카드 저장 후 내 카드와 멤버 목록(갤러리)을 함께 새로 고친다. */
 export const useSaveMyCard = () => {
