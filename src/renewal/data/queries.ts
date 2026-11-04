@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { PrCard } from '@/renewal/domain/card';
 import type { CreateTeamInput, SessionSettingsInput } from '@/renewal/domain/teamBuilding';
+import type { TaskAction, TaskInput } from '@/renewal/domain/kanban';
 import { data } from './index';
 
 /** 쿼리 키를 한곳에서 관리해 무효화 범위를 분명히 한다. */
@@ -21,6 +22,9 @@ export const keys = {
   inbox: (id: string) => ['workspaces', id, 'team-building', 'inbox'] as const,
   manage: (id: string) => ['workspaces', id, 'team-building', 'manage'] as const,
   dashboard: (id: string) => ['workspaces', id, 'dashboard'] as const,
+  team: (id: string, teamId: string) => ['workspaces', id, 'team', teamId] as const,
+  teamOverview: (id: string, teamId: string) => ['workspaces', id, 'team', teamId, 'overview'] as const,
+  tasks: (id: string, teamId: string) => ['workspaces', id, 'team', teamId, 'tasks'] as const,
 };
 
 export const useMe = () => useQuery({ queryKey: keys.me, queryFn: () => data.session.me() });
@@ -119,3 +123,20 @@ export const useRemindCardWriters = (id: string) => useTeamBuildingMutation(id, 
 
 /* 인증·초대(10). 초대 정보의 "이미 멤버" 여부는 로그인 계정에 따라 달라지므로 인증이 바뀌면 캐시를 비운다(useCompleteAuth). */
 export const useInvite = (code: string) => useQuery({ queryKey: ['invite', code] as const, queryFn: () => data.invites.get(code), enabled: Boolean(code) });
+
+/* 팀 스페이스(14). 변경은 워크스페이스 단위로 무효화해 대시보드 진행도·승인 대기도 함께 새로 고친다. */
+export const useTeamSpace = (id: string, teamId: string) =>
+  useQuery({ queryKey: keys.team(id, teamId), queryFn: () => data.teamSpace.get(id, teamId), enabled: Boolean(id && teamId) });
+export const useTeamOverview = (id: string, teamId: string) =>
+  useQuery({ queryKey: keys.teamOverview(id, teamId), queryFn: () => data.teamSpace.overview(id, teamId), enabled: Boolean(id && teamId) });
+export const useTasks = (id: string, teamId: string) =>
+  useQuery({ queryKey: keys.tasks(id, teamId), queryFn: () => data.teamSpace.listTasks(id, teamId), enabled: Boolean(id && teamId) });
+export const useConfirmRoles = (id: string, teamId: string) => useTeamBuildingMutation(id, (_: void) => data.teamSpace.confirmRoles(id, teamId));
+export const useCreateTask = (id: string, teamId: string) => useTeamBuildingMutation(id, (input: TaskInput) => data.teamSpace.createTask(id, teamId, input));
+export const useUpdateTask = (id: string, teamId: string) =>
+  useTeamBuildingMutation(id, (input: { taskId: string; task: TaskInput }) => data.teamSpace.updateTask(id, teamId, input.taskId, input.task));
+export const useTransitionTask = (id: string, teamId: string) =>
+  useTeamBuildingMutation(id, (input: { taskId: string; action: TaskAction; note?: string }) => data.teamSpace.transitionTask(id, teamId, input.taskId, input.action, input.note));
+export const useDeleteTask = (id: string, teamId: string) => useTeamBuildingMutation(id, (taskId: string) => data.teamSpace.deleteTask(id, teamId, taskId));
+export const useAddComment = (id: string, teamId: string) =>
+  useTeamBuildingMutation(id, (input: { taskId: string; content: string }) => data.teamSpace.addComment(id, teamId, input.taskId, input.content));

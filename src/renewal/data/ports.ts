@@ -13,6 +13,8 @@ import type {
   TeamDetail,
 } from '@/renewal/domain/teamBuilding';
 import type { DashboardView } from '@/renewal/domain/dashboard';
+import type { KanbanTask, TaskAction, TaskInput } from '@/renewal/domain/kanban';
+import type { TeamOverview, TeamSpace } from '@/renewal/domain/teamSpace';
 import type { Announcement } from '@/renewal/domain/announcement';
 import type { CreateWorkspaceInput, InviteInfo, JoinResult, OAuthProvider, SignUpInput } from '@/renewal/domain/auth';
 
@@ -108,6 +110,26 @@ export interface TeamBuildingPort {
   resolveSession(workspaceId: string): Promise<void>;
 }
 
+/**
+ * 팀 스페이스(14). 팀원이 아니면 NOT_FOUND로 존재를 숨기고,
+ * 팀원이 아닌 개설자·매니저는 집계와 칸반 승인만 할 수 있다(13-D1, 14 §2).
+ */
+export interface TeamSpacePort {
+  get(workspaceId: string, teamId: string): Promise<TeamSpace>;
+  /** SCR-TM-01 집계(14 §6.1). 매니저에게는 일정·공지를 담지 않는다 */
+  overview(workspaceId: string, teamId: string): Promise<TeamOverview>;
+  /** 결성 직후 체크리스트의 "역할 확정" 완료 표시(팀장) */
+  confirmRoles(workspaceId: string, teamId: string): Promise<void>;
+  listTasks(workspaceId: string, teamId: string): Promise<KanbanTask[]>;
+  createTask(workspaceId: string, teamId: string, input: TaskInput): Promise<{ taskId: string }>;
+  /** 담당자가 팀원이 아니면 INVALID(14 §4.2) */
+  updateTask(workspaceId: string, teamId: string, taskId: string, input: TaskInput): Promise<void>;
+  /** note는 완료 요청 메시지 또는 반려 사유 */
+  transitionTask(workspaceId: string, teamId: string, taskId: string, action: TaskAction, note?: string): Promise<void>;
+  deleteTask(workspaceId: string, teamId: string, taskId: string): Promise<void>;
+  addComment(workspaceId: string, teamId: string, taskId: string, content: string): Promise<void>;
+}
+
 /** 초대 링크(10 §4.4, §6.2). 조회는 로그인하지 않아도 된다. */
 export interface InvitePort {
   /** 없는 코드는 NOT_FOUND, 만료·재발급된 코드는 GONE */
@@ -138,5 +160,6 @@ export interface DataSource {
   teamBuilding: TeamBuildingPort;
   dashboard: DashboardPort;
   invites: InvitePort;
+  teamSpace: TeamSpacePort;
   announcements: AnnouncementPort;
 }

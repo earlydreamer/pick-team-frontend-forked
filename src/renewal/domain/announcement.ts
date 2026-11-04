@@ -5,6 +5,9 @@ export interface Announcement {
   authorName: string;
   /** 팀 공지면 팀 이름, 워크스페이스 전체 공지면 없음 */
   teamName?: string;
+  teamId?: string;
+  content?: string;
+  authorId?: string;
   createdAt: string;
 }
 

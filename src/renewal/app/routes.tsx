@@ -19,6 +19,9 @@ import { SignupScreen } from '@/renewal/features/auth/SignupScreen';
 import { ResetPasswordScreen } from '@/renewal/features/auth/ResetPasswordScreen';
 import { OAuthCallbackScreen } from '@/renewal/features/auth/OAuthCallbackScreen';
 import { InviteScreen } from '@/renewal/features/auth/InviteScreen';
+import { TeamMemberOnly, TeamSpaceLayout } from '@/renewal/features/teamSpace/TeamSpaceLayout';
+import { OverviewScreen } from '@/renewal/features/teamSpace/OverviewScreen';
+import { KanbanScreen } from '@/renewal/features/teamSpace/KanbanScreen';
 
 /**
  * 리뉴얼 라우트. URL 체계는 docs/renewal/spec/02-information-architecture.md §4를 따른다.
@@ -57,7 +60,15 @@ export const AppRoutes: React.FC = () => (
         <Route path="team-building/manage" element={<ManageScreen />} />
         <Route path="dashboard" element={<DashboardScreen />} />
         <Route path="settings" element={<PendingScreen screenId="SCR-WS-03" title="워크스페이스 설정" />} />
-        <Route path="team/:teamId/*" element={<PendingScreen screenId="SCR-TM-01" title="팀 개요" />} />
+        <Route path="team/:teamId" element={<TeamSpaceLayout />}>
+          <Route index element={<OverviewScreen />} />
+          <Route path="kanban" element={<KanbanScreen />} />
+          <Route path="calendar" element={<TeamMemberOnly><PendingScreen screenId="SCR-TM-03" title="일정" /></TeamMemberOnly>} />
+          <Route path="board" element={<TeamMemberOnly><PendingScreen screenId="SCR-TM-04" title="게시판" /></TeamMemberOnly>} />
+          <Route path="announcements" element={<TeamMemberOnly><PendingScreen screenId="SCR-TM-05" title="팀 공지" /></TeamMemberOnly>} />
+          <Route path="settings" element={<TeamMemberOnly><PendingScreen screenId="SCR-TM-06" title="팀 설정" /></TeamMemberOnly>} />
+          <Route path="*" element={<NotFoundScreen />} />
+        </Route>
         <Route path="*" element={<NotFoundScreen />} />
       </Route>
       <Route path="*" element={<NotFoundScreen />} />
