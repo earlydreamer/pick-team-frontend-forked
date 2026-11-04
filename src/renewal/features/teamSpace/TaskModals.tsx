@@ -250,7 +250,7 @@ export const TaskDetailModal: React.FC<{
         footer={
           <>
             {canDelete && (
-              <Button variant="ghost" className="mr-auto text-danger" leftIcon={<TrashIcon className="h-4 w-4" />} onClick={() => setConfirmDelete(true)} disabled={busy}>
+              <Button variant="danger-ghost" className="mr-auto" leftIcon={<TrashIcon className="h-4 w-4" />} onClick={() => setConfirmDelete(true)} disabled={busy}>
                 삭제
               </Button>
             )}
@@ -394,7 +394,7 @@ export const TaskDetailModal: React.FC<{
       <ConfirmModal
         open={confirmDelete}
         title="태스크 삭제"
-        description={`"${task.title}"을 삭제하면 댓글도 함께 지워지고 되돌릴 수 없어요.`}
+        description="이 태스크를 삭제하면 댓글도 함께 지워지고 되돌릴 수 없어요."
         confirmLabel="삭제하기"
         pending={busy}
         onClose={() => setConfirmDelete(false)}

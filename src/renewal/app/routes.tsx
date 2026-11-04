@@ -24,6 +24,7 @@ import { OverviewScreen } from '@/renewal/features/teamSpace/OverviewScreen';
 import { KanbanScreen } from '@/renewal/features/teamSpace/KanbanScreen';
 import { CalendarScreen } from '@/renewal/features/teamSpace/CalendarScreen';
 import { AnnouncementsScreen, BoardScreen, PostDetailScreen } from '@/renewal/features/teamSpace/BoardScreens';
+import { TeamSettingsScreen } from '@/renewal/features/teamSpace/TeamSettingsScreen';
 
 /**
  * 리뉴얼 라우트. URL 체계는 docs/renewal/spec/02-information-architecture.md §4를 따른다.
@@ -69,7 +70,7 @@ export const AppRoutes: React.FC = () => (
           <Route path="board" element={<TeamMemberOnly><BoardScreen /></TeamMemberOnly>} />
           <Route path="board/:postId" element={<TeamMemberOnly><PostDetailScreen /></TeamMemberOnly>} />
           <Route path="announcements" element={<TeamMemberOnly><AnnouncementsScreen /></TeamMemberOnly>} />
-          <Route path="settings" element={<TeamMemberOnly><PendingScreen screenId="SCR-TM-06" title="팀 설정" /></TeamMemberOnly>} />
+          <Route path="settings" element={<TeamSettingsScreen />} />
           <Route path="*" element={<NotFoundScreen />} />
         </Route>
         <Route path="*" element={<NotFoundScreen />} />

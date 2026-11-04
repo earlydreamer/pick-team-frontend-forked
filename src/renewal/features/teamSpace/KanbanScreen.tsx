@@ -4,6 +4,7 @@ import { ChatBubbleLeftIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { TASK_STATUSES, TASK_STATUS_LABEL, isOverdue, type KanbanTask, type TaskAction, type TaskInput, type TaskViewer } from '@/renewal/domain/kanban';
 import { useAddComment, useCreateTask, useDeleteTask, useMe, useTasks, useTransitionTask, useUpdateTask } from '@/renewal/data/queries';
 import { Avatar, Badge, Button, EmptyState, ErrorState, LoadingState, toast } from '@/renewal/ui';
+import { activeDelegation } from '@/renewal/domain/teamSpace';
 import { useTeamSpaceContext } from './TeamSpaceLayout';
 import { CreateTaskModal, TaskDetailModal, errorMessage } from './TaskModals';
 
@@ -151,6 +152,11 @@ export const KanbanScreen: React.FC = () => {
         </div>
       </div>
 
+      {access.isLeader && activeDelegation(space.team) && pending.length > 0 && (
+        <p role="status" className="mb-4 rounded-card border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-warning">
+          승인 대기 중인 태스크가 있어요. 팀장 위임이 끝난 뒤 승인을 진행해 주세요.
+        </p>
+      )}
       {filter === 'pending' ? (
         pending.length === 0 ? (
           <div className="rounded-card border border-dashed border-outline-soft bg-surface">

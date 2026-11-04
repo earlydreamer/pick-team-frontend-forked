@@ -49,3 +49,30 @@ export interface TeamOverview {
 
 /** 결성 직후 체크리스트(14 §4.1): 칸반과 일정이 모두 비어 있을 때만 보여 준다. */
 export const showChecklist = (overview: Pick<TeamOverview, 'progress' | 'scheduleCount'>) => overview.progress.total === 0 && overview.scheduleCount === 0;
+
+/* ── 팀 설정(SCR-TM-06, 14 §4.6, §5.4, §5.5) ── */
+
+/** 팀장 위임 요청은 24시간 동안 유효하다(14 §5.4). */
+export const DELEGATION_TTL_MS = 24 * 60 * 60 * 1000;
+
+export const activeDelegation = (team: Pick<Team, 'delegation'>, now = Date.now()) =>
+  team.delegation && now - new Date(team.delegation.requestedAt).getTime() < DELEGATION_TTL_MS ? team.delegation : undefined;
+
+/** 위임 요청이 있었지만 응답 없이 만료됐는지. 팀장에게 다시 지명하라고 알린다. */
+export const delegationExpired = (team: Pick<Team, 'delegation'>, now = Date.now()) => Boolean(team.delegation) && !activeDelegation(team, now);
+
+export const TEAM_INFO_LIMITS = { nameMax: 20, introMax: 100 } as const;
+
+export interface TeamInfoInput {
+  name: string;
+  intro?: string;
+}
+
+export const validateTeamInfo = (input: TeamInfoInput) => {
+  const errors: Partial<Record<keyof TeamInfoInput, string>> = {};
+  const name = input.name.trim();
+  if (!name) errors.name = '팀 이름을 입력해 주세요.';
+  else if (name.length > TEAM_INFO_LIMITS.nameMax) errors.name = `팀 이름은 ${TEAM_INFO_LIMITS.nameMax}자까지 쓸 수 있어요.`;
+  if ((input.intro ?? '').length > TEAM_INFO_LIMITS.introMax) errors.intro = `팀 소개는 ${TEAM_INFO_LIMITS.introMax}자까지 쓸 수 있어요.`;
+  return errors;
+};

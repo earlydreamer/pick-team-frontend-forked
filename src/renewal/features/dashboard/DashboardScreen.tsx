@@ -9,6 +9,7 @@ import { DataError } from '@/renewal/data';
 import { useApprove, useDashboard, useRemindCardWriters, useWorkspace } from '@/renewal/data/queries';
 import { Badge, Button, ErrorState, LoadingState, buttonClassName, toast } from '@/renewal/ui';
 import { ForbiddenScreen, NotFoundScreen } from '@/renewal/screens/system';
+import { josa } from '@/renewal/domain/josa';
 
 const errorToast = (error: unknown) => toast.error(error instanceof Error ? error.message : '요청을 처리하지 못했어요. 다시 시도해 주세요.');
 
@@ -222,7 +223,7 @@ const ApprovalQueue: React.FC<{ wsId: string; view: DashboardView }> = ({ wsId, 
                     setBusyId(item.id);
                     try {
                       await approve.mutateAsync(item.id);
-                      toast.success(`${item.taskTitle}을 승인했어요.`);
+                      toast.success(`${josa(item.taskTitle, '을/를')} 승인했어요.`);
                     } catch (error) {
                       errorToast(error);
                     } finally {

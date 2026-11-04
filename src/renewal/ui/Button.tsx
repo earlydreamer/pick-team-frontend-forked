@@ -1,6 +1,6 @@
 import React, { ReactNode } from 'react';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'outline';
+export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'danger-ghost' | 'outline';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -23,6 +23,8 @@ const variantStyles: Record<ButtonVariant, string> = {
   secondary: 'bg-primary-container text-on-primary-container hover:bg-peri-200 border border-transparent',
   danger: 'bg-danger text-white hover:brightness-110 border border-transparent',
   ghost: 'bg-transparent text-primary hover:bg-surface-container border border-transparent',
+  /** 삭제·내보내기처럼 파괴적이지만 화면의 주 행동은 아닌 버튼. 확인 대화상자의 실제 실행은 danger를 쓴다 */
+  'danger-ghost': 'bg-transparent text-danger hover:bg-red-50 border border-transparent',
   outline: 'bg-surface text-ink border border-outline hover:bg-surface-container',
 };
 

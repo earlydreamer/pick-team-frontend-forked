@@ -4,6 +4,7 @@ import { openSeats, validateSessionSettings, type SessionSettingsInput, type Tea
 import { DataError } from '../ports';
 import type { MockDb } from './db';
 import { findSession } from './rules';
+import { josa } from '@/renewal/domain/josa';
 
 /*
  * 세션 운영 규칙(12 §4.4, §5.1). 매니저만 바꿀 수 있고, 상태마다 허용하는 조작이 다르다.
@@ -119,7 +120,7 @@ export const assignMember = (db: MockDb, workspaceId: string, actorId: string, a
   if (member.teamId) throw new DataError('이미 팀에 배치된 멤버예요.', 'CONFLICT');
   const team = teamsOf(db, workspaceId).find((item) => item.id === teamId);
   if (!team) throw new DataError('팀을 찾을 수 없어요.', 'NOT_FOUND');
-  if (openSeats(team, session.teamCapacity) === 0) throw new DataError(`${team.name}은 정원이 찼어요.`, 'CONFLICT');
+  if (openSeats(team, session.teamCapacity) === 0) throw new DataError(`${josa(team.name, '은/는')} 정원이 찼어요.`, 'CONFLICT');
   // 빈 팀 슬롯에 처음 배치한 사람이 잠정 팀장이 된다.
   const next: Team = { ...team, leaderId: team.leaderId || accountId, memberIds: [...team.memberIds, accountId] };
   return setMembership(db, workspaceId, accountId, team.id, [next]);
