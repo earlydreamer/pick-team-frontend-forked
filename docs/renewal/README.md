@@ -36,6 +36,8 @@
 
 어느 브랜치를 구현 기반으로 삼을지는 아직 정하지 않았다.
 
+2026-11-04부터 `claude/renewal-r*` 브랜치에서 목업 6종을 `src/renewal`에 단계적으로 구현한다. 진행 기록은 `implementation.md`에 있다.
+
 ### 백엔드 (`earlydreamer/pick-team-backend-forked`)
 
 - 어느 브랜치(`main`, `codex/renewal`, `security/code-review-fixes`, `fix/test-drift`)에도 리뉴얼 도메인(팀 빌딩 세션, 지원·수락, 초대 링크 v2, PR 카드 v2 필드)이 없다. 그래서 M2는 백엔드에 막혀 있다.
