@@ -1,3 +1,4 @@
+import { buildInviteUrl } from '../lib/inviteLink';
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UsersIcon, LinkIcon, NoSymbolIcon, ShieldCheckIcon, ExclamationTriangleIcon, UserMinusIcon, PhotoIcon } from '@/assets/icons';
@@ -135,7 +136,7 @@ const WorkspaceSettingsModal: React.FC<WorkspaceSettingsModalProps> = ({ isOpen,
             return;
         }
         
-        const inviteUrl = `${window.location.origin}/#/ws/${inviteCode}`;
+        const inviteUrl = buildInviteUrl(inviteCode);
         navigator.clipboard.writeText(inviteUrl)
             .then(() => alert('✅ 초대 링크가 복사되었습니다!\n참여를 원하는 사람에게 공유해주세요.'))
             .catch(() => alert('복사에 실패했습니다.'));
@@ -359,7 +360,7 @@ const WorkspaceSettingsModal: React.FC<WorkspaceSettingsModalProps> = ({ isOpen,
                     <div>
                         <Input 
                             label="초대 링크"
-                            value={inviteCode ? `${window.location.origin}/#/ws/${inviteCode}` : '초대 링크를 불러오는 중...'} 
+                            value={inviteCode ? buildInviteUrl(inviteCode) : '초대 링크를 불러오는 중...'} 
                             readOnly 
                             Icon={LinkIcon}
                         />

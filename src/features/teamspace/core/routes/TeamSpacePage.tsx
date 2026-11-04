@@ -19,7 +19,6 @@ import TeamAnnouncementBoard from "@/features/teamspace/announcement/components/
 import TeamBulletinBoard from "@/features/teamspace/bulletin/components/TeamBulletinBoard";
 import TeamCalendar from "@/features/teamspace/schedule/components/TeamCalendar";
 import TeamKanbanBoard from "@/features/teamspace/kanban/components/TeamKanbanBoard";
-import { TeamProjectSidebar } from "@/features/teamspace/core/components/TeamProjectSidebar";
 
 export const TeamSpacePage: React.FC = () => {
   const { teamId, workspaceId } = useParams<{
@@ -246,8 +245,7 @@ export const TeamSpacePage: React.FC = () => {
 
   return (
     <div className="flex">
-      <TeamProjectSidebar />
-      <div className="flex-1 ml-64 p-4 sm:p-6 lg:p-8 space-y-6">
+      <div className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 space-y-6">
         <header className="flex justify-between items-center pb-4 border-b">
           <div>
             <h1 className="text-3xl font-bold">{team.name}</h1>

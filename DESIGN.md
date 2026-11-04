@@ -23,9 +23,27 @@ Pick Team은 워크스페이스에서 사람을 찾고 팀을 결성한 뒤 협�
 
 ## 색상
 
-아래 표는 갤러리에서 사용하는 `src/design-system/tokens.css`의 색상 토큰입니다. 다크 모드는 화면보다 카드와 컨테이너를 밝게 구분합니다. 기존 제품 화면에는 아직 전면 적용되지 않았습니다.
+아래 표는 `src/design-system/tokens.css`의 역할 색상 토큰입니다. 다크 모드는 화면보다 카드와 컨테이너를 밝게 구분합니다. 제품 화면은 `tailwind.config.js`가 이 변수를 Tailwind 색 이름에 연결해 사용하며, 제품 화면의 다크 모드 전환은 아직 제공하지 않습니다.
 
-갤러리 색상표는 현재 테마에서 사용 중인 17개 색상 토큰의 변수명과 값을 표시합니다. 브랜드 기준색 `#6667AB`는 테마 공통 기준이며, 다크 모드에서 주요 버튼 배경 `--ds-primary-fill`의 실제 값은 별도로 표시합니다. `--ds-outline-soft`는 장식용 구분선으로 사용하고 필수 컨트롤 경계로 사용하지 않습니다.
+#### 제품 화면 연결(Tailwind)
+
+색상 값은 `tokens.css`에서만 바꾸고 `tailwind.config.js`는 이름과 역할만 정합니다. `/20` 같은 투명도 수식어는 `color-mix`로 변환됩니다.
+
+| Tailwind 이름 | 토큰 | 비고 |
+|---|---|---|
+| `canvas`, `surface`, `surface-low`, `surface-container` | 표면 토큰 | 일반 표면은 그림자 대신 경계로 구분 |
+| `ink`, `muted` | 글자 토큰 | |
+| `primary` (배경·테두리) / `primary-dark` / `primary-light`·`primary-container` | `--ds-primary-fill` / `--ds-primary-fill-hover` / `--ds-primary-container` | |
+| `text-primary` | `--ds-primary` | 작은 글자 대비를 위해 글자색만 진한 값 사용 |
+| `on-primary`, `on-primary-container` | 대응 글자 토큰 | |
+| `outline`, `outline-soft`, `focus`, `danger`, `success`, `warning` | 대응 토큰 | |
+| `neutral`·`gray`·`slate` 50–900 | `--ds-neutral-*` | 기존 화면의 회색 유틸리티를 보랏빛 중립으로 통일 |
+| `peri`·`blue`·`indigo`·`purple`·`violet` 50–900 | `--ds-peri-*` | 기존 화면의 파랑·보라 유틸리티를 브랜드 계열로 통일 |
+| `red`·`green`·`amber`·`yellow` | Tailwind 기본값 | 상태 배경(50)과 테두리(200)에만 사용하고 글자는 `danger`·`success`·`warning` |
+
+단계 토큰(`--ds-neutral-*`, `--ds-peri-*`)은 라이트 테마 값만 있습니다. 제품 다크 모드를 도입할 때 역할 토큰 중심으로 옮기고 단계 토큰의 다크 값을 정합니다. 흰 배경의 보조 글자는 `neutral-500`(4.9:1)보다 옅게 쓰지 않고, `neutral-400` 이하는 장식·비활성 표시에만 씁니다.
+
+갤러리 색상표는 현재 테마에서 사용 중인 18개 역할 토큰과 중립·Peri 단계 토큰의 변수명과 값을 표시합니다. 브랜드 기준색 `#6667AB`는 테마 공통 기준이며, 다크 모드에서 주요 버튼 배경 `--ds-primary-fill`의 실제 값은 별도로 표시합니다. `--ds-outline-soft`는 장식용 구분선으로 사용하고 필수 컨트롤 경계로 사용하지 않습니다.
 
 | 역할 | 라이트 | 다크 | 용도 |
 |---|---|---|---|
@@ -37,6 +55,7 @@ Pick Team은 워크스페이스에서 사람을 찾고 팀을 결성한 뒤 협�
 | `--ds-muted` | `#45465C` | `#C9C9DC` | 보조 텍스트 |
 | `--ds-primary` | `#3F4199` | `#D2D3FF` | 텍스트·아이콘 |
 | `--ds-primary-fill` | `#6667AB` | `#D2D3FF` | 주요 행동 배경 |
+| `--ds-primary-fill-hover` | `#55569A` | `#BFC0F5` | 주요 행동 호버 배경 |
 | `--ds-on-primary` | `#FFFFFF` | `#1A1B55` | 주요 행동 라벨 |
 | `--ds-primary-container` | `#E3E3FA` | `#3B3C8F` | 선택·강조 배경 |
 | `--ds-on-primary-container` | `#2C2D78` | `#E6E5FF` | 강조 배경 위 텍스트 |
@@ -63,7 +82,7 @@ APCA 내부 목표는 WCAG 2.2 대비 기준을 대신하지 않습니다. 아�
 
 ## 타이포그래피와 배치
 
-한국어 시스템 글꼴을 기본으로 하고 Pretendard를 사용한다면 로컬 번들과 라이선스를 확인합니다. 본문은 16px/24px, 보조는 14px/20px, 화면 제목은 24–32px을 출발점으로 삼습니다. 글자 확대를 지원하도록 상대 단위를 사용합니다. 숫자는 필요한 곳에서 고정폭 숫자를 사용합니다.
+Pretendard Variable을 로컬 번들(`src/design-system/fonts.css`, OFL)로 제공하고 시스템 한국어 글꼴로 대체합니다. 한국어 문장은 `word-break: keep-all`로 어절 단위 줄바꿈을 기본으로 합니다. 본문은 16px/24px, 보조는 14px/20px, 화면 제목은 24–32px을 출발점으로 삼습니다. 글자 확대를 지원하도록 상대 단위를 사용합니다. 숫자는 필요한 곳에서 고정폭 숫자를 사용합니다.
 
 간격은 4px 단위로 4·8·12·16·24·32·48을 사용합니다. 카드 반경은 12–16px, 모달은 20–28px을 기준으로 합니다. 그림자는 떠 있는 메뉴나 대화상자에 한정하고 일반 표면은 경계와 밝기로 구분합니다. 데스크톱은 넓은 콘텐츠와 고정 탐색, 작은 화면은 접을 수 있는 탐색과 단일 열을 우선합니다.
 
@@ -80,7 +99,21 @@ APCA 내부 목표는 WCAG 2.2 대비 기준을 대신하지 않습니다. 아�
 | 빈 상태 | `아직 팀이 없어요` / `팀을 만들거나 초대 링크로 참여해 보세요` | 가능한 다음 행동 제공 |
 | 알림 | `초대를 보냈어요` / `다시 시도` | 성공·실패에 맞는 역할과 공지; 실패 원인이나 복구 경로 제공 |
 
-인터랙티브 샘플은 `npm run dev` 실행 후 `/design-system.html`에서 확인합니다. 버튼·입력·카드·배지·대화상자는 `src/design-system/components.tsx`와 `tokens.css`를 사용합니다. 메뉴는 현재 섹션을 나타내며, 빈 팀 이름을 확인하면 입력으로 포커스를 옮깁니다. 대화상자 내용과 행동은 호출자가 지정합니다. 라이트·다크, 입력과 대화상자를 조작할 수 있지만 실제 API 동작은 샘플에 연결되지 않았습니다. 기존 제품 화면에는 아직 적용하지 않았습니다.
+제품 화면의 공통 컴포넌트는 `src/components/ui`에 있습니다. 갤러리 샘플(`src/design-system/components.tsx`)과 같은 토큰을 쓰며, 계약은 다음과 같습니다.
+
+| 컴포넌트 | 상태와 동작 |
+|---|---|
+| `Button` | primary·secondary·outline·ghost·danger, sm(36px)·md(44px)·lg(48px). `loading`이면 비활성화하고 `aria-busy`로 진행을 알림 |
+| `Input`·`TextArea` | 라벨과 입력을 `useId`로 연결, `help`·`error`를 `aria-describedby`로 연결, 오류 시 `aria-invalid` |
+| `Modal` | `role=dialog`·제목 연결, 첫 입력으로 포커스 이동, Tab 순환, Escape, 닫으면 여는 요소로 포커스 복귀. 중첩 시 가장 위의 대화상자만 키 입력 처리. 작은 화면에서는 아래 시트 |
+| `Card` | 경계로 구분, 제목 수준(`headingLevel`) 지정 |
+| `Avatar` | 이미지가 없거나 실패하면 이름 첫 글자 |
+| `Badge` | 색과 함께 텍스트로 상태 전달 |
+| `EmptyState`·`ErrorState`·`LoadingState`·`Skeleton` | 빈 상태는 다음 행동, 오류는 `role=alert`와 복구 행동, 로딩은 `role=status` |
+
+앱 셸(`src/layout`)은 데스크톱에서 워크스페이스 레일(72px)과 컨텍스트 탐색(248px)을 고정하고, 1024px 미만에서는 상단 막대와 탐색 서랍을 씁니다. 서랍은 Escape·이동 시 닫히고 메뉴 버튼으로 포커스를 돌려줍니다.
+
+인터랙티브 샘플은 `npm run dev` 실행 후 `/design-system.html`에서 확인합니다. 버튼·입력·카드·배지·대화상자는 `src/design-system/components.tsx`와 `tokens.css`를 사용합니다. 메뉴는 현재 섹션을 나타내며, 빈 팀 이름을 확인하면 입력으로 포커스를 옮깁니다. 대화상자 내용과 행동은 호출자가 지정합니다. 라이트·다크, 입력과 대화상자를 조작할 수 있지만 실제 API 동작은 샘플에 연결되지 않았습니다.
 
 색과 형태만 보여 주는 시각 표본, 로컬에서 조작하는 샘플, 실제 API와 연결된 제품 화면을 구분합니다. 조작을 보여 주는 예제는 실제 컨트롤로 만들고 입력·선택·포커스와 결과를 확인할 수 있어야 합니다. 버튼을 눌렀다는 피드백만으로 제품 행동이 성공했다고 판단하지 않습니다.
 

@@ -1,5 +1,6 @@
 import React from 'react';
-import { Routes, Route, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { Button, ErrorState, LoadingState } from '@/components/ui';
 import { ProtectedRoute } from '@/layout/ProtectedRoute';
 import { LoginPage, SignupPage, ForgotPasswordPage } from '@/features/user/auth/routes/AuthPage';
 import { OAuthCallbackPage } from '@/features/user/auth/routes/OAuthCallbackPage';
@@ -12,6 +13,8 @@ import { HomePage } from '@/features/workspace/core/routes/HomePage';
 import { ChatPage } from '@/features/workspace/chat/routes/ChatPage';
 import { VideoConferencePage } from '@/features/workspace/video/routes/VideoConferencePage';
 import EmptyWorkspacePage from '@/features/workspace/core/routes/EmptyWorkspacePage';
+import { InvitePage } from '@/features/workspace/management/routes/InvitePage';
+import { NotFoundPage } from '@/layout/NotFoundPage';
 import { useWorkspace } from '@/features/workspace/core/hooks/useWorkspace';
 import { useAuth } from '@/features/user/auth/hooks/useAuth';
 
@@ -38,66 +41,40 @@ const Router: React.FC = () => {
                 <Route path="users/:userId" element={<UserProfileViewPage />} />
                 <Route path="notifications" element={<NotificationsPage />} />
                 <Route path="empty-workspace" element={<EmptyWorkspacePage />} />
+                <Route path="invite/:inviteCode" element={<InvitePage />} />
+                <Route path="*" element={<NotFoundPage />} />
             </Route>
         </Routes>
     );
 };
 
+/** 첫 진입: 마지막으로 방문한 워크스페이스(없으면 첫 워크스페이스)로, 소속이 없으면 합류 화면으로 보냅니다. */
 const NavigateToInitialView: React.FC = () => {
-  const { workspaces, loading } = useWorkspace();
+  const { workspaces, loading, error, loadWorkspaces } = useWorkspace();
   const { currentUser } = useAuth();
-  const navigate = useNavigate();
 
-  React.useEffect(() => {
-    // 이미 리다이렉트했는지 확인
-    const hasRedirected = sessionStorage.getItem('hasRedirectedFromRoot');
-    
-    console.log('NavigateToInitialView Effect - currentUser:', !!currentUser, 'loading:', loading, 'workspaces count:', workspaces.length, 'hasRedirected:', !!hasRedirected);
-    
-    if (hasRedirected) {
-      console.log('이미 리다이렉트 완료, 무한 루프 방지');
-      return;
-    }
-    
-    if (!currentUser) {
-      console.log('사용자 정보 없음');
-      return;
-    }
+  if (!currentUser || loading) {
+    return <LoadingState label="워크스페이스를 불러오는 중이에요" className="min-h-[60vh]" />;
+  }
 
-    if (loading) {
-      console.log('워크스페이스 로딩 중...');
-      return;
-    }
+  if (error && workspaces.length === 0) {
+    return (
+      <ErrorState
+        className="min-h-[60vh]"
+        title="워크스페이스를 불러오지 못했어요"
+        description="네트워크 상태를 확인한 뒤 다시 시도해 주세요."
+        action={<Button onClick={() => loadWorkspaces()}>다시 시도</Button>}
+      />
+    );
+  }
 
-    // 워크스페이스 로딩이 완료된 후에만 리다이렉트
-    console.log('워크스페이스 로딩 완료, 리다이렉트 진행');
-    
-    // 리다이렉트 플래그 설정 (세션 동안 유지)
-    sessionStorage.setItem('hasRedirectedFromRoot', 'true');
+  if (workspaces.length === 0) {
+    return <Navigate to="/empty-workspace" replace />;
+  }
 
-    // 워크스페이스가 있는 경우
-    if (workspaces.length > 0) {
-      const lastWorkspaceId = localStorage.getItem('lastAccessedWorkspaceId') || workspaces[0].id;
-      const targetWorkspace = workspaces.find(ws => String(ws.id) === lastWorkspaceId) || workspaces[0];
-      const path = `/ws/${targetWorkspace.id}`;
-      console.log('워크스페이스로 이동:', path);
-      navigate(path, { replace: true });
-    } else {
-      // 워크스페이스가 없는 경우
-      console.log('empty-workspace로 리다이렉트');
-      navigate('/empty-workspace', { replace: true });
-    }
-  }, [currentUser, loading, workspaces, navigate]);
-
-  // 로딩 상태 표시
-  return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-        <p>워크스페이스를 불러오는 중...</p>
-      </div>
-    </div>
-  );
+  const lastWorkspaceId = localStorage.getItem('lastAccessedWorkspaceId');
+  const target = workspaces.find((ws) => String(ws.id) === lastWorkspaceId) || workspaces[0];
+  return <Navigate to={`/ws/${target.id}`} replace />;
 };
 
 export default Router; 

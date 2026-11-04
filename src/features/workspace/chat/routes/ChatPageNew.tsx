@@ -73,7 +73,7 @@ export const ChatPage: React.FC = () => {
   }
 
   return (
-    <Card title={`대화: ${chatRoomDisplayName}`} className="flex flex-col h-[calc(100vh-8rem-4rem)]">
+    <Card title={`대화: ${chatRoomDisplayName}`} className="flex flex-col h-[calc(100dvh-6.5rem)] lg:h-[calc(100dvh-4rem)]">
       <div className="flex-grow space-y-3 overflow-y-auto mb-3 pr-2 p-2 border border-neutral-200 rounded-md bg-neutral-50 scrollbar-thin scrollbar-thumb-neutral-300 scrollbar-track-neutral-100">
         {messages.map(msg => (
           <div key={msg.id} className={`flex ${msg.userId === parseInt(currentUser.id.toString()) ? 'justify-end' : 'justify-start'}`}>

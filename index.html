@@ -1,59 +1,14 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PickTeam</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            primary: {
-              light: '#60A5FA', // blue-400
-              DEFAULT: '#3B82F6', // blue-500
-              dark: '#2563EB',  // blue-600
-            },
-            secondary: {
-              light: '#FDBA74', // orange-300
-              DEFAULT: '#F97316', // orange-500
-              dark: '#EA580C',  // orange-600
-            },
-            neutral: {
-              50: '#F9FAFB',
-              100: '#F3F4F6',
-              200: '#E5E7EB',
-              300: '#D1D5DB',
-              400: '#9CA3AF',
-              500: '#6B7280',
-              600: '#4B5563',
-              700: '#374151',
-              800: '#1F2937',
-              900: '#111827',
-            }
-          }
-        }
-      }
-    }
-  </script>
-<script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@19.2.1",
-    "react-dom/": "https://esm.sh/react-dom@19.2.1/",
-    "react/": "https://esm.sh/react@19.2.1/",
-    "react-router-dom": "https://esm.sh/react-router-dom@^7.6.2",
-    "@heroicons/react/24/outline": "https://esm.sh/@heroicons/react@2.0.18/24/outline/esm/index.js?module",
-    "@/components": "./src/components.tsx",
-    "@heroicons/react/": "https://esm.sh/@heroicons/react@^2.2.0/"
-  }
-}
-</script>
-<link rel="stylesheet" href="./src/index.css">
+  <meta name="theme-color" content="#6667AB">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <title>Pick Team</title>
 </head>
 <body>
   <div id="root"></div>
-  <script type="module" src="./src/index.tsx"></script>
+  <script type="module" src="/src/index.tsx"></script>
 </body>
-</html> 
+</html>

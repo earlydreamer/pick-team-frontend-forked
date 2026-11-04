@@ -1,108 +1,27 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UserGroupIcon, LockClosedIcon } from '@/assets/icons';
-import { Modal, Button, Input } from '@/components/ui';
-import { useWorkspace } from '@/features/workspace/core/hooks/useWorkspace';
+import { Modal } from '@/components/ui';
+import { CreateWorkspaceForm } from './WorkspaceForms';
 
 interface CreateWorkspaceModalProps {
-    isOpen: boolean;
-    onClose: () => void;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
 const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({ isOpen, onClose }) => {
-    const [name, setName] = useState('');
-    const [iconUrl, setIconUrl] = useState('');
-    const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
-    const { createWorkspace, loading, setCurrentWorkspaceById } = useWorkspace();
-    const navigate = useNavigate();
-
-    const handleCloseAndReset = () => {
-        setName('');
-        setIconUrl('');
-        setPassword('');
-        setError('');
+  const navigate = useNavigate();
+  return (
+  <Modal isOpen={isOpen} onClose={onClose} title="워크스페이스 만들기" description="과정이나 조직 단위로 만들고 멤버를 초대해요.">
+    <CreateWorkspaceForm
+      showCancel
+      onCancel={onClose}
+      onDone={(workspace) => {
         onClose();
-    };
-
-    const handleCreateWorkspace = async () => {
-        setError('');
-        
-        if (!name.trim()) {
-            setError('워크스페이스 이름을 입력해주세요.');
-            return;
-        }
-
-        try {
-            const workspace = await createWorkspace({
-                name: name.trim(),
-                iconUrl: iconUrl.trim() || undefined,
-                password: password.trim() || undefined
-            });
-
-            if (workspace) {
-                // 워크스페이스 ID로 설정하고 네비게이션
-                setCurrentWorkspaceById(workspace.id);
-                navigate(`/ws/${workspace.id}`);
-                handleCloseAndReset();
-            } else {
-                setError('워크스페이스 생성에 실패했습니다.');
-            }
-        } catch (err: any) {
-            console.error('Create workspace error:', err);
-            setError(err.message || '워크스페이스 생성 중 오류가 발생했습니다.');
-        }
-    };
-    
-    return (
-        <Modal 
-            isOpen={isOpen} 
-            onClose={handleCloseAndReset} 
-            title="새 워크스페이스 만들기"
-            footer={
-                <div className="flex justify-end space-x-2">
-                    <Button variant="ghost" onClick={handleCloseAndReset} disabled={loading}>취소</Button>
-                    <Button onClick={handleCreateWorkspace} disabled={loading}>
-                        {loading ? '생성 중...' : '워크스페이스 생성'}
-                    </Button>
-                </div>
-            }
-        >
-            <div className="space-y-4">
-                <p className="text-sm text-neutral-600">새로운 워크스페이스를 생성해보세요.</p>
-                <Input
-                    label="워크스페이스 이름"
-                    placeholder="예: 우리 팀 프로젝트"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    Icon={UserGroupIcon}
-                    disabled={loading}
-                    required
-                />
-                <Input
-                    label="아이콘 (선택사항)"
-                    placeholder="예: 🚀, 💻, 팀, T"
-                    value={iconUrl}
-                    onChange={(e) => setIconUrl(e.target.value)}
-                    disabled={loading}
-                />
-                <Input
-                    label="비밀번호 (선택사항)"
-                    type="password"
-                    placeholder="워크스페이스 보안을 위한 비밀번호"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    Icon={LockClosedIcon}
-                    disabled={loading}
-                />
-                <div className="text-xs text-neutral-500">
-                    <p>• 워크스페이스를 생성하면 자동으로 소유자가 됩니다.</p>
-                    <p>• 초대 코드가 자동 생성되어 팀원을 초대할 수 있습니다.</p>
-                </div>
-                {error && <p className="text-sm text-red-500">{error}</p>}
-            </div>
-        </Modal>
-    );
+        navigate(`/ws/${workspace.id}`);
+      }}
+    />
+  </Modal>
+  );
 };
 
-export default CreateWorkspaceModal; 
+export default CreateWorkspaceModal;

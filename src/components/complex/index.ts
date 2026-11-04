@@ -1,3 +1,3 @@
 // Complex Components
-export { ProfileSummaryCard } from '@/features/user/mypage/components/ProfileSummaryCard';
+export { ProfileCard } from '@/features/user/mypage/components/ProfileCard';
 export { ItemListSelector } from './ItemListSelector'; 

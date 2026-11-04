@@ -1,539 +1,386 @@
-import React, { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, Navigate, useParams } from 'react-router-dom';
+import {
+  ArrowRightIcon,
+  LockClosedIcon,
+  MagnifyingGlassIcon,
+  UserGroupIcon,
+  UsersIcon,
+} from '@heroicons/react/24/outline';
 import { useAuth } from '@/features/user/auth/hooks/useAuth';
 import { useWorkspace } from '@/features/workspace/core/hooks/useWorkspace';
-import {
-  Card,
-  Button,
-  Modal,
-} from '@/components/ui';
-import { User, Workspace } from '@/types';
 import { workspaceApi } from '@/features/workspace/management/api/workspaceApi';
-import { UserIcon, UsersIcon } from '@/assets/icons';
 import TeamActionModal from '@/features/teamspace/team/components/TeamActionModal';
-import { TeamProjectSidebar } from '@/features/teamspace/core/components/TeamProjectSidebar';
-import { getProfileImageSrc, handleImageError } from '@/lib/imageUtils';
+import {
+  Avatar,
+  Badge,
+  Button,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  Modal,
+  Skeleton,
+  buttonClassName,
+} from '@/components/ui';
+import { getErrorMessage } from '@/lib/errorMessage';
+import { MemberProfileModal } from '../components/MemberProfileModal';
+import { completenessItems } from '@/features/user/mypage/lib/profile';
+import type { Team, User } from '@/types';
 
+/** 팀 응답의 members는 TeamMemberResponse(accountId 포함)입니다. */
+type TeamMemberLike = { accountId?: number | string; name?: string; profileImage?: string };
+const teamMembers = (team: Team) => (team.members ?? []) as unknown as TeamMemberLike[];
+const isMyTeam = (team: Team, userId?: string) =>
+  Boolean(userId) && teamMembers(team).some((member) => String(member.accountId) === String(userId));
+
+const AvatarStack: React.FC<{ members: TeamMemberLike[]; total: number }> = ({ members, total }) => {
+  const shown = members.slice(0, 4);
+  const rest = Math.max(total - shown.length, 0);
+  return (
+    <span className="flex items-center" aria-hidden="true">
+      {shown.map((member, index) => (
+        <Avatar key={`${member.accountId}-${index}`} name={member.name} imageUrl={member.profileImage} size="sm" className="-ml-2 ring-2 ring-surface first:ml-0" />
+      ))}
+      {rest > 0 && (
+        <span className="-ml-2 inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-surface-container px-1.5 text-xs font-semibold text-muted ring-2 ring-surface">
+          +{rest}
+        </span>
+      )}
+    </span>
+  );
+};
+
+const TeamRow: React.FC<{ team: Team; to: string; mine: boolean }> = ({ team, to, mine }) => {
+  const members = teamMembers(team);
+  const count = team.memberCount ?? members.length;
+  return (
+    <li>
+      <Link
+        to={to}
+        className="group flex items-center gap-4 rounded-card border border-outline-soft bg-surface px-4 py-3.5 transition-colors hover:border-peri-300 hover:bg-peri-50"
+      >
+        <Avatar name={team.name} size="md" shape="rounded" />
+        <div className="min-w-0 flex-1">
+          <p className="flex items-center gap-1.5 font-semibold text-ink">
+            <span className="truncate">{team.name}</span>
+            {team.passwordProtected && <LockClosedIcon className="h-4 w-4 shrink-0 text-neutral-500" aria-label="비밀번호 필요" />}
+          </p>
+          <p className="mt-0.5 text-sm text-muted">
+            팀원 <span className="tabular-nums">{count}</span>명{team.leader?.name ? ` · 팀장 ${team.leader.name}` : ''}
+          </p>
+        </div>
+        <span className="hidden sm:block">
+          <AvatarStack members={members} total={count} />
+        </span>
+        <span className="inline-flex items-center gap-1 text-sm font-semibold text-primary">
+          {mine ? '열기' : '둘러보기'}
+          <ArrowRightIcon className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+        </span>
+      </Link>
+    </li>
+  );
+};
+
+const SectionHeader: React.FC<{ id: string; title: string; count?: number; action?: React.ReactNode }> = ({ id, title, count, action }) => (
+  <div className="mb-3 flex items-center justify-between gap-3">
+    <h2 id={id} className="text-lg font-bold">
+      {title}
+      {count !== undefined && <span className="ml-1.5 text-base font-semibold text-muted tabular-nums">{count}</span>}
+    </h2>
+    {action}
+  </div>
+);
+
+const MemberButton: React.FC<{ member: User; isMe: boolean; onSelect: (member: User) => void; showEmail?: boolean }> = ({
+  member,
+  isMe,
+  onSelect,
+  showEmail,
+}) => {
+  const tags = member.hashtags?.slice(0, 3).map((tag) => `#${tag.replace(/^#/, '')}`).join(' ');
+  return (
+    <button type="button" onClick={() => onSelect(member)} className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-surface-container">
+      <Avatar name={member.name} imageUrl={member.profileImageUrl} size="md" />
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-1.5">
+          <span className="truncate font-semibold text-ink">{member.name || '이름 없음'}</span>
+          {isMe && <Badge tone="neutral">나</Badge>}
+        </span>
+        <span className="block truncate text-sm text-muted">{showEmail || !tags ? member.email : tags}</span>
+      </span>
+      {member.mbti && <Badge>{member.mbti}</Badge>}
+    </button>
+  );
+};
+
+type MembersState = { status: 'loading' } | { status: 'error'; message: string } | { status: 'ready'; members: User[] };
+
+/**
+ * 워크스페이스 홈: 소속 팀과 다음 행동, 멤버를 먼저 보여 줍니다.
+ * 실제로 수집하지 않는 지표(진행률·활동량)는 표시하지 않습니다(DESIGN.md 작업 화면의 정보 위계).
+ */
 export const HomePage: React.FC = () => {
   const { currentUser } = useAuth();
-  const { 
-    currentWorkspace, 
-    setCurrentWorkspaceById, 
-    setCurrentTeamProject, 
-    workspaces, 
-    loadWorkspaces, 
-    teams, 
-    addTeam 
-  } = useWorkspace();
+  const { currentWorkspace, workspaces, teams, addTeam, loading: workspacesLoading } = useWorkspace();
   const { workspaceId } = useParams<{ workspaceId: string }>();
-  const navigate = useNavigate();
 
-  // 워크스페이스 멤버 관련 상태
-  const [workspaceMembers, setWorkspaceMembers] = useState<User[]>([]);
-  const [isLoadingMembers, setIsLoadingMembers] = useState(false);
-  const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
-  const [membersError, setMembersError] = useState<string | null>(null);
-
-  // 선택된 멤버 상세 정보 상태
+  const [members, setMembers] = useState<MembersState>({ status: 'loading' });
   const [selectedMember, setSelectedMember] = useState<User | null>(null);
-  const [isMemberDetailModalOpen, setIsMemberDetailModalOpen] = useState(false);
+  const [isAllMembersOpen, setIsAllMembersOpen] = useState(false);
+  const [memberQuery, setMemberQuery] = useState('');
+  const [isTeamActionOpen, setIsTeamActionOpen] = useState(false);
 
-  // 팀 액션 모달 상태
-  const [isTeamActionModalOpen, setIsTeamActionModalOpen] = useState(false);
+  const isRouteWorkspace = Boolean(workspaceId) && currentWorkspace?.id === workspaceId;
 
-  // 워크스페이스 멤버 목록 조회 (전체)
-  const fetchWorkspaceMembers = async () => {
-    if (!currentWorkspace) return;
-    
-    setIsLoadingMembers(true);
-    setMembersError(null);
-    
+  const loadMembers = useCallback(async () => {
+    if (!workspaceId) return;
+    setMembers({ status: 'loading' });
     try {
-      const members = await workspaceApi.getMembers(currentWorkspace.id);
-      setWorkspaceMembers(members);
-      setIsMembersModalOpen(true);
-    } catch (error: any) {
-      console.error('워크스페이스 멤버 조회 실패:', error);
-      setMembersError(error.message || '멤버 목록을 불러오는데 실패했습니다.');
-    } finally {
-      setIsLoadingMembers(false);
+      const list = await workspaceApi.getMembers(workspaceId);
+      setMembers({ status: 'ready', members: list ?? [] });
+    } catch (error) {
+      setMembers({ status: 'error', message: getErrorMessage(error, '네트워크 상태를 확인한 뒤 다시 시도해 주세요.') });
     }
-  };
-
-  // 워크스페이스 멤버 미리보기 로드 (4명)
-  const loadMembersPreview = async () => {
-    if (!currentWorkspace) return;
-    
-    try {
-      console.log('워크스페이스 멤버 로드 시작:', currentWorkspace.id, currentWorkspace.name);
-      const members = await workspaceApi.getMembers(currentWorkspace.id);
-      console.log('로드된 멤버 목록:', members);
-      setWorkspaceMembers(members);
-    } catch (error: any) {
-      console.error('워크스페이스 멤버 미리보기 로드 실패:', error);
-      setMembersError(error.message || '멤버 목록을 불러오는데 실패했습니다.');
-    }
-  };
-
-  // 멤버 상세 정보 보기
-  const showMemberDetail = (member: User) => {
-    setSelectedMember(member);
-    setIsMemberDetailModalOpen(true);
-  };
-
-  // 워크스페이스의 팀 목록 로드 - 더 이상 필요하지 않음 (워크스페이스 컨텍스트에서 자동으로 처리)
-  // const loadTeams = async () => {
-  //   if (!currentWorkspace) return;
-  //   
-  //   setIsLoadingTeams(true);
-  //   setTeamsError(null);
-  //   
-  //   try {
-  //     const teamList = await teamApi.getTeams(currentWorkspace.id);
-  //     setTeams(teamList);
-  //   } catch (error: any) {
-  //     console.error('팀 목록 로드 실패:', error);
-  //     setTeamsError(error.message || '팀 목록을 불러오는데 실패했습니다.');
-  //   } finally {
-  //     setIsLoadingTeams(false);
-  //   }
-  // };
-
-  // 팀 액션 모달 열기
-  const handleOpenTeamActionModal = () => {
-    setIsTeamActionModalOpen(true);
-  };
-
-  // 팀 생성 완료 후 처리
-  const handleTeamCreated = (newTeam: any) => {
-    addTeam(newTeam);
-    setIsTeamActionModalOpen(false);
-  };
+  }, [workspaceId]);
 
   useEffect(() => {
-    if (workspaceId && (!currentWorkspace || currentWorkspace.id !== workspaceId)) {
-      // 실제 workspaces 배열에서 찾기 (ID 또는 초대 코드로)
-      const targetWs = workspaces.find((ws: Workspace) => 
-        ws.id === workspaceId || 
-        ws.inviteCode === workspaceId || 
-        ws.url === workspaceId
-      );
-      if (targetWs) {
-        // 워크스페이스 ID로 통일하여 설정
-        setCurrentWorkspaceById(targetWs.id);
-        
-        // URL이 초대 코드인 경우 워크스페이스 ID로 리다이렉트 (일관성 유지)
-        if (workspaceId !== targetWs.id) {
-          navigate(`/ws/${targetWs.id}`, { replace: true });
+    if (isRouteWorkspace) loadMembers();
+  }, [isRouteWorkspace, loadMembers]);
+
+  const { myTeams, otherTeams } = useMemo(() => {
+    const mine: Team[] = [];
+    const others: Team[] = [];
+    (teams as Team[]).forEach((team) => (isMyTeam(team, currentUser?.id) ? mine : others).push(team));
+    return { myTeams: mine, otherTeams: others };
+  }, [teams, currentUser?.id]);
+
+  const filteredMembers = useMemo(() => {
+    if (members.status !== 'ready') return [];
+    const query = memberQuery.trim().toLowerCase();
+    if (!query) return members.members;
+    return members.members.filter((member) =>
+      [member.name, member.email, member.mbti, ...(member.hashtags ?? [])].some((value) => value?.toLowerCase().includes(query)),
+    );
+  }, [members, memberQuery]);
+
+  if (!workspaceId) return <Navigate to="/" replace />;
+
+  if (!workspacesLoading && !workspaces.some((ws) => ws.id === workspaceId)) {
+    // 예전 초대 링크(/ws/초대코드)는 초대 화면으로 보내 사용자가 직접 참여를 확인하게 합니다.
+    if (!/^\d+$/.test(workspaceId)) return <Navigate to={`/invite/${encodeURIComponent(workspaceId)}`} replace />;
+    return (
+      <ErrorState
+        className="min-h-[70vh]"
+        title="이 워크스페이스에 들어갈 수 없어요"
+        description="참여하지 않았거나 삭제된 워크스페이스예요. 초대 링크를 받았다면 링크로 다시 들어와 주세요."
+        action={
+          <Link to="/" className={buttonClassName('primary')}>
+            내 워크스페이스로 가기
+          </Link>
         }
-      } else {
-        // 워크스페이스를 찾지 못한 경우, 초대 코드로 인식하여 자동 참여 시도
-        let isJoining = false; // 중복 호출 방지 플래그
-        
-        const handleAutoJoin = async () => {
-          if (isJoining) return; // 이미 처리 중이면 무시
-          isJoining = true;
-          
-          try {
-            // 숫자가 아닌 경우 초대 코드로 인식
-            if (!/^\d+$/.test(workspaceId)) {
-              console.log('초대 코드로 워크스페이스 참여 시도:', workspaceId);
-              
-              const workspace = await workspaceApi.join({
-                inviteCode: workspaceId,
-                password: undefined
-              });
-              
-              if (workspace) {
-                console.log('워크스페이스 참여 성공:', workspace);
-                // 워크스페이스 목록 다시 로드 후 워크스페이스 ID로 리다이렉트
-                await loadWorkspaces();
-                navigate(`/ws/${workspace.id}`, { replace: true });
-                return;
-              }
-            }
-            
-            // 일반적인 워크스페이스 ID인 경우 또는 참여 실패 시
-            if (workspaces.length > 0) {
-              const firstWorkspace = workspaces[0];
-              navigate(`/ws/${firstWorkspace.id}`);
-            } else {
-              navigate('/');
-            }
-          } catch (error) {
-            console.error('자동 참여 실패:', error);
-            // 참여 실패 시 기본 동작
-            if (workspaces.length > 0) {
-              const firstWorkspace = workspaces[0];
-              navigate(`/ws/${firstWorkspace.id}`);
-            } else {
-              navigate('/');
-            }
-          } finally {
-            isJoining = false;
-          }
-        };
-        
-        handleAutoJoin();
-      }
-    }
-    // Clear selected team project when navigating to a workspace home
-    if(setCurrentTeamProject) setCurrentTeamProject(null);
-  }, [workspaceId, currentWorkspace, setCurrentWorkspaceById, navigate, setCurrentTeamProject, workspaces]);
-
-  // 워크스페이스 멤버 미리보기 로드
-  useEffect(() => {
-    if (currentWorkspace) {
-      // 워크스페이스 변경 시 멤버 목록 초기화
-      setWorkspaceMembers([]);
-      setMembersError(null);
-      
-      loadMembersPreview();
-      // loadTeams(); // 더 이상 필요하지 않음 - 워크스페이스 컨텍스트에서 자동으로 처리
-    }
-  }, [currentWorkspace]);
-
-  // 팀 생성 이벤트 리스닝 - 중복 방지를 위해 제거
-  // useEffect(() => {
-  //   const handleTeamCreated = (event: CustomEvent) => {
-  //     const newTeam = event.detail;
-  //     setTeams(prev => [...prev, newTeam]);
-  //   };
-
-  //   window.addEventListener('teamCreated', handleTeamCreated as EventListener);
-    
-  //   return () => {
-  //     window.removeEventListener('teamCreated', handleTeamCreated as EventListener);
-  //   };
-  // }, []);
-
-  if (!currentUser || !currentWorkspace) {
-    // This should ideally be handled by ProtectedRoute and App.tsx's NavigateToInitialView
-    // or show a loading state until context is ready.
-    return <div className="p-4">워크스페이스 정보를 불러오는 중...</div>;
+      />
+    );
   }
-  
-  // 실제 팀 프로젝트는 워크스페이스 컨텍스트에서 가져옴
-  const teamsForCurrentWorkspace = teams;
 
+  if (!currentUser || !currentWorkspace || !isRouteWorkspace) {
+    return <LoadingState className="min-h-[70vh]" label="워크스페이스를 여는 중이에요" />;
+  }
+
+  const base = `/ws/${currentWorkspace.id}`;
+  const profileIncomplete = completenessItems(currentUser).some((item) => (item.id === 'introduction' || item.id === 'hashtags') && !item.done);
+  const memberPreview = members.status === 'ready' ? members.members.slice(0, 6) : [];
+  const memberCount = members.status === 'ready' ? members.members.length : currentWorkspace.memberCount;
 
   return (
-    <div className="flex">
-      <TeamProjectSidebar />
-      <div className="flex-1 ml-64 p-4 sm:p-6 lg:p-8 space-y-8">
-        <Card>
-          <h1 className="text-2xl font-bold text-neutral-800">안녕하세요, {currentUser.name || '사용자'}님!</h1>
-          <p className="text-neutral-600 mt-1">{currentWorkspace.name} 워크스페이스입니다.</p>
-          <p className="text-neutral-600 mt-2">오늘도 PickTeam과 함께 성공적인 프로젝트를 만들어보세요.</p>
-        </Card>
-
-      {/* My Teams Section */}
-      <Card title="내 팀 목록">
-        {teamsForCurrentWorkspace.length > 0 ? (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {teamsForCurrentWorkspace.map(team => (
-              <Card key={team.id} className="bg-white hover:shadow-xl transition-shadow flex flex-col justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-primary-dark">{team.name}</h3>
-                  <p className="text-sm text-neutral-600 mt-1 mb-1">{team.memberCount || team.members?.length || 0}명의 팀원</p>
-                  {team.progress !== undefined && (
-                    <div className="my-2">
-                      <div className="flex justify-between text-xs text-neutral-500 mb-0.5">
-                        <span>프로젝트 진행도</span>
-                        <span>{team.progress}%</span>
-                      </div>
-                      <div className="w-full bg-neutral-200 rounded-full h-1.5">
-                        <div className="bg-primary h-1.5 rounded-full" style={{ width: `${team.progress}%` }}></div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <Link to={`/ws/${currentWorkspace.id}/team/${team.id}`} className="mt-4 block">
-                  <Button variant="primary" size="sm" className="w-full">팀 스페이스 입장</Button>
-                </Link>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <p className="text-neutral-500 py-4 text-center">이 워크스페이스에 아직 팀/프로젝트가 없습니다.</p>
-        )}
-        <div className="mt-6 text-center">
-            <Button 
-                variant="outline" 
-                size="lg" 
-                onClick={handleOpenTeamActionModal}
-            >
-                팀 생성 또는 참여하기
-            </Button>
+    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-muted">{currentWorkspace.name}</p>
+          <h1 className="mt-1 text-2xl font-bold leading-8 tracking-[-0.02em] sm:text-[1.75rem] sm:leading-9">
+            {currentUser.name || '멤버'}님, 안녕하세요
+          </h1>
         </div>
-      </Card>
+        <div className="flex flex-wrap gap-2">
+          <Link to={`${base}/team-formation`} className={buttonClassName('outline')}>
+            <UserGroupIcon className="h-5 w-5" aria-hidden="true" />
+            팀 빌딩
+          </Link>
+          <Button onClick={() => setIsTeamActionOpen(true)}>팀 만들기·참여</Button>
+        </div>
+      </header>
 
-      <Card title="워크스페이스 팀원 알아보기">
-        {workspaceMembers.length > 0 ? (
-          <div className="space-y-6">
-            {/* 팀원 미리보기 (최대 4명) */}
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {workspaceMembers.slice(0, 4).map(member => (
-                <div 
-                  key={member.id} 
-                  className="bg-white border border-neutral-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
-                  onClick={() => showMemberDetail(member)}
-                >
-                  <div className="text-center">
-                    <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-primary-light flex items-center justify-center overflow-hidden">
-                      {member.profileImageUrl ? (
-                        <img 
-                          src={getProfileImageSrc(member.profileImageUrl, member.id, 64)} 
-                          alt={member.name}
-                          className="w-full h-full object-cover"
-                          onError={(e) => handleImageError(e, member.id, 64)}
-                        />
-                      ) : (
-                        <UserIcon className="w-8 h-8 text-primary" />
-                      )}
-                    </div>
-                    <h4 className="text-sm font-semibold text-neutral-800 truncate mb-1">
-                      {member.name || '이름 없음'}
-                    </h4>
-                    {member.mbti && (
-                      <span className="inline-block px-2 py-1 bg-primary-light text-primary text-xs rounded-full">
-                        {member.mbti}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* 더보기 버튼과 총 멤버 수 */}
-            <div className="text-center space-y-3">
-              <p className="text-sm text-neutral-600">
-                총 {workspaceMembers.length}명의 팀원
-                {workspaceMembers.length > 4 && ` (${workspaceMembers.length - 4}명 더 있음)`}
-              </p>
-              <Button 
-                variant="outline" 
-                size="md"
-                onClick={fetchWorkspaceMembers}
-                disabled={isLoadingMembers}
-              >
-                {isLoadingMembers ? '불러오는 중...' : '전체 팀원 보기'}
-              </Button>
-            </div>
+      {/* 여정: 합류 → 프로필(PR 카드) → 팀 빌딩. 자기소개·태그가 비어 있으면 프로필부터 안내합니다. */}
+      {profileIncomplete && (
+        <section aria-labelledby="profile-nudge-heading" className="mt-6 flex flex-col gap-4 rounded-modal border border-peri-200 bg-peri-50 p-5 sm:flex-row sm:items-center sm:p-6">
+          <div className="flex-1">
+            <h2 id="profile-nudge-heading" className="text-lg font-bold leading-7">
+              프로필을 채우면 팀원이 나를 찾기 쉬워요
+            </h2>
+            <p className="mt-1 text-sm leading-5 text-muted">자기소개와 관심 태그는 멤버 목록과 팀 빌딩에서 함께 보여요.</p>
           </div>
-        ) : (
-          <div className="text-center py-8">
-            <UsersIcon className="w-16 h-16 mx-auto text-neutral-400 mb-4" />
-            <p className="text-neutral-600 mb-6">
-              아직 워크스페이스 팀원 정보를 불러오지 못했습니다.
-            </p>
-            {membersError && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-                <p className="text-red-600 text-sm">{membersError}</p>
+          <Link to={`/my-page/profile-edit?onboarding=1&from=${encodeURIComponent(base)}`} className={buttonClassName('primary')}>
+            프로필 채우기
+          </Link>
+        </section>
+      )}
+
+      {/* 다음 행동: 참여할 수 있는 팀이 있는데 소속 팀이 없을 때만 안내합니다(팀이 하나도 없으면 아래 빈 상태가 안내). */}
+      {myTeams.length === 0 && otherTeams.length > 0 && (
+        <section aria-labelledby="next-step-heading" className="mt-6 rounded-modal bg-peri-900 p-6 text-white sm:p-8">
+          <h2 id="next-step-heading" className="text-xl font-bold leading-7">
+            아직 소속된 팀이 없어요
+          </h2>
+          <p className="mt-1.5 max-w-xl text-[0.9375rem] leading-6 text-peri-100">
+            멤버 프로필을 둘러보고 팀을 만들거나, 열려 있는 팀을 둘러보고 참여해 보세요.
+          </p>
+        </section>
+      )}
+
+      <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="min-w-0 space-y-8">
+          {myTeams.length > 0 && (
+            <section aria-labelledby="my-teams-heading">
+              <SectionHeader id="my-teams-heading" title="내 팀" count={myTeams.length} />
+              <ul className="space-y-2.5">
+                {myTeams.map((team) => (
+                  <TeamRow key={team.id} team={team} to={`${base}/team/${team.id}`} mine />
+                ))}
+              </ul>
+            </section>
+          )}
+
+          <section aria-labelledby="other-teams-heading">
+            <SectionHeader
+              id="other-teams-heading"
+              title={myTeams.length > 0 ? '워크스페이스의 다른 팀' : '워크스페이스의 팀'}
+              count={otherTeams.length}
+            />
+            {otherTeams.length > 0 ? (
+              <ul className="space-y-2.5">
+                {otherTeams.map((team) => (
+                  <TeamRow key={team.id} team={team} to={`${base}/team/${team.id}`} mine={false} />
+                ))}
+              </ul>
+            ) : (
+              <div className="rounded-card border border-dashed border-outline-soft bg-surface">
+                <EmptyState
+                  compact
+                  icon={<UsersIcon className="h-5 w-5" />}
+                  title={myTeams.length > 0 ? '다른 팀은 아직 없어요' : '아직 만들어진 팀이 없어요'}
+                  description="첫 팀을 만들고 멤버를 모아 보세요."
+                  action={
+                    <Button variant="secondary" size="sm" onClick={() => setIsTeamActionOpen(true)}>
+                      팀 만들기
+                    </Button>
+                  }
+                />
               </div>
             )}
-            <Button 
-              variant="primary" 
-              size="lg"
-              onClick={loadMembersPreview}
-              disabled={isLoadingMembers}
-            >
-              {isLoadingMembers ? '불러오는 중...' : '팀원 정보 불러오기'}
-            </Button>
-          </div>
-        )}
-      </Card>
-
-      {/* 워크스페이스 전체 멤버 목록 모달 (간단한 형태) */}
-      <Modal 
-        isOpen={isMembersModalOpen} 
-        onClose={() => setIsMembersModalOpen(false)}
-        title={`${currentWorkspace.name} 전체 팀원`}
-        size="md"
-      >
-        <div className="space-y-2">
-          {workspaceMembers.length > 0 ? (
-            <div className="max-h-96 overflow-y-auto space-y-2">
-              {workspaceMembers.map(member => (
-                <div 
-                  key={member.id} 
-                  className="flex items-center space-x-3 p-3 rounded-lg hover:bg-neutral-50 cursor-pointer transition-colors"
-                  onClick={() => showMemberDetail(member)}
-                >
-                  <div className="w-10 h-10 rounded-full bg-primary-light flex items-center justify-center overflow-hidden">
-                    {member.profileImageUrl ? (
-                      <img 
-                        src={getProfileImageSrc(member.profileImageUrl, member.id, 40)} 
-                        alt={member.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => handleImageError(e, member.id, 40)}
-                      />
-                    ) : (
-                      <UserIcon className="w-5 h-5 text-primary" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-medium text-neutral-800 truncate">
-                      {member.name || '이름 없음'}
-                    </h4>
-                    <p className="text-xs text-neutral-600 truncate">{member.email}</p>
-                  </div>
-                  {member.mbti && (
-                    <span className="text-xs bg-primary-light text-primary px-2 py-1 rounded">
-                      {member.mbti}
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <UsersIcon className="w-12 h-12 mx-auto text-neutral-400 mb-3" />
-              <p className="text-neutral-600">워크스페이스에 멤버가 없습니다.</p>
-            </div>
-          )}
-          <div className="text-center text-xs text-neutral-500 mt-4 pt-4 border-t">
-            총 {workspaceMembers.length}명의 팀원 • 클릭하여 상세 정보 보기
-          </div>
+          </section>
         </div>
-      </Modal>
 
-      {/* 멤버 상세 정보 모달 */}
-      <Modal 
-        isOpen={isMemberDetailModalOpen} 
-        onClose={() => setIsMemberDetailModalOpen(false)}
-        title="팀원 상세 정보"
-        size="md"
-      >
-        {selectedMember && (
-          <div className="space-y-4">
-            {/* 프로필 헤더 */}
-            <div className="text-center pb-4 border-b border-neutral-200">
-              <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-primary-light flex items-center justify-center overflow-hidden">
-                {selectedMember.profileImageUrl ? (
-                  <img 
-                    src={getProfileImageSrc(selectedMember.profileImageUrl, selectedMember.id, 96)} 
-                    alt={selectedMember.name}
-                    className="w-full h-full object-cover"
-                    onError={(e) => handleImageError(e, selectedMember.id, 96)}
-                  />
-                ) : (
-                  <UserIcon className="w-12 h-12 text-primary" />
-                )}
-              </div>
-              <h3 className="text-xl font-bold text-neutral-800 mb-2">
-                {selectedMember.name || '이름 없음'}
-              </h3>
-              <p className="text-neutral-600">{selectedMember.email}</p>
-            </div>
-
-            {/* 기본 정보 */}
-            <div className="space-y-3">
-              {selectedMember.mbti && (
-                <div>
-                  <h4 className="text-base font-semibold text-neutral-900 mb-2">성격 유형 (MBTI)</h4>
-                  <div className="bg-neutral-50 p-3 rounded-md">
-                    <p className="text-sm text-neutral-700 ml-2">
-                      {selectedMember.mbti}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {selectedMember.age && (
-                <div>
-                  <h4 className="text-base font-semibold text-neutral-900 mb-2">나이</h4>
-                  <div className="bg-neutral-50 p-3 rounded-md">
-                    <p className="text-sm text-neutral-700 ml-2">{selectedMember.age}세</p>
-                  </div>
-                </div>
-              )}
-
-              {selectedMember.disposition && (
-                <div>
-                  <h4 className="text-base font-semibold text-neutral-900 mb-2">성향/특성</h4>
-                  <div className="bg-neutral-50 p-3 rounded-md">
-                    <p className="text-sm text-neutral-700 leading-relaxed ml-2">{selectedMember.disposition}</p>
-                  </div>
-                </div>
-              )}
-
-              {selectedMember.introduction && (
-                <div>
-                  <h4 className="text-base font-semibold text-neutral-900 mb-2">자기소개</h4>
-                  <div className="bg-neutral-50 p-3 rounded-md">
-                    <p className="text-sm text-neutral-700 leading-relaxed ml-2">{selectedMember.introduction}</p>
-                  </div>
-                </div>
-              )}
-
-              {selectedMember.preferWorkstyle && (
-                <div>
-                  <h4 className="text-base font-semibold text-neutral-900 mb-2">선호하는 것들</h4>
-                  <div className="bg-neutral-50 p-3 rounded-md">
-                    <p className="text-sm text-neutral-700 leading-relaxed ml-2">{selectedMember.preferWorkstyle}</p>
-                  </div>
-                </div>
-              )}
-
-              {selectedMember.dislikeWorkstyle && (
-                <div>
-                  <h4 className="text-base font-semibold text-neutral-900 mb-2">비선호하는 것들</h4>
-                  <div className="bg-neutral-50 p-3 rounded-md">
-                    <p className="text-sm text-neutral-700 leading-relaxed ml-2">{selectedMember.dislikeWorkstyle}</p>
-                  </div>
-                </div>
-              )}
-
-              {selectedMember.portfolio && (
-                <div>
-                  <h4 className="text-base font-semibold text-neutral-900 mb-2">포트폴리오</h4>
-                  <div className="bg-neutral-50 p-3 rounded-md">
-                    {selectedMember.portfolio.startsWith('http') ? (
-                      <a 
-                        href={selectedMember.portfolio} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-primary hover:text-primary-dark underline break-all text-sm ml-2 block"
-                      >
-                        {selectedMember.portfolio}
-                      </a>
-                    ) : (
-                      <p className="text-sm text-neutral-700 leading-relaxed ml-2">{selectedMember.portfolio}</p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {selectedMember.hashtags && selectedMember.hashtags.length > 0 && (
-                <div>
-                  <h4 className="text-base font-semibold text-neutral-900 mb-2">관심 태그</h4>
-                  <div className="bg-neutral-50 p-3 rounded-md">
-                    <div className="flex flex-wrap gap-2 ml-2">
-                      {selectedMember.hashtags.map((tag, index) => (
-                        <span 
-                          key={index} 
-                          className="px-2 py-1 bg-white text-neutral-600 text-xs rounded-full border border-neutral-200"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+        <aside aria-labelledby="members-heading" className="min-w-0">
+          <SectionHeader
+            id="members-heading"
+            title="멤버"
+            count={memberCount}
+            action={
+              members.status === 'ready' && members.members.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setIsAllMembersOpen(true)}
+                  className="min-h-touch text-sm font-semibold text-primary underline-offset-4 hover:underline"
+                >
+                  전체 보기
+                </button>
+              ) : undefined
+            }
+          />
+          <div className="rounded-card border border-outline-soft bg-surface p-2">
+            {members.status === 'loading' && (
+              <ul className="space-y-1 p-2" aria-label="멤버를 불러오는 중">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <li key={index} className="flex items-center gap-3 py-1.5">
+                    <Skeleton className="h-10 w-10 rounded-full" />
+                    <Skeleton className="h-4 flex-1" />
+                  </li>
+                ))}
+              </ul>
+            )}
+            {members.status === 'error' && (
+              <ErrorState
+                compact
+                title="멤버를 불러오지 못했어요"
+                description={members.message}
+                action={
+                  <Button size="sm" variant="outline" onClick={loadMembers}>
+                    다시 시도
+                  </Button>
+                }
+              />
+            )}
+            {members.status === 'ready' &&
+              (memberPreview.length > 0 ? (
+                <ul>
+                  {memberPreview.map((member) => (
+                    <li key={member.id}>
+                      <MemberButton member={member} isMe={String(member.id) === String(currentUser.id)} onSelect={setSelectedMember} />
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <EmptyState compact title="아직 멤버가 없어요" description="워크스페이스 설정에서 초대 링크를 복사해 공유해 보세요." />
+              ))}
           </div>
+        </aside>
+      </div>
+
+      <Modal
+        isOpen={isAllMembersOpen}
+        onClose={() => {
+          setIsAllMembersOpen(false);
+          setMemberQuery('');
+        }}
+        title={`멤버 ${memberCount}명`}
+        size="lg"
+      >
+        <label className="relative block">
+          <span className="sr-only">멤버 검색</span>
+          <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-neutral-500" aria-hidden="true" />
+          <input
+            type="search"
+            value={memberQuery}
+            onChange={(event) => setMemberQuery(event.target.value)}
+            placeholder="이름, 이메일, MBTI, 태그로 찾기"
+            className="block min-h-touch w-full rounded-lg border border-outline bg-surface pl-10 pr-3 text-[0.9375rem] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+          />
+        </label>
+        <p className="sr-only" role="status">
+          {filteredMembers.length}명 찾음
+        </p>
+        {filteredMembers.length > 0 ? (
+          <ul className="mt-3 max-h-[50vh] overflow-y-auto">
+            {filteredMembers.map((member) => (
+              <li key={member.id}>
+                <MemberButton member={member} isMe={String(member.id) === String(currentUser.id)} onSelect={setSelectedMember} showEmail />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <EmptyState compact title="찾는 멤버가 없어요" description="다른 검색어로 찾아보세요." />
         )}
       </Modal>
 
-      {/* 팀 액션 모달 */}
-      <TeamActionModal 
-        isOpen={isTeamActionModalOpen}
-        onClose={() => setIsTeamActionModalOpen(false)}
-        onTeamCreated={handleTeamCreated}
+      <MemberProfileModal member={selectedMember} onClose={() => setSelectedMember(null)} />
+
+      <TeamActionModal
+        isOpen={isTeamActionOpen}
+        onClose={() => setIsTeamActionOpen(false)}
+        onTeamCreated={(team) => {
+          addTeam(team);
+          setIsTeamActionOpen(false);
+        }}
       />
-      </div>
     </div>
   );
 };

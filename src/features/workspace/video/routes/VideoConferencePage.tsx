@@ -408,7 +408,7 @@ export const VideoConferencePage: React.FC = () => {
   }
  
   return (
-     <Card title={`📹 화상 회의: ${roomName}`} className="h-full flex flex-col ml-64">
+     <Card title={`📹 화상 회의: ${roomName}`} className="h-full flex flex-col m-4 sm:m-6 lg:m-8">
       <div className="flex flex-grow min-h-[calc(100vh-16rem)]">
         <div className={`flex-grow ${showChat ? 'md:w-3/4' : 'w-full'} transition-all duration-300`}>
           <div className="relative h-full bg-neutral-800 p-0 rounded-md flex items-center justify-center">
