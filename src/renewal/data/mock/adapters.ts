@@ -6,6 +6,8 @@ import { openSeats, type ApplicationView, type Team, type TeamApplication, type 
 import * as rules from './rules';
 import * as sessionRules from './sessionRules';
 import * as authRules from './authRules';
+import * as kanbanRules from './kanbanRules';
+import { progressOf } from '@/renewal/domain/kanban';
 import { INACTIVE_DAYS, type DashboardAlert } from '@/renewal/domain/dashboard';
 import { commit, getDb, latency, shouldFail, type MockDb } from './db';
 
@@ -523,6 +525,80 @@ export const mockDataSource: DataSource = {
     },
   },
 
+  teamSpace: {
+    async get(workspaceId, teamId) {
+      await latency();
+      fail('teamSpace');
+      const me = requireMe();
+      const db = getDb();
+      const access = kanbanRules.teamAccess(db, workspaceId, teamId, me.id);
+      const team = db.teams.find((item) => item.id === teamId)!;
+      const staff = db.workspaces
+        .find((item) => item.id === workspaceId)!
+        .members.filter((member) => member.role !== 'MEMBER')
+        .map((member) => db.accounts.find((account) => account.id === member.accountId)!);
+      return { team, members: team.memberIds.map((id) => toMember(db, workspaceId, id, me.id)), staff, access };
+    },
+    async overview(workspaceId, teamId) {
+      await latency();
+      fail('overview');
+      const me = requireMe();
+      const db = getDb();
+      const access = kanbanRules.teamAccess(db, workspaceId, teamId, me.id);
+      const teamSchedules = db.schedules.filter((item) => item.teamId === teamId && !item.personal);
+      const nowIso = new Date().toISOString();
+      const next = teamSchedules.filter((item) => item.endAt >= nowIso).sort((a, b) => a.startAt.localeCompare(b.startAt))[0];
+      const latest = db.announcements.filter((item) => item.teamId === teamId).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+      return {
+        progress: progressOf(db.tasks.filter((task) => task.teamId === teamId)),
+        // 팀 내부 일정과 공지는 팀원에게만 보여 준다(13-D1).
+        nextSchedule: access.isMember && next ? { id: next.id, title: next.title, type: next.type, startAt: next.startAt } : undefined,
+        latestAnnouncement: access.isMember && latest ? { id: latest.id, title: latest.title, createdAt: latest.createdAt } : undefined,
+        scheduleCount: teamSchedules.length,
+        rolesConfirmed: db.rolesConfirmedTeamIds.includes(teamId),
+      };
+    },
+    async confirmRoles(workspaceId, teamId) {
+      const me = requireMe();
+      await mutate('confirmRoles', (db) => {
+        if (!kanbanRules.teamAccess(db, workspaceId, teamId, me.id).isLeader) throw new DataError('팀장만 역할 확정을 표시할 수 있어요.', 'FORBIDDEN');
+        return db.rolesConfirmedTeamIds.includes(teamId) ? db : { ...db, rolesConfirmedTeamIds: [...db.rolesConfirmedTeamIds, teamId] };
+      });
+    },
+    async listTasks(workspaceId, teamId) {
+      await latency();
+      fail('tasks');
+      const me = requireMe();
+      const db = getDb();
+      kanbanRules.teamAccess(db, workspaceId, teamId, me.id);
+      return db.tasks.filter((task) => task.teamId === teamId);
+    },
+    async createTask(workspaceId, teamId, input) {
+      const me = requireMe();
+      await latency(350);
+      fail('createTask');
+      const result = kanbanRules.createTask(getDb(), workspaceId, teamId, me.id, input);
+      commit(result.db);
+      return { taskId: result.taskId };
+    },
+    async updateTask(workspaceId, teamId, taskId, input) {
+      const me = requireMe();
+      await mutate('updateTask', (db) => kanbanRules.updateTask(db, workspaceId, teamId, me.id, taskId, input));
+    },
+    async transitionTask(workspaceId, teamId, taskId, action, note) {
+      const me = requireMe();
+      await mutate('transitionTask', (db) => kanbanRules.transition(db, workspaceId, teamId, me.id, taskId, action, note));
+    },
+    async deleteTask(workspaceId, teamId, taskId) {
+      const me = requireMe();
+      await mutate('deleteTask', (db) => kanbanRules.deleteTask(db, workspaceId, teamId, me.id, taskId));
+    },
+    async addComment(workspaceId, teamId, taskId, content) {
+      const me = requireMe();
+      await mutate('addComment', (db) => kanbanRules.addComment(db, workspaceId, teamId, me.id, taskId, content));
+    },
+  },
+
   dashboard: {
     async get(workspaceId) {
       await latency();
@@ -534,13 +610,17 @@ export const mockDataSource: DataSource = {
       const written = participants.filter((member) => memberCardState(db.cards[member.accountId] ?? emptyCard()) !== 'NOT_WRITTEN').length;
       const session = rules.findSession(db, workspaceId);
       const teams = db.teams.filter((team) => team.workspaceId === workspaceId);
-      const pending = db.approvals.filter((item) => item.workspaceId === workspaceId && !item.approvedAt).sort((a, b) => b.requestedAt.localeCompare(a.requestedAt));
+      const teamIds = new Set(teams.map((team) => team.id));
+      const tasks = db.tasks.filter((task) => teamIds.has(task.teamId));
+      // 승인 대기 = 완료 요청 상태의 칸반 태스크(13 §4.5와 14 §4.2를 같은 데이터로 본다)
+      const pending = tasks.filter((task) => task.status === 'APPROVAL_PENDING').sort((a, b) => (b.completionRequestedAt ?? '').localeCompare(a.completionRequestedAt ?? ''));
       const account = (id: string) => db.accounts.find((item) => item.id === id)!;
       const teamName = (id: string) => teams.find((team) => team.id === id)?.name ?? '알 수 없는 팀';
       const inactive: DashboardAlert[] = teams.flatMap((team) => {
-        const progress = db.progress.find((item) => item.teamId === team.id);
-        if (!progress) return [];
-        const days = Math.floor((Date.now() - new Date(progress.lastActivityAt).getTime()) / 86_400_000);
+        // 칸반 마지막 갱신 시각. 태스크가 하나도 없는 팀은 아직 시작 전이라 신호로 보지 않는다.
+        const lastActivity = tasks.filter((task) => task.teamId === team.id).reduce<string>((latest, task) => (task.updatedAt > latest ? task.updatedAt : latest), '');
+        if (!lastActivity) return [];
+        const days = Math.floor((Date.now() - new Date(lastActivity).getTime()) / 86_400_000);
         return days >= INACTIVE_DAYS ? [{ kind: 'INACTIVE_TEAM' as const, teamId: team.id, teamName: team.name, days }] : [];
       });
       const banCounts = new Map<string, number>();
@@ -561,16 +641,16 @@ export const mockDataSource: DataSource = {
           .map((team) => ({
             teamId: team.id,
             teamName: team.name,
-            completionRate: db.progress.find((item) => item.teamId === team.id)?.completionRate ?? 0,
+            completionRate: progressOf(tasks.filter((task) => task.teamId === team.id)).completionRate,
             pendingApprovals: pending.filter((item) => item.teamId === team.id).length,
           })),
-        approvals: pending.map((item) => ({
-          id: item.id,
-          teamId: item.teamId,
-          teamName: teamName(item.teamId),
-          taskTitle: item.taskTitle,
-          requester: account(item.requesterId),
-          requestedAt: item.requestedAt,
+        approvals: pending.map((task) => ({
+          id: task.id,
+          teamId: task.teamId,
+          teamName: teamName(task.teamId),
+          taskTitle: task.title,
+          requester: account(task.completionRequestedBy ?? task.assigneeIds[0] ?? task.createdBy),
+          requestedAt: task.completionRequestedAt ?? task.updatedAt,
         })),
         alerts: [...inactive, ...[...banCounts.entries()].map(([accountId, count]) => ({ kind: 'BAN_HISTORY' as const, account: account(accountId), count }))],
       };
@@ -579,10 +659,11 @@ export const mockDataSource: DataSource = {
       const { me } = findWorkspaceOfMe(workspaceId);
       await mutate('approve', (db) => {
         sessionRules.requireManager(db, workspaceId, me.id);
-        const target = db.approvals.find((item) => item.id === approvalId && item.workspaceId === workspaceId);
-        if (!target) throw new DataError('승인 요청을 찾을 수 없어요.', 'NOT_FOUND');
-        if (target.approvedAt) throw new DataError('이미 승인된 요청이에요.', 'CONFLICT');
-        return { ...db, approvals: db.approvals.map((item) => (item.id === approvalId ? { ...item, approvedAt: new Date().toISOString(), approverId: me.id } : item)) };
+        const task = db.tasks.find((item) => item.id === approvalId);
+        if (!task) throw new DataError('승인 요청을 찾을 수 없어요.', 'NOT_FOUND');
+        if (task.status !== 'APPROVAL_PENDING') throw new DataError('이미 처리된 요청이에요.', 'CONFLICT');
+        // 대시보드 승인도 칸반 승인과 같은 규칙으로 처리한다(매니저 개입 승인, 승인자 기록).
+        return kanbanRules.transition(db, workspaceId, task.teamId, me.id, task.id, 'approve');
       });
     },
     async remindCardWriters(workspaceId) {

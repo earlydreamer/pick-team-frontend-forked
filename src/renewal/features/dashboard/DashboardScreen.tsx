@@ -211,7 +211,7 @@ const ApprovalQueue: React.FC<{ wsId: string; view: DashboardView }> = ({ wsId, 
                 </p>
               </div>
               <div className="flex w-full justify-end gap-2 sm:w-auto">
-                <Link to={`/ws/${wsId}/team/${item.teamId}/kanban`} className={buttonClassName('outline', 'sm')}>
+                <Link to={`/ws/${wsId}/team/${item.teamId}/kanban?task=${item.id}`} className={buttonClassName('outline', 'sm')}>
                   상세 보기
                 </Link>
                 <Button

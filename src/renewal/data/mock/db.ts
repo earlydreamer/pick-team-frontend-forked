@@ -2,6 +2,8 @@ import { emptyCard, type PrCard } from '@/renewal/domain/card';
 import type { Account, WorkspaceRole } from '@/renewal/domain/workspace';
 import type { Team, TeamApplication, TeamBuildingSession } from '@/renewal/domain/teamBuilding';
 import type { Announcement } from '@/renewal/domain/announcement';
+import type { KanbanTask } from '@/renewal/domain/kanban';
+import type { Schedule } from '@/renewal/domain/teamSpace';
 
 /**
  * 목업 단계의 데이터 저장소. 브라우저 localStorage에 저장해 새로고침해도 유지된다.
@@ -18,23 +20,6 @@ export interface MockWorkspace {
   members: { accountId: string; role: WorkspaceRole; teamId?: string }[];
 }
 
-/** 칸반 집계(위젯 C). 팀 스페이스를 구현하기 전까지 목업 값으로 둔다. */
-export interface MockTeamProgress {
-  teamId: string;
-  completionRate: number;
-  lastActivityAt: string;
-}
-
-export interface MockApproval {
-  id: string;
-  workspaceId: string;
-  teamId: string;
-  taskTitle: string;
-  requesterId: string;
-  requestedAt: string;
-  approvedAt?: string;
-  approverId?: string;
-}
 
 export interface MockDb {
   version: number;
@@ -46,8 +31,11 @@ export interface MockDb {
   teams: Team[];
   announcements: (Announcement & { workspaceId: string })[];
   applications: TeamApplication[];
-  progress: MockTeamProgress[];
-  approvals: MockApproval[];
+  /** 칸반 태스크. 강사 대시보드의 진행도·승인 대기·무활동 신호도 여기서 계산한다 */
+  tasks: KanbanTask[];
+  schedules: Schedule[];
+  /** 결성 직후 체크리스트에서 "역할 확정"을 마친 팀 */
+  rolesConfirmedTeamIds: string[];
   /** 이번 기수 차단 이력(위젯 D). 차단된 계정은 멤버 목록에 없다. */
   bans: { workspaceId: string; accountId: string; bannedAt: string }[];
   /** 카드 미작성자 리마인드 발송 기록. 알림 센터가 생기면 실제 알림으로 바꾼다. */
@@ -89,7 +77,7 @@ const SEED_PASSWORD_HASH = 'adb7a220a9fc0f2e7f11eb83d815e591330158c0b16f2db35ee8
 const SEED_WORKSPACE_PASSWORD_HASH = '6b5960ce025fca41a5e127b14ad6a8544685e224ef4566816cf90726d81c4ebc';
 
 const STORAGE_KEY = 'pickteam.renewal.mock';
-const VERSION = 6;
+const VERSION = 7;
 
 const daysFromNow = (days: number, hour = 23, minute = 59) => {
   const date = new Date();
@@ -123,6 +111,83 @@ const people: [string, string][] = [
   ['u-10', '임채원'],
   ['u-11', '강도윤'],
   ['u-12', '홍길동'],
+];
+
+const dateFromNow = (days: number) => {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+
+const atFromNow = (days: number, hour: number, minute = 0) => {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  date.setHours(hour, minute, 0, 0);
+  return date.toISOString();
+};
+
+/**
+ * 칸반 시드. 완료율은 알파팀 60%, 데이터 크루 40%, 달빛 80%이고,
+ * 데이터 크루는 8일 동안 갱신이 없어 대시보드 이상 신호에 잡힌다(R6 대시보드 시연 값과 같다).
+ */
+const seedTasks = (): KanbanTask[] => {
+  const make = (
+    id: string,
+    teamId: string,
+    title: string,
+    status: KanbanTask['status'],
+    assigneeId: string,
+    updatedHoursAgo: number,
+    extra: Partial<KanbanTask> = {},
+  ): KanbanTask => ({
+    id,
+    teamId,
+    title,
+    status,
+    assigneeIds: [assigneeId],
+    createdBy: assigneeId,
+    createdAt: hoursAgo(updatedHoursAgo + 48),
+    updatedAt: hoursAgo(updatedHoursAgo),
+    comments: [],
+    ...(status === 'DONE' ? { approvedBy: extra.approvedBy ?? assigneeId, approvedAt: hoursAgo(updatedHoursAgo) } : {}),
+    ...(status === 'APPROVAL_PENDING' ? { completionRequestedBy: assigneeId, completionRequestedAt: hoursAgo(updatedHoursAgo) } : {}),
+    ...extra,
+  });
+  return [
+    make('k-1', 't-1', '요구사항 정리', 'DONE', 'u-01', 120),
+    make('k-2', 't-1', '화면 흐름도 그리기', 'DONE', 'u-02', 110, { approvedBy: 'u-01' }),
+    make('k-3', 't-1', '개발 환경 세팅', 'DONE', 'u-01', 100),
+    make('k-4', 't-1', '로그인 API 완성', 'APPROVAL_PENDING', 'u-01', 72, {
+      content: 'JWT 발급과 재발급까지 포함해요.',
+      completionRequestMessage: '테스트까지 마쳤어요.',
+      deadline: dateFromNow(2),
+    }),
+    make('k-5', 't-1', 'DB 스키마 설계', 'APPROVAL_PENDING', 'u-02', 5, {
+      comments: [{ id: 'c-1', authorId: 'u-01', content: '팀 테이블에 소개 컬럼도 넣어 주세요.', createdAt: hoursAgo(3) }],
+    }),
+    make('k-6', 't-1', '알림 설계', 'TODO', 'u-02', 30, { assigneeIds: [] }),
+    make('k-7', 't-1', '프로필 화면 구현', 'IN_PROGRESS', 'u-02', 20, { deadline: dateFromNow(-1) }),
+    make('k-8', 't-1', '와이어프레임 검토', 'DONE', 'u-02', 90, { approvedBy: 'u-01' }),
+    make('k-9', 't-1', 'API 명세 초안', 'DONE', 'u-01', 85),
+    make('k-10', 't-1', '디자인 토큰 정리', 'DONE', 'u-02', 80, { approvedBy: 'u-01' }),
+    make('k-11', 't-2', '데이터 수집 계획', 'DONE', 'u-05', 260),
+    make('k-12', 't-2', '크롤러 프로토타입', 'DONE', 'u-04', 240, { approvedBy: 'u-05' }),
+    make('k-13', 't-2', '모델 후보 비교', 'IN_PROGRESS', 'u-05', 200),
+    make('k-14', 't-2', '대시보드 시안', 'IN_PROGRESS', 'u-04', 195),
+    make('k-15', 't-2', '발표 자료 틀', 'TODO', 'u-04', 192),
+    make('k-16', 't-3', '서비스 컨셉 정리', 'DONE', 'u-08', 150),
+    make('k-17', 't-3', '사용자 인터뷰', 'DONE', 'u-06', 140, { approvedBy: 'u-08' }),
+    make('k-18', 't-3', '경쟁 서비스 분석', 'DONE', 'u-08', 130),
+    make('k-19', 't-3', '정보 구조 설계', 'DONE', 'u-06', 60, { approvedBy: 'u-08' }),
+    make('k-20', 't-3', '와이어프레임 완성', 'APPROVAL_PENDING', 'u-06', 24),
+  ];
+};
+
+const seedSchedules = (): Schedule[] => [
+  { id: 'sc-1', teamId: 't-1', title: '스프린트 회의', type: 'MEETING', startAt: atFromNow(2, 14), endAt: atFromNow(2, 15), personal: false, createdBy: 'u-01' },
+  { id: 'sc-2', teamId: 't-1', title: '중간 발표', type: 'DEADLINE', startAt: atFromNow(9, 10), endAt: atFromNow(9, 12), personal: false, createdBy: 'u-01' },
+  { id: 'sc-3', teamId: 't-1', title: '병원 예약', type: 'OTHER', startAt: atFromNow(1, 11), endAt: atFromNow(1, 12), personal: true, createdBy: 'u-01' },
+  { id: 'sc-4', teamId: 't-3', title: '디자인 리뷰', type: 'MEETING', startAt: atFromNow(1, 20), endAt: atFromNow(1, 21), personal: false, createdBy: 'u-08' },
 ];
 
 export const seed = (): MockDb => ({
@@ -196,16 +261,9 @@ export const seed = (): MockDb => ({
     { id: 'app-3', sessionId: 's-1', direction: 'APPLY', applicantId: 'u-03', teamId: 't-1', message: '백엔드 지원합니다. 주말에 집중해서 할 수 있어요.', status: 'PENDING', createdAt: hoursAgo(20) },
     { id: 'app-4', sessionId: 's-1', direction: 'APPLY', applicantId: 'u-07', teamId: 't-1', message: '기획과 일정 관리를 맡고 싶어요.', status: 'PENDING', createdAt: hoursAgo(5) },
   ],
-  progress: [
-    { teamId: 't-1', completionRate: 60, lastActivityAt: hoursAgo(6) },
-    { teamId: 't-2', completionRate: 40, lastActivityAt: hoursAgo(24 * 8) },
-    { teamId: 't-3', completionRate: 80, lastActivityAt: hoursAgo(30) },
-  ],
-  approvals: [
-    { id: 'ap-1', workspaceId: 'ws-1', teamId: 't-1', taskTitle: '로그인 API 완성', requesterId: 'u-01', requestedAt: hoursAgo(72) },
-    { id: 'ap-2', workspaceId: 'ws-1', teamId: 't-3', taskTitle: '와이어프레임 완성', requesterId: 'u-06', requestedAt: hoursAgo(24) },
-    { id: 'ap-3', workspaceId: 'ws-1', teamId: 't-1', taskTitle: 'DB 스키마 설계', requesterId: 'u-02', requestedAt: hoursAgo(5) },
-  ],
+  tasks: seedTasks(),
+  schedules: seedSchedules(),
+  rolesConfirmedTeamIds: ['t-1', 't-2', 't-3'],
   bans: [{ workspaceId: 'ws-1', accountId: 'u-12', bannedAt: hoursAgo(24 * 4) }],
   reminders: [],
   credentials: Object.fromEntries(people.map(([id]) => [id, { passwordHash: SEED_PASSWORD_HASH }])),
@@ -221,7 +279,17 @@ export const seed = (): MockDb => ({
   announcements: [
     { id: 'a-1', workspaceId: 'ws-1', title: '팀 빌딩 마감 시각 안내', authorName: '박강사', createdAt: hoursAgo(1) },
     { id: 'a-2', workspaceId: 'ws-1', title: 'PR 카드 작성 가이드: 희망 역할과 태그 쓰는 법', authorName: '정매니저', createdAt: hoursAgo(26) },
-    { id: 'a-3', workspaceId: 'ws-1', title: '알파팀 첫 회의 일정', authorName: '김철수', teamName: '알파팀', createdAt: hoursAgo(72) },
+    {
+      id: 'a-3',
+      workspaceId: 'ws-1',
+      title: '알파팀 첫 회의 일정',
+      authorName: '김철수',
+      authorId: 'u-01',
+      teamName: '알파팀',
+      teamId: 't-1',
+      content: '첫 회의는 목요일 저녁 8시에 온라인으로 해요. 각자 맡고 싶은 기능을 하나씩 생각해 와 주세요.',
+      createdAt: hoursAgo(72),
+    },
   ],
   teams: [
     {
