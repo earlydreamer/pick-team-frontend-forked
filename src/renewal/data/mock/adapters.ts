@@ -173,6 +173,22 @@ export const mockDataSource: DataSource = {
     },
   },
 
+  announcements: {
+    async listRecent(workspaceId, limit) {
+      await latency();
+      fail('announcements');
+      const { me } = findWorkspaceOfMe(workspaceId);
+      const db = getDb();
+      const myTeamNames = db.teams.filter((team) => team.workspaceId === workspaceId && team.memberIds.includes(me.id)).map((team) => team.name);
+      return db.announcements
+        // 팀 공지는 그 팀 멤버에게만 보인다.
+        .filter((item) => item.workspaceId === workspaceId && (!item.teamName || myTeamNames.includes(item.teamName)))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .slice(0, limit)
+        .map(({ workspaceId: _ignored, ...item }) => item);
+    },
+  },
+
   teamBuilding: {
     async getSession(workspaceId) {
       await latency();

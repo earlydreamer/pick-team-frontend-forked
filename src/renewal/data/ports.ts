@@ -1,6 +1,7 @@
 import type { PrCard } from '@/renewal/domain/card';
 import type { Account, Member, Workspace } from '@/renewal/domain/workspace';
 import type { Team, TeamBuildingSession } from '@/renewal/domain/teamBuilding';
+import type { Announcement } from '@/renewal/domain/announcement';
 
 /**
  * 화면이 의존하는 데이터 포트.
@@ -46,10 +47,16 @@ export interface TeamBuildingPort {
   listTeams(workspaceId: string): Promise<Team[]>;
 }
 
+export interface AnnouncementPort {
+  /** 워크스페이스에서 내가 볼 수 있는 최근 공지(최신순) */
+  listRecent(workspaceId: string, limit: number): Promise<Announcement[]>;
+}
+
 export interface DataSource {
   kind: 'mock' | 'http';
   session: SessionPort;
   workspaces: WorkspacePort;
   cards: CardPort;
   teamBuilding: TeamBuildingPort;
+  announcements: AnnouncementPort;
 }
