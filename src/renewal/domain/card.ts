@@ -64,9 +64,8 @@ export interface PrCard {
   workstyleText?: string;
   introduction?: string;
   portfolio?: string;
+  /** 선택하지 않으면 카드에 표시하지 않고 매칭에서도 쓰지 않는다(11-D4) */
   mbti?: Mbti;
-  /** MBTI를 입력했지만 카드에 표시하지 않음(11-D4: 매칭에서도 제외) */
-  mbtiHidden: boolean;
   cardVisible: boolean;
   consentGivenAt?: string;
 }
@@ -95,16 +94,44 @@ export const CARD_LIMITS = {
   otherRoleText: 20,
 } as const;
 
-export const HASHTAG_PATTERN = /^[가-힣a-zA-Z0-9_.+#-]+$/;
+/** 기존 UserHashtag 검증 규칙과 같다(UserProfileUpdateRequest). 공백과 기호를 받지 않는다. */
+export const HASHTAG_PATTERN = /^[가-힣a-zA-Z0-9_]+$/;
 
 export const emptyCard = (): PrCard => ({
   availableTimeSlots: [],
   hashtags: [],
   preferWorkstyleOptions: [],
   dislikeWorkstyleOptions: [],
-  mbtiHidden: false,
   cardVisible: false,
 });
 
 export const roleText = (card: Pick<PrCard, 'otherRoleText'>, role?: Role) =>
   role === 'OTHER' && card.otherRoleText ? card.otherRoleText : role ? ROLE_LABEL[role] : undefined;
+
+/** 폼 검증 결과. 키는 필드 이름이고 값은 화면에 보여 줄 문장이다. */
+export type CardErrors = Partial<Record<'desiredRole1' | 'desiredRole2' | 'otherRoleText' | 'weeklyAvailableHours' | 'portfolio', string>>;
+
+export const isHttpUrl = (value: string) => {
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === 'https:' || url.protocol === 'http:';
+  } catch {
+    return false;
+  }
+};
+
+/** 필수 항목과 형식을 검사한다. requiredOnly면 필수 항목만 본다(위저드 2단계). */
+export const validateCard = (card: PrCard, requiredOnly = false): CardErrors => {
+  const errors: CardErrors = {};
+  if (!card.desiredRole1) errors.desiredRole1 = '1순위 역할을 골라 주세요.';
+  if (!card.desiredRole2) errors.desiredRole2 = '2순위 역할을 골라 주세요.';
+  else if (card.desiredRole1 === card.desiredRole2) errors.desiredRole2 = '1순위와 다른 역할을 골라 주세요.';
+  if ((card.desiredRole1 === 'OTHER' || card.desiredRole2 === 'OTHER') && !card.otherRoleText?.trim()) {
+    errors.otherRoleText = '기타 역할의 이름을 적어 주세요.';
+  }
+  if (!card.weeklyAvailableHours) errors.weeklyAvailableHours = '주간 가용 시간을 골라 주세요.';
+  if (!requiredOnly && card.portfolio?.trim() && !isHttpUrl(card.portfolio)) {
+    errors.portfolio = '올바른 URL 형식이 아니에요. https://로 시작하는 주소를 입력해 주세요.';
+  }
+  return errors;
+};

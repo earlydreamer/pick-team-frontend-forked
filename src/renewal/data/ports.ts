@@ -20,6 +20,8 @@ export interface SessionPort {
   /** 로그인한 계정. 없으면 null */
   me(): Promise<Account | null>;
   signOut(): Promise<void>;
+  /** 프로필 사진 변경. null이면 삭제한다 */
+  updateProfileImage(file: File | null): Promise<Account>;
 }
 
 export interface WorkspacePort {

@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link, Outlet, useLocation, useMatch } from 'react-router-dom';
+import { Link, Outlet, useLocation } from 'react-router-dom';
 import { Bars3Icon, BellIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { data } from '@/renewal/data';
-import { useMyWorkspaces } from '@/renewal/data/queries';
 import { BrandLockup } from './BrandMark';
 import { WorkspaceRail } from './WorkspaceRail';
 import { ContextNav } from './ContextNav';
 import { AccountMenu } from './AccountMenu';
+import { useWorkspaceContext } from './useWorkspaceContext';
 
 /**
  * 전역 레이아웃(02 §2.1, §2.2).
@@ -15,9 +15,10 @@ import { AccountMenu } from './AccountMenu';
  */
 export const AppShell: React.FC = () => {
   const location = useLocation();
-  const inWorkspace = useMatch('/ws/:wsId/*') !== null;
-  const { data: workspaces } = useMyWorkspaces();
-  const homePath = workspaces?.[0] ? `/ws/${workspaces[0].id}` : '/';
+  const { workspace, workspaces } = useWorkspaceContext();
+  // 컨텍스트 내비는 워크스페이스 화면과 /me 화면(마지막 워크스페이스 기준)에서 보인다.
+  const inWorkspace = Boolean(workspace);
+  const homePath = workspace ? `/ws/${workspace.id}` : workspaces.data?.[0] ? `/ws/${workspaces.data[0].id}` : '/';
   const [drawerOpen, setDrawerOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
