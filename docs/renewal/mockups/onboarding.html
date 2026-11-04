@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<!-- 로우파이 목업 · 근거: 11-profile-pr-card.md §4.2 (SCR-ONB-01) -->
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SCR-ONB-01 온보딩 위저드 · 로우파이 목업</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Pretendard', 'Noto Sans KR', system-ui, sans-serif;
+      background: #F3F4F6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 16px;
+    }
+
+    /* 목업 배너 */
+    .mockup-banner {
+      width: 100%;
+      max-width: 560px;
+      background: #1E293B;
+      color: #94A3B8;
+      font-size: 11px;
+      padding: 6px 12px;
+      border-radius: 4px 4px 0 0;
+      letter-spacing: 0.02em;
+    }
+
+    /* 위저드 카드 */
+    .wizard-card {
+      width: 100%;
+      max-width: 560px;
+      background: #FFFFFF;
+      border: 1px solid #E5E7EB;
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+      overflow: hidden;
+    }
+
+    /* 스텝 인디케이터 */
+    .step-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      padding: 16px 24px 0;
+    }
+
+    .step-dot {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .step-dot.done   { background: #3B82F6; color: #fff; }
+    .step-dot.active { background: #3B82F6; color: #fff; border: 2px solid #1D4ED8; }
+    .step-dot.todo   { background: #E5E7EB; color: #9CA3AF; }
+
+    .step-line {
+      flex: 1;
+      height: 2px;
+      background: #E5E7EB;
+    }
+    .step-line.done { background: #3B82F6; }
+
+    .step-labels {
+      display: flex;
+      padding: 6px 24px 0;
+      gap: 0;
+    }
+    .step-label {
+      flex: 1;
+      text-align: center;
+      font-size: 11px;
+      color: #9CA3AF;
+    }
+    .step-label.active { color: #3B82F6; font-weight: 600; }
+    .step-label.done   { color: #6B7280; }
+
+    /* 단계 패널 */
+    .step-panel { display: none; padding: 28px 28px 24px; }
+    .step-panel.active { display: block; }
+
+    /* 1단계 — 동의 */
+    .welcome-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 6px;
+    }
+    .welcome-sub {
+      font-size: 14px;
+      color: #6B7280;
+      margin-bottom: 20px;
+    }
+    .consent-intro {
+      font-size: 14px;
+      color: #374151;
+      margin-bottom: 16px;
+      font-weight: 500;
+    }
+
+    .info-block {
+      background: #F9FAFB;
+      border: 1px solid #E5E7EB;
+      border-radius: 6px;
+      padding: 14px 16px;
+      margin-bottom: 12px;
+    }
+    .info-block-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 6px;
+    }
+    .info-block-body {
+      font-size: 13px;
+      color: #6B7280;
+      line-height: 1.6;
+    }
+
+    .policy-link {
+      font-size: 12px;
+      color: #3B82F6;
+      text-decoration: underline;
+      cursor: pointer;
+      margin-bottom: 20px;
+      display: inline-block;
+    }
+
+    /* 2단계 — 필수 입력 */
+    .section-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 4px;
+    }
+    .section-desc {
+      font-size: 13px;
+      color: #6B7280;
+      margin-bottom: 12px;
+    }
+
+    .role-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .role-chip {
+      border: 1.5px solid #D1D5DB;
+      border-radius: 6px;
+      padding: 8px 4px;
+      text-align: center;
+      font-size: 12px;
+      color: #374151;
+      cursor: pointer;
+      user-select: none;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .role-chip:hover { border-color: #93C5FD; background: #EFF6FF; }
+    .role-chip.selected { border-color: #3B82F6; background: #EFF6FF; color: #1D4ED8; font-weight: 600; }
+    .role-chip.selected-2 { border-color: #6B7280; background: #F3F4F6; color: #374151; font-weight: 600; }
+
+    .divider { border: none; border-top: 1px solid #E5E7EB; margin: 20px 0; }
+
+    .hours-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .hours-chip {
+      border: 1.5px solid #D1D5DB;
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 13px;
+      color: #374151;
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .hours-chip:hover { border-color: #93C5FD; background: #EFF6FF; }
+    .hours-chip.selected { border-color: #3B82F6; background: #EFF6FF; color: #1D4ED8; font-weight: 600; }
+
+    /* 3단계 — 선택 입력 */
+    .optional-label {
+      display: inline-block;
+      font-size: 11px;
+      background: #F3F4F6;
+      color: #9CA3AF;
+      border-radius: 4px;
+      padding: 2px 6px;
+      margin-left: 6px;
+      font-weight: 400;
+    }
+    .tag-input-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .tag-input {
+      flex: 1;
+      border: 1.5px solid #D1D5DB;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 13px;
+      outline: none;
+      font-family: inherit;
+    }
+    .tag-input:focus { border-color: #3B82F6; }
+    .tag-add-btn {
+      padding: 8px 14px;
+      background: #F3F4F6;
+      border: 1.5px solid #D1D5DB;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      color: #374151;
+    }
+
+    .tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 16px;
+      min-height: 28px;
+    }
+    .tag-badge {
+      background: #EFF6FF;
+      border: 1px solid #BFDBFE;
+      color: #1D4ED8;
+      font-size: 12px;
+      border-radius: 12px;
+      padding: 3px 10px 3px 10px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .tag-remove {
+      cursor: pointer;
+      color: #93C5FD;
+      font-size: 13px;
+      line-height: 1;
+    }
+    .tag-remove:hover { color: #1D4ED8; }
+
+    .collab-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .collab-chip {
+      border: 1.5px solid #D1D5DB;
+      border-radius: 6px;
+      padding: 7px 6px;
+      text-align: center;
+      font-size: 11px;
+      color: #374151;
+      cursor: pointer;
+      user-select: none;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .collab-chip:hover { border-color: #93C5FD; }
+    .collab-chip.selected { border-color: #3B82F6; background: #EFF6FF; color: #1D4ED8; font-weight: 600; }
+
+    .temp-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+    .temp-label { font-size: 12px; color: #9CA3AF; width: 64px; }
+    .temp-dots { display: flex; gap: 6px; }
+    .temp-dot {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      border: 2px solid #D1D5DB;
+      background: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      color: #9CA3AF;
+      font-weight: 600;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .temp-dot:hover { border-color: #93C5FD; }
+    .temp-dot.selected { border-color: #3B82F6; background: #3B82F6; color: #fff; }
+
+    .intro-textarea {
+      width: 100%;
+      border: 1.5px solid #D1D5DB;
+      border-radius: 6px;
+      padding: 10px;
+      font-size: 13px;
+      font-family: inherit;
+      resize: vertical;
+      outline: none;
+      min-height: 80px;
+      margin-bottom: 10px;
+    }
+    .intro-textarea:focus { border-color: #3B82F6; }
+    .char-count { font-size: 11px; color: #9CA3AF; text-align: right; margin-top: -6px; margin-bottom: 10px; }
+
+    .portfolio-input {
+      width: 100%;
+      border: 1.5px solid #D1D5DB;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      margin-bottom: 12px;
+    }
+    .portfolio-input:focus { border-color: #3B82F6; }
+
+    .mbti-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+    .mbti-select {
+      border: 1.5px solid #D1D5DB;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      min-width: 180px;
+    }
+    .mbti-select:focus { border-color: #3B82F6; }
+
+    /* 공통 버튼 */
+    .btn-row {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 0 0 4px;
+      border-top: 1px solid #F3F4F6;
+      padding-top: 20px;
+      margin-top: 20px;
+    }
+    .btn {
+      padding: 10px 22px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: background 0.15s;
+    }
+    .btn-primary { background: #3B82F6; color: #fff; }
+    .btn-primary:hover { background: #2563EB; }
+    .btn-primary:disabled { background: #BFDBFE; color: #93C5FD; cursor: not-allowed; }
+    .btn-ghost { background: transparent; color: #6B7280; border: 1.5px solid #D1D5DB; }
+    .btn-ghost:hover { background: #F9FAFB; }
+
+    .field-block { margin-bottom: 18px; }
+    .field-block:last-child { margin-bottom: 0; }
+
+    .badge-req {
+      display: inline-block;
+      font-size: 11px;
+      color: #DC2626;
+      font-weight: 600;
+      margin-left: 4px;
+    }
+
+    .hint { font-size: 11px; color: #9CA3AF; margin-top: 4px; }
+  </style>
+</head>
+<body>
+
+  <div class="mockup-banner">로우파이 목업 · 근거: 11-profile-pr-card.md §4.2 · SCR-ONB-01 온보딩 위저드</div>
+
+  <div class="wizard-card">
+
+    <!-- 스텝 인디케이터 (공통) -->
+    <div id="step-indicator" class="step-indicator" style="padding-top:20px;">
+      <div class="step-dot active" id="dot-1">1</div>
+      <div class="step-line" id="line-1-2"></div>
+      <div class="step-dot todo" id="dot-2">2</div>
+      <div class="step-line" id="line-2-3"></div>
+      <div class="step-dot todo" id="dot-3">3</div>
+    </div>
+    <div class="step-labels">
+      <span class="step-label active" id="label-1">동의</span>
+      <span class="step-label todo" id="label-2">필수 입력</span>
+      <span class="step-label todo" id="label-3">선택 입력</span>
+    </div>
+
+    <!-- ══════════════════════════════════════ -->
+    <!--  1단계 — 동의                          -->
+    <!-- ══════════════════════════════════════ -->
+    <div class="step-panel active" id="panel-1">
+
+      <div class="welcome-title">Pick Team에 오신 걸 환영합니다 👋</div>
+      <div class="welcome-sub">[프로그래머스 BE4기]에서 팀을 찾는 여정을 시작해요.</div>
+
+      <div class="consent-intro">PR 카드를 만들기 전에 확인해 주세요.</div>
+
+      <div class="info-block">
+        <div class="info-block-title">📌 수집하는 정보</div>
+        <div class="info-block-body">희망 역할, 가용 시간, 기술 스택, 협업 스타일 외 자기소개 및 포트폴리오 링크</div>
+      </div>
+
+      <div class="info-block">
+        <div class="info-block-title">🔒 공개 범위</div>
+        <div class="info-block-body">
+          이 워크스페이스(<strong>[프로그래머스 BE4기]</strong>)에 소속된 멤버에게만 공개됩니다.<br />
+          워크스페이스 탈퇴·차단 시 즉시 비공개됩니다.
+        </div>
+      </div>
+
+      <a class="policy-link">개인정보 처리방침 →</a>
+
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="skipAll()">나중에 하기</button>
+        <button class="btn btn-primary" onclick="goStep(2)">동의하고 카드 만들기</button>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════ -->
+    <!--  2단계 — 필수 입력                     -->
+    <!-- ══════════════════════════════════════ -->
+    <div class="step-panel" id="panel-2">
+
+      <div class="field-block">
+        <div class="section-title">어떤 역할을 맡고 싶나요? <span class="badge-req">★필수</span></div>
+        <div class="section-desc">역할을 2개 선택하세요. 1순위·2순위 순서로 클릭해 주세요.</div>
+
+        <div style="font-size:12px; color:#6B7280; margin-bottom:6px; font-weight:500;">1순위</div>
+        <div class="role-grid" id="role-grid-1">
+          <div class="role-chip" data-role="BACKEND"   data-rank="1" onclick="selectRole(this,1)">백엔드</div>
+          <div class="role-chip" data-role="FRONTEND"  data-rank="1" onclick="selectRole(this,1)">프론트엔드</div>
+          <div class="role-chip" data-role="FULLSTACK" data-rank="1" onclick="selectRole(this,1)">풀스택</div>
+          <div class="role-chip" data-role="PM"        data-rank="1" onclick="selectRole(this,1)">PM·기획</div>
+          <div class="role-chip" data-role="DESIGN"    data-rank="1" onclick="selectRole(this,1)">디자인</div>
+          <div class="role-chip" data-role="INFRA"     data-rank="1" onclick="selectRole(this,1)">인프라·DevOps</div>
+          <div class="role-chip" data-role="AI_DATA"   data-rank="1" onclick="selectRole(this,1)">AI·데이터</div>
+          <div class="role-chip" data-role="OTHER"     data-rank="1" onclick="selectRole(this,1)">기타</div>
+        </div>
+
+        <div style="font-size:12px; color:#6B7280; margin-bottom:6px; font-weight:500;">2순위</div>
+        <div class="role-grid" id="role-grid-2">
+          <div class="role-chip" data-role="BACKEND"   data-rank="2" onclick="selectRole(this,2)">백엔드</div>
+          <div class="role-chip" data-role="FRONTEND"  data-rank="2" onclick="selectRole(this,2)">프론트엔드</div>
+          <div class="role-chip" data-role="FULLSTACK" data-rank="2" onclick="selectRole(this,2)">풀스택</div>
+          <div class="role-chip" data-role="PM"        data-rank="2" onclick="selectRole(this,2)">PM·기획</div>
+          <div class="role-chip" data-role="DESIGN"    data-rank="2" onclick="selectRole(this,2)">디자인</div>
+          <div class="role-chip" data-role="INFRA"     data-rank="2" onclick="selectRole(this,2)">인프라·DevOps</div>
+          <div class="role-chip" data-role="AI_DATA"   data-rank="2" onclick="selectRole(this,2)">AI·데이터</div>
+          <div class="role-chip" data-role="OTHER"     data-rank="2" onclick="selectRole(this,2)">기타</div>
+        </div>
+      </div>
+
+      <hr class="divider" />
+
+      <div class="field-block">
+        <div class="section-title">주간에 얼마나 투자할 수 있나요? <span class="badge-req">★필수</span></div>
+        <div class="section-desc" style="margin-bottom:10px;">가용 시간을 하나 선택해 주세요.</div>
+        <div class="hours-grid">
+          <div class="hours-chip" onclick="selectHours(this)">
+            <span>⏰</span><span>10시간 미만</span>
+          </div>
+          <div class="hours-chip" onclick="selectHours(this)">
+            <span>⏰</span><span>10~20시간</span>
+          </div>
+          <div class="hours-chip" onclick="selectHours(this)">
+            <span>⏰</span><span>20~30시간</span>
+          </div>
+          <div class="hours-chip" onclick="selectHours(this)">
+            <span>⏰</span><span>30시간 이상</span>
+          </div>
+        </div>
+        <div class="hint">팀 빌딩 매칭 시 사용됩니다.</div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="goStep(1)">← 이전</button>
+        <button class="btn btn-primary" id="btn-step2-next" disabled onclick="goStep(3)">다음 →</button>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════ -->
+    <!--  3단계 — 선택 입력                     -->
+    <!-- ══════════════════════════════════════ -->
+    <div class="step-panel" id="panel-3">
+
+      <!-- 기술 스택 태그 -->
+      <div class="field-block">
+        <div class="section-title">기술 스택·강점 태그 <span class="optional-label">선택</span></div>
+        <div class="tag-input-row">
+          <input class="tag-input" id="tag-input" placeholder="예: React, Spring Boot, MySQL..." maxlength="30" />
+          <button class="tag-add-btn" onclick="addTag()">추가</button>
+        </div>
+        <div class="tag-list" id="tag-list">
+          <div class="tag-badge">React <span class="tag-remove" onclick="removeTag(this)">×</span></div>
+          <div class="tag-badge">TypeScript <span class="tag-remove" onclick="removeTag(this)">×</span></div>
+        </div>
+        <div class="hint">최대 20개. Enter 또는 추가 버튼으로 입력합니다.</div>
+      </div>
+
+      <hr class="divider" />
+
+      <!-- 협업 스타일 -->
+      <div class="field-block">
+        <div class="section-title">협업 스타일 <span class="optional-label">선택</span></div>
+        <div style="font-size:12px;color:#6B7280;margin-bottom:6px;font-weight:500;">선호 (1~3개)</div>
+        <div class="collab-grid">
+          <div class="collab-chip" onclick="toggleCollab(this)">비동기 우선</div>
+          <div class="collab-chip" onclick="toggleCollab(this)">동기 선호</div>
+          <div class="collab-chip" onclick="toggleCollab(this)">꼼꼼한 문서화</div>
+          <div class="collab-chip" onclick="toggleCollab(this)">빠른 실행</div>
+          <div class="collab-chip" onclick="toggleCollab(this)">계획 중심</div>
+          <div class="collab-chip" onclick="toggleCollab(this)">유연한 진행</div>
+        </div>
+        <div style="font-size:12px;color:#6B7280;margin-bottom:6px;margin-top:10px;font-weight:500;">피하고 싶은 스타일</div>
+        <div class="collab-grid">
+          <div class="collab-chip" onclick="toggleCollab(this)">비동기 우선</div>
+          <div class="collab-chip" onclick="toggleCollab(this)">동기 선호</div>
+          <div class="collab-chip" onclick="toggleCollab(this)">꼼꼼한 문서화</div>
+          <div class="collab-chip" onclick="toggleCollab(this)">빠른 실행</div>
+          <div class="collab-chip" onclick="toggleCollab(this)">계획 중심</div>
+          <div class="collab-chip" onclick="toggleCollab(this)">유연한 진행</div>
+        </div>
+      </div>
+
+      <hr class="divider" />
+
+      <!-- 목표 온도 -->
+      <div class="field-block">
+        <div class="section-title">목표 온도 <span class="optional-label">선택</span></div>
+        <div class="temp-row" style="margin-top:10px;">
+          <span class="temp-label" style="width:72px;font-size:11px;">완주 지향</span>
+          <div class="temp-dots">
+            <div class="temp-dot" onclick="selectTemp(1)">1</div>
+            <div class="temp-dot" onclick="selectTemp(2)">2</div>
+            <div class="temp-dot" onclick="selectTemp(3)">3</div>
+            <div class="temp-dot" onclick="selectTemp(4)">4</div>
+            <div class="temp-dot" onclick="selectTemp(5)">5</div>
+          </div>
+          <span class="temp-label" style="width:72px;font-size:11px;text-align:right;">수상 지향</span>
+        </div>
+      </div>
+
+      <hr class="divider" />
+
+      <!-- 자기소개·포트폴리오 -->
+      <div class="field-block">
+        <div class="section-title">자기소개 <span class="optional-label">선택</span></div>
+        <textarea class="intro-textarea" id="intro-area" maxlength="500" placeholder="자신을 동기들에게 소개해 주세요. (500자 이내)" oninput="updateCount()"></textarea>
+        <div class="char-count"><span id="intro-count">0</span>/500</div>
+        <div class="section-title" style="margin-top:4px;">포트폴리오 링크 <span class="optional-label">선택</span></div>
+        <input class="portfolio-input" type="url" placeholder="https://github.com/..." />
+      </div>
+
+      <hr class="divider" />
+
+      <!-- MBTI -->
+      <div class="field-block">
+        <div class="section-title">MBTI <span class="optional-label">선택</span></div>
+        <div class="mbti-row" style="margin-top:8px;">
+          <select class="mbti-select">
+            <option value="">선택 안 함 (표시 안 함)</option>
+            <optgroup label="분석가형">
+              <option>INTJ</option><option>INTP</option><option>ENTJ</option><option>ENTP</option>
+            </optgroup>
+            <optgroup label="외교관형">
+              <option>INFJ</option><option>INFP</option><option>ENFJ</option><option>ENFP</option>
+            </optgroup>
+            <optgroup label="관리자형">
+              <option>ISTJ</option><option>ISFJ</option><option>ESTJ</option><option>ESFJ</option>
+            </optgroup>
+            <optgroup label="탐험가형">
+              <option>ISTP</option><option>ISFP</option><option>ESTP</option><option>ESFP</option>
+            </optgroup>
+          </select>
+          <span class="hint">선택 안 하면 카드에 표시되지 않습니다.</span>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="goStep(2)">← 이전</button>
+        <button class="btn btn-ghost" onclick="skipAll()">나중에</button>
+        <button class="btn btn-primary" onclick="finishOnboarding()">완료 → 갤러리</button>
+      </div>
+    </div>
+
+  </div><!-- /.wizard-card -->
+
+  <script>
+    // ── 상태 ──
+    const state = {
+      role1: null,
+      role2: null,
+      hours: null,
+      temp: null,
+    };
+
+    // ── 단계 이동 ──
+    function goStep(n) {
+      [1,2,3].forEach(i => {
+        document.getElementById('panel-' + i).classList.remove('active');
+        const dot = document.getElementById('dot-' + i);
+        const lbl = document.getElementById('label-' + i);
+        if (i < n) {
+          dot.className = 'step-dot done';
+          lbl.className = 'step-label done';
+        } else if (i === n) {
+          dot.className = 'step-dot active';
+          lbl.className = 'step-label active';
+        } else {
+          dot.className = 'step-dot todo';
+          lbl.className = 'step-label todo';
+        }
+      });
+      [1,2].forEach(i => {
+        const line = document.getElementById('line-' + i + '-' + (i+1));
+        if (line) line.className = 'step-line' + (i < n ? ' done' : '');
+      });
+      document.getElementById('panel-' + n).classList.add('active');
+    }
+
+    function skipAll() {
+      alert('[목업] 홈 화면으로 이동합니다. (카드 미작성 배너 노출)');
+    }
+
+    function finishOnboarding() {
+      alert('[목업] 카드가 저장되었습니다. 갤러리로 이동합니다.');
+    }
+
+    // ── 역할 선택 (1순위·2순위 충돌 방지) ──
+    function selectRole(el, rank) {
+      const role = el.dataset.role;
+      // 같은 순위 내 이전 선택 해제
+      const grid = document.getElementById('role-grid-' + rank);
+      grid.querySelectorAll('.role-chip').forEach(c => c.classList.remove('selected', 'selected-2'));
+      el.classList.add('selected');
+
+      state['role' + rank] = role;
+
+      // 상대 순위에서 같은 역할 비활성화 처리(시각 표시)
+      const otherRank = rank === 1 ? 2 : 1;
+      const otherGrid = document.getElementById('role-grid-' + otherRank);
+      otherGrid.querySelectorAll('.role-chip').forEach(c => {
+        if (c.dataset.role === role) {
+          c.classList.add('selected-2'); // 흐리게 표시
+        }
+      });
+
+      checkStep2();
+    }
+
+    // ── 가용 시간 ──
+    function selectHours(el) {
+      document.querySelectorAll('.hours-chip').forEach(c => c.classList.remove('selected'));
+      el.classList.add('selected');
+      state.hours = el.textContent.trim();
+      checkStep2();
+    }
+
+    function checkStep2() {
+      const ok = state.role1 && state.role2 && state.role1 !== state.role2 && state.hours;
+      document.getElementById('btn-step2-next').disabled = !ok;
+    }
+
+    // ── 협업 스타일 ──
+    function toggleCollab(el) {
+      el.classList.toggle('selected');
+    }
+
+    // ── 목표 온도 ──
+    function selectTemp(n) {
+      state.temp = n;
+      document.querySelectorAll('.temp-dot').forEach((d, i) => {
+        d.classList.toggle('selected', i + 1 <= n);
+      });
+    }
+
+    // ── 태그 ──
+    function addTag() {
+      const input = document.getElementById('tag-input');
+      const val = input.value.trim();
+      if (!val) return;
+      const list = document.getElementById('tag-list');
+      if (list.querySelectorAll('.tag-badge').length >= 20) return;
+      const badge = document.createElement('div');
+      badge.className = 'tag-badge';
+      badge.innerHTML = val + ' <span class="tag-remove" onclick="removeTag(this)">×</span>';
+      list.appendChild(badge);
+      input.value = '';
+    }
+    document.getElementById('tag-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); addTag(); }
+    });
+
+    function removeTag(el) {
+      el.parentElement.remove();
+    }
+
+    // ── 자기소개 글자 수 ──
+    function updateCount() {
+      document.getElementById('intro-count').textContent =
+        document.getElementById('intro-area').value.length;
+    }
+  </script>
+</body>
+</html>

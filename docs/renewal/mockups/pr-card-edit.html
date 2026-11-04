@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<!-- 로우파이 목업 · 근거: 11-profile-pr-card.md §4.3 (SCR-MY-02) -->
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SCR-MY-02 내 PR 카드 편집 · 로우파이 목업</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Pretendard', 'Noto Sans KR', system-ui, sans-serif;
+      background: #1E293B;
+      min-height: 100vh;
+      display: flex;
+      overflow-x: hidden;
+    }
+
+    /* ── 전역 레일 (WS Rail) 64px ── */
+    .ws-rail {
+      width: 64px;
+      min-height: 100vh;
+      background: #0F172A;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px 0;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    .ws-logo {
+      width: 40px; height: 40px;
+      background: #3B82F6;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 16px; font-weight: 800;
+      margin-bottom: 6px;
+    }
+    .ws-icon {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      background: #1E293B;
+      display: flex; align-items: center; justify-content: center;
+      color: #64748B; font-size: 14px; font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .ws-icon:hover { background: #334155; color: #94A3B8; }
+    .ws-icon.active { background: #3B82F6; color: #fff; border-radius: 14px; }
+    .ws-rail-divider { width: 32px; border-top: 1px solid #334155; }
+    .ws-add {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      background: transparent;
+      border: 1.5px dashed #334155;
+      display: flex; align-items: center; justify-content: center;
+      color: #475569; font-size: 18px; cursor: pointer;
+    }
+    .ws-add:hover { border-color: #64748B; color: #94A3B8; }
+
+    /* ── 컨텍스트 네비 240px ── */
+    .ctx-nav {
+      width: 240px;
+      min-height: 100vh;
+      background: #1E293B;
+      border-right: 1px solid #334155;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow-y: auto;
+    }
+    .ctx-nav-header {
+      padding: 18px 16px 14px;
+      border-bottom: 1px solid #334155;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .ctx-ws-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #F1F5F9;
+    }
+    .ctx-settings-btn {
+      font-size: 15px; color: #64748B; cursor: pointer;
+    }
+
+    .nav-section-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: #475569;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 14px 16px 4px;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 16px;
+      font-size: 13px;
+      color: #94A3B8;
+      cursor: pointer;
+      border-radius: 0;
+      transition: background 0.12s, color 0.12s;
+      position: relative;
+    }
+    .nav-item:hover { background: #334155; color: #E2E8F0; }
+    .nav-item.active {
+      background: #1D4ED8;
+      color: #fff;
+      font-weight: 600;
+    }
+    .nav-item .icon { font-size: 14px; width: 18px; text-align: center; }
+    .nav-badge {
+      margin-left: auto;
+      background: #EF4444;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      border-radius: 8px;
+      padding: 1px 6px;
+    }
+    .nav-section-divider { border: none; border-top: 1px solid #334155; margin: 8px 0; }
+
+    /* ── 콘텐츠 영역 ── */
+    .content-area {
+      flex: 1;
+      background: #F8FAFC;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* 글로벌 헤더 */
+    .global-header {
+      height: 56px;
+      background: #fff;
+      border-bottom: 1px solid #E5E7EB;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      flex-shrink: 0;
+    }
+    .header-logo { font-size: 15px; font-weight: 800; color: #1E293B; }
+    .header-logo span { color: #3B82F6; }
+    .header-right { display: flex; align-items: center; gap: 14px; }
+    .header-bell { font-size: 18px; color: #64748B; cursor: pointer; position: relative; }
+    .header-bell .badge {
+      position: absolute; top: -2px; right: -4px;
+      width: 8px; height: 8px; background: #EF4444; border-radius: 50%;
+    }
+    .header-avatar {
+      width: 30px; height: 30px; border-radius: 50%;
+      background: #3B82F6; color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; cursor: pointer;
+    }
+
+    /* 목업 배너 */
+    .mockup-banner {
+      background: #1E293B;
+      color: #64748B;
+      font-size: 11px;
+      padding: 5px 24px;
+      letter-spacing: 0.02em;
+    }
+
+    /* 메인 콘텐츠 */
+    .main {
+      flex: 1;
+      max-width: 720px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 28px 24px 60px;
+    }
+
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+    .page-title { font-size: 20px; font-weight: 700; color: #111827; }
+    .page-actions { display: flex; gap: 8px; }
+
+    .btn {
+      padding: 8px 18px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: inherit;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: background 0.15s;
+    }
+    .btn-primary { background: #3B82F6; color: #fff; }
+    .btn-primary:hover { background: #2563EB; }
+    .btn-ghost { background: #fff; color: #6B7280; border: 1.5px solid #D1D5DB; }
+    .btn-ghost:hover { background: #F9FAFB; }
+
+    /* 아코디언 */
+    .accordion {
+      background: #fff;
+      border: 1px solid #E5E7EB;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      overflow: hidden;
+    }
+    .acc-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      cursor: pointer;
+      user-select: none;
+      background: #fff;
+      transition: background 0.12s;
+    }
+    .acc-header:hover { background: #F9FAFB; }
+    .acc-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1E293B;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .badge-req {
+      font-size: 10px;
+      color: #DC2626;
+      font-weight: 700;
+      background: #FEF2F2;
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+    .acc-chevron {
+      font-size: 12px;
+      color: #9CA3AF;
+      transition: transform 0.2s;
+    }
+    .accordion.open .acc-chevron { transform: rotate(180deg); }
+
+    .acc-body {
+      display: none;
+      padding: 0 18px 18px;
+      border-top: 1px solid #F3F4F6;
+    }
+    .accordion.open .acc-body { display: block; }
+
+    /* ── 폼 요소 ── */
+    .field { margin-top: 14px; }
+    .field-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 6px;
+      display: block;
+    }
+    .field-hint { font-size: 11px; color: #9CA3AF; margin-top: 3px; }
+
+    /* 아바타 + 이름 행 */
+    .profile-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-top: 14px;
+    }
+    .avatar-large {
+      width: 60px; height: 60px;
+      border-radius: 50%;
+      background: #3B82F6;
+      color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; font-weight: 700;
+      flex-shrink: 0;
+    }
+    .avatar-btn {
+      font-size: 12px;
+      color: #3B82F6;
+      border: 1.5px solid #BFDBFE;
+      background: #EFF6FF;
+      padding: 5px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .name-readonly {
+      font-size: 15px;
+      font-weight: 600;
+      color: #111827;
+    }
+    .name-hint { font-size: 11px; color: #9CA3AF; margin-top: 2px; }
+
+    /* 드롭다운 */
+    .select-box {
+      border: 1.5px solid #D1D5DB;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      width: 100%;
+      background: #fff;
+    }
+    .select-box:focus { border-color: #3B82F6; }
+
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    /* 라디오/체크 그리드 */
+    .chip-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-top: 4px;
+    }
+    .chip {
+      border: 1.5px solid #D1D5DB;
+      border-radius: 20px;
+      padding: 5px 12px;
+      font-size: 12px;
+      color: #374151;
+      cursor: pointer;
+      user-select: none;
+      transition: border-color 0.12s, background 0.12s;
+    }
+    .chip:hover { border-color: #93C5FD; background: #EFF6FF; }
+    .chip.selected { border-color: #3B82F6; background: #EFF6FF; color: #1D4ED8; font-weight: 600; }
+
+    /* 슬라이더형 목표 온도 */
+    .temp-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .temp-label-s { font-size: 11px; color: #9CA3AF; }
+    .temp-dots { display: flex; gap: 8px; }
+    .temp-dot {
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      border: 2px solid #D1D5DB;
+      background: #fff;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; color: #9CA3AF; font-weight: 600;
+      transition: border-color 0.12s, background 0.12s;
+    }
+    .temp-dot:hover { border-color: #93C5FD; }
+    .temp-dot.filled { border-color: #3B82F6; background: #3B82F6; color: #fff; }
+
+    /* 태그 */
+    .tag-input-row { display: flex; gap: 6px; margin-top: 4px; }
+    .tag-input {
+      flex: 1;
+      border: 1.5px solid #D1D5DB;
+      border-radius: 6px;
+      padding: 7px 10px;
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+    }
+    .tag-input:focus { border-color: #3B82F6; }
+    .tag-add-btn {
+      padding: 7px 12px;
+      background: #F3F4F6;
+      border: 1.5px solid #D1D5DB;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      color: #374151;
+      white-space: nowrap;
+    }
+    .tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+      min-height: 24px;
+    }
+    .tag-badge {
+      background: #EFF6FF;
+      border: 1px solid #BFDBFE;
+      color: #1D4ED8;
+      font-size: 12px;
+      border-radius: 12px;
+      padding: 3px 10px;
+      display: flex; align-items: center; gap: 4px;
+    }
+    .tag-remove { cursor: pointer; color: #93C5FD; }
+    .tag-remove:hover { color: #1D4ED8; }
+
+    /* 텍스트에어리어 */
+    .textarea {
+      width: 100%;
+      border: 1.5px solid #D1D5DB;
+      border-radius: 6px;
+      padding: 9px 10px;
+      font-size: 13px;
+      font-family: inherit;
+      resize: vertical;
+      outline: none;
+      min-height: 70px;
+    }
+    .textarea:focus { border-color: #3B82F6; }
+    .char-count { font-size: 11px; color: #9CA3AF; text-align: right; margin-top: 3px; }
+
+    /* URL 입력 */
+    .url-input {
+      width: 100%;
+      border: 1.5px solid #D1D5DB;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+    }
+    .url-input:focus { border-color: #3B82F6; }
+
+    /* 토글 */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .toggle-track {
+      width: 44px; height: 24px;
+      border-radius: 12px;
+      background: #3B82F6;
+      position: relative;
+      cursor: pointer;
+      transition: background 0.2s;
+      flex-shrink: 0;
+    }
+    .toggle-track.off { background: #D1D5DB; }
+    .toggle-thumb {
+      position: absolute;
+      top: 3px; right: 3px;
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      background: #fff;
+      transition: right 0.2s;
+    }
+    .toggle-track.off .toggle-thumb { right: auto; left: 3px; }
+    .toggle-label { font-size: 13px; color: #374151; }
+    .toggle-sub { font-size: 11px; color: #9CA3AF; margin-top: 2px; }
+
+    .section-sub-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #6B7280;
+      margin-top: 12px;
+      margin-bottom: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- WS 레일 -->
+  <div class="ws-rail">
+    <div class="ws-logo">P</div>
+    <div class="ws-icon active" title="프로그래머스 BE4기">B4</div>
+    <div class="ws-icon" title="다른 워크스페이스">FE</div>
+    <div class="ws-rail-divider"></div>
+    <div class="ws-add">+</div>
+  </div>
+
+  <!-- 컨텍스트 네비 -->
+  <div class="ctx-nav">
+    <div class="ctx-nav-header">
+      <span class="ctx-ws-name">프로그래머스 BE4기</span>
+      <span class="ctx-settings-btn">⚙️</span>
+    </div>
+
+    <div class="nav-section-label">워크스페이스</div>
+    <div class="nav-item"><span class="icon">🏠</span>홈</div>
+    <div class="nav-item"><span class="icon">👤</span>멤버 카드</div>
+    <div class="nav-item"><span class="icon">🔴</span>팀 빌딩<span class="nav-badge">D-3</span></div>
+    <div class="nav-item"><span class="icon">📢</span>공지</div>
+
+    <hr class="nav-section-divider" />
+    <div class="nav-section-label">내 팀</div>
+    <div class="nav-item"><span class="icon">👥</span>백엔드 드림팀</div>
+
+    <hr class="nav-section-divider" />
+    <div class="nav-section-label">커뮤니케이션</div>
+    <div class="nav-item"><span class="icon">💬</span>DM</div>
+    <div class="nav-item"><span class="icon">🗪</span>그룹 채팅</div>
+    <div class="nav-item"><span class="icon">📹</span>화상회의</div>
+
+    <hr class="nav-section-divider" />
+    <div class="nav-section-label">내 계정</div>
+    <div class="nav-item active"><span class="icon">🪪</span>내 PR 카드</div>
+    <div class="nav-item"><span class="icon">⚙️</span>계정 설정</div>
+  </div>
+
+  <!-- 콘텐츠 -->
+  <div class="content-area">
+    <div class="global-header">
+      <div class="header-logo"><span>Pick</span>Team</div>
+      <div class="header-right">
+        <div class="header-bell">🔔<div class="badge"></div></div>
+        <div class="header-avatar">박</div>
+      </div>
+    </div>
+
+    <div class="mockup-banner">로우파이 목업 · 근거: 11-profile-pr-card.md §4.3 · SCR-MY-02 내 PR 카드 편집</div>
+
+    <div class="main">
+      <div class="page-header">
+        <div class="page-title">내 PR 카드 편집</div>
+        <div class="page-actions">
+          <button class="btn btn-ghost" onclick="alert('[목업] 변경 사항을 취소합니다.')">취소</button>
+          <button class="btn btn-primary" onclick="alert('[목업] 저장되었습니다.')">저장</button>
+        </div>
+      </div>
+
+      <!-- ═══ 1. 기본 정보 ═══ -->
+      <div class="accordion open" id="acc-basic">
+        <div class="acc-header" onclick="toggleAcc('acc-basic')">
+          <div class="acc-title">▼ 기본 정보</div>
+          <span class="acc-chevron">▲</span>
+        </div>
+        <div class="acc-body">
+          <div class="profile-row">
+            <div class="avatar-large">박</div>
+            <div>
+              <div class="name-readonly">박재현</div>
+              <div class="name-hint">이름은 계정 설정에서 변경할 수 있습니다.</div>
+              <button class="avatar-btn" style="margin-top:8px;">프로필 사진 변경</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ 2. 희망 역할 ═══ -->
+      <div class="accordion open" id="acc-role">
+        <div class="acc-header" onclick="toggleAcc('acc-role')">
+          <div class="acc-title">▼ 희망 역할 <span class="badge-req">★필수</span></div>
+          <span class="acc-chevron">▲</span>
+        </div>
+        <div class="acc-body">
+          <div class="two-col" style="margin-top:14px;">
+            <div>
+              <label class="field-label">1순위</label>
+              <select class="select-box">
+                <option>선택해 주세요</option>
+                <option selected>백엔드</option>
+                <option>프론트엔드</option>
+                <option>풀스택</option>
+                <option>PM·기획</option>
+                <option>디자인</option>
+                <option>인프라·DevOps</option>
+                <option>AI·데이터</option>
+                <option>기타</option>
+              </select>
+            </div>
+            <div>
+              <label class="field-label">2순위</label>
+              <select class="select-box">
+                <option>선택해 주세요</option>
+                <option>백엔드</option>
+                <option selected>프론트엔드</option>
+                <option>풀스택</option>
+                <option>PM·기획</option>
+                <option>디자인</option>
+                <option>인프라·DevOps</option>
+                <option>AI·데이터</option>
+                <option>기타</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ 3. 가용성 ═══ -->
+      <div class="accordion open" id="acc-avail">
+        <div class="acc-header" onclick="toggleAcc('acc-avail')">
+          <div class="acc-title">▼ 가용성 <span class="badge-req">★필수</span></div>
+          <span class="acc-chevron">▲</span>
+        </div>
+        <div class="acc-body">
+          <div class="field">
+            <label class="field-label">주간 가용 시간</label>
+            <div class="chip-grid">
+              <div class="chip" onclick="selectSingle(this, 'hours')">10시간 미만</div>
+              <div class="chip selected" onclick="selectSingle(this, 'hours')">10~20시간</div>
+              <div class="chip" onclick="selectSingle(this, 'hours')">20~30시간</div>
+              <div class="chip" onclick="selectSingle(this, 'hours')">30시간 이상</div>
+            </div>
+          </div>
+          <div class="field">
+            <label class="field-label">선호 시간대 <span style="font-weight:400;color:#9CA3AF;">(복수 선택)</span></label>
+            <div class="chip-grid">
+              <div class="chip" onclick="toggleChip(this)">오전</div>
+              <div class="chip selected" onclick="toggleChip(this)">오후</div>
+              <div class="chip selected" onclick="toggleChip(this)">저녁</div>
+              <div class="chip" onclick="toggleChip(this)">주말</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ 4. 목표 온도 ═══ -->
+      <div class="accordion" id="acc-temp">
+        <div class="acc-header" onclick="toggleAcc('acc-temp')">
+          <div class="acc-title">▶ 목표 온도</div>
+          <span class="acc-chevron">▼</span>
+        </div>
+        <div class="acc-body">
+          <div class="field-hint" style="margin-top:12px;">팀 목표 수준을 선택해 주세요.</div>
+          <div class="temp-row">
+            <span class="temp-label-s">완주 지향</span>
+            <div class="temp-dots" id="temp-dots">
+              <div class="temp-dot" onclick="selectTemp(1)">1</div>
+              <div class="temp-dot" onclick="selectTemp(2)">2</div>
+              <div class="temp-dot filled" onclick="selectTemp(3)">3</div>
+              <div class="temp-dot" onclick="selectTemp(4)">4</div>
+              <div class="temp-dot" onclick="selectTemp(5)">5</div>
+            </div>
+            <span class="temp-label-s">수상 지향</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ 5. 기술 스택·강점 태그 ═══ -->
+      <div class="accordion" id="acc-tags">
+        <div class="acc-header" onclick="toggleAcc('acc-tags')">
+          <div class="acc-title">▶ 기술 스택·강점 태그</div>
+          <span class="acc-chevron">▼</span>
+        </div>
+        <div class="acc-body">
+          <div class="field">
+            <div class="tag-input-row">
+              <input class="tag-input" id="edit-tag-input" placeholder="태그 입력 후 Enter..." maxlength="30" />
+              <button class="tag-add-btn" onclick="addEditTag()">추가 ↵</button>
+            </div>
+            <div class="tag-list" id="edit-tag-list">
+              <div class="tag-badge">React <span class="tag-remove" onclick="removeTag(this)">×</span></div>
+              <div class="tag-badge">Spring Boot <span class="tag-remove" onclick="removeTag(this)">×</span></div>
+              <div class="tag-badge">MySQL <span class="tag-remove" onclick="removeTag(this)">×</span></div>
+              <div class="tag-badge">TypeScript <span class="tag-remove" onclick="removeTag(this)">×</span></div>
+            </div>
+            <div class="field-hint">최대 20개</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ 6. 협업 스타일 ═══ -->
+      <div class="accordion" id="acc-collab">
+        <div class="acc-header" onclick="toggleAcc('acc-collab')">
+          <div class="acc-title">▶ 협업 스타일</div>
+          <span class="acc-chevron">▼</span>
+        </div>
+        <div class="acc-body">
+          <div class="field">
+            <div class="section-sub-title">선호 (1~3개)</div>
+            <div class="chip-grid">
+              <div class="chip selected" onclick="toggleChip(this)">비동기 우선</div>
+              <div class="chip" onclick="toggleChip(this)">동기 선호</div>
+              <div class="chip" onclick="toggleChip(this)">꼼꼼한 문서화</div>
+              <div class="chip selected" onclick="toggleChip(this)">빠른 실행</div>
+              <div class="chip" onclick="toggleChip(this)">계획 중심</div>
+              <div class="chip" onclick="toggleChip(this)">유연한 진행</div>
+            </div>
+          </div>
+          <div class="field">
+            <div class="section-sub-title">피하고 싶은 스타일</div>
+            <div class="chip-grid">
+              <div class="chip" onclick="toggleChip(this)">비동기 우선</div>
+              <div class="chip" onclick="toggleChip(this)">동기 선호</div>
+              <div class="chip selected" onclick="toggleChip(this)">꼼꼼한 문서화</div>
+              <div class="chip" onclick="toggleChip(this)">빠른 실행</div>
+              <div class="chip" onclick="toggleChip(this)">계획 중심</div>
+              <div class="chip" onclick="toggleChip(this)">유연한 진행</div>
+            </div>
+          </div>
+          <div class="field">
+            <label class="field-label">자유 서술 <span style="font-weight:400;color:#9CA3AF;">(100자 이내)</span></label>
+            <textarea class="textarea" id="collab-text" maxlength="100" oninput="updateCollabCount()" placeholder="협업 스타일을 자유롭게 설명해 주세요...">아이디어를 빠르게 검증하는 팀을 좋아합니다.</textarea>
+            <div class="char-count"><span id="collab-count">24</span>/100</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ 7. 자기소개·포트폴리오 ═══ -->
+      <div class="accordion" id="acc-intro">
+        <div class="acc-header" onclick="toggleAcc('acc-intro')">
+          <div class="acc-title">▶ 자기소개·포트폴리오</div>
+          <span class="acc-chevron">▼</span>
+        </div>
+        <div class="acc-body">
+          <div class="field">
+            <label class="field-label">자기소개 <span style="font-weight:400;color:#9CA3AF;">(500자 이내)</span></label>
+            <textarea class="textarea" id="intro-area" style="min-height:100px;" maxlength="500" oninput="updateIntroCount()" placeholder="자신을 동기들에게 소개해 주세요.">백엔드 2년 경험의 수강생입니다. Java와 Spring Boot를 주로 사용하며, 팀 프로젝트에서 협업을 즐깁니다.</textarea>
+            <div class="char-count"><span id="intro-count">56</span>/500</div>
+          </div>
+          <div class="field">
+            <label class="field-label">포트폴리오 링크</label>
+            <input class="url-input" type="url" placeholder="https://github.com/..." value="https://github.com/parkjaehyun" />
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ 8. MBTI ═══ -->
+      <div class="accordion" id="acc-mbti">
+        <div class="acc-header" onclick="toggleAcc('acc-mbti')">
+          <div class="acc-title">▶ MBTI <span style="font-size:11px;font-weight:400;color:#9CA3AF;">(선택)</span></div>
+          <span class="acc-chevron">▼</span>
+        </div>
+        <div class="acc-body">
+          <div class="field">
+            <select class="select-box" style="max-width:240px;">
+              <option>선택 안 함 (카드에 표시 안 함)</option>
+              <optgroup label="분석가형">
+                <option selected>INTJ</option><option>INTP</option><option>ENTJ</option><option>ENTP</option>
+              </optgroup>
+              <optgroup label="외교관형">
+                <option>INFJ</option><option>INFP</option><option>ENFJ</option><option>ENFP</option>
+              </optgroup>
+              <optgroup label="관리자형">
+                <option>ISTJ</option><option>ISFJ</option><option>ESTJ</option><option>ESFJ</option>
+              </optgroup>
+              <optgroup label="탐험가형">
+                <option>ISTP</option><option>ISFP</option><option>ESTP</option><option>ESFP</option>
+              </optgroup>
+            </select>
+            <div class="field-hint">선택 안 하면 갤러리·상세에서 표시되지 않습니다.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ 9. 공개 설정 ═══ -->
+      <div class="accordion open" id="acc-vis">
+        <div class="acc-header" onclick="toggleAcc('acc-vis')">
+          <div class="acc-title">▼ 공개 설정</div>
+          <span class="acc-chevron">▲</span>
+        </div>
+        <div class="acc-body">
+          <div class="toggle-row">
+            <div class="toggle-track" id="vis-toggle" onclick="toggleVisibility()">
+              <div class="toggle-thumb"></div>
+            </div>
+            <div>
+              <div class="toggle-label" id="vis-label">이 워크스페이스에서 내 카드 공개 — <strong>ON</strong></div>
+              <div class="toggle-sub">OFF 시 갤러리·추천에서 숨겨집니다.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /.main -->
+  </div><!-- /.content-area -->
+
+  <script>
+    // ── 아코디언 ──
+    function toggleAcc(id) {
+      const el = document.getElementById(id);
+      const isOpen = el.classList.contains('open');
+      el.classList.toggle('open', !isOpen);
+      const header = el.querySelector('.acc-header');
+      const title = el.querySelector('.acc-title');
+      const arrow = el.querySelector('.acc-chevron');
+      if (!isOpen) {
+        title.textContent = title.textContent.replace('▶', '▼');
+        arrow.textContent = '▲';
+      } else {
+        title.textContent = title.textContent.replace('▼', '▶');
+        arrow.textContent = '▼';
+      }
+    }
+
+    // ── 단일 선택 칩 ──
+    function selectSingle(el, group) {
+      el.closest('.chip-grid').querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+      el.classList.add('selected');
+    }
+
+    // ── 토글 칩 ──
+    function toggleChip(el) { el.classList.toggle('selected'); }
+
+    // ── 목표 온도 ──
+    function selectTemp(n) {
+      document.querySelectorAll('#temp-dots .temp-dot').forEach((d, i) => {
+        d.classList.toggle('filled', i + 1 <= n);
+      });
+    }
+
+    // ── 태그 ──
+    function addEditTag() {
+      const input = document.getElementById('edit-tag-input');
+      const val = input.value.trim();
+      if (!val) return;
+      const list = document.getElementById('edit-tag-list');
+      if (list.querySelectorAll('.tag-badge').length >= 20) return;
+      const badge = document.createElement('div');
+      badge.className = 'tag-badge';
+      badge.innerHTML = val + ' <span class="tag-remove" onclick="removeTag(this)">×</span>';
+      list.appendChild(badge);
+      input.value = '';
+    }
+    document.getElementById('edit-tag-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); addEditTag(); }
+    });
+    function removeTag(el) { el.parentElement.remove(); }
+
+    // ── 글자 수 ──
+    function updateCollabCount() {
+      document.getElementById('collab-count').textContent = document.getElementById('collab-text').value.length;
+    }
+    function updateIntroCount() {
+      document.getElementById('intro-count').textContent = document.getElementById('intro-area').value.length;
+    }
+
+    // ── 공개 토글 ──
+    let visOn = true;
+    function toggleVisibility() {
+      visOn = !visOn;
+      const track = document.getElementById('vis-toggle');
+      const label = document.getElementById('vis-label');
+      track.classList.toggle('off', !visOn);
+      label.innerHTML = '이 워크스페이스에서 내 카드 공개 — <strong>' + (visOn ? 'ON' : 'OFF') + '</strong>';
+    }
+  </script>
+</body>
+</html>
