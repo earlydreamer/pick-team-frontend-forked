@@ -6,6 +6,7 @@ import type { KanbanTask } from '@/renewal/domain/kanban';
 import type { Schedule } from '@/renewal/domain/teamSpace';
 import type { Post } from '@/renewal/domain/collab';
 import type { ChatMessage, ChatRoom, VideoChannel } from '@/renewal/domain/chat';
+import type { AppNotification, NotificationSettings } from '@/renewal/domain/notification';
 
 /**
  * 목업 단계의 데이터 저장소. 브라우저 localStorage에 저장해 새로고침해도 유지된다.
@@ -47,11 +48,17 @@ export interface MockDb {
   videoChannels: VideoChannel[];
   /** 회의에 들어와 있는 사람(VideoMember). 나가면 지운다 */
   videoPresence: { channelId: string; accountId: string; joinedAt: string }[];
+  /** NotificationLog(16 §7.1). 새 알림은 data/mock/notifyRules.ts가 기록한다 */
+  notifications: AppNotification[];
+  /** 계정별 수신 설정. 없으면 기본값(전부 켬) */
+  notificationSettings: Record<string, NotificationSettings>;
+  /** WS 레일 배지 기준 시각. 키는 `계정:워크스페이스`(16-D5) */
+  workspaceSeenAt: Record<string, string>;
   /** 결성 직후 체크리스트에서 "역할 확정"을 마친 팀 */
   rolesConfirmedTeamIds: string[];
   /** 이번 기수 차단 이력(위젯 D). 차단된 계정은 멤버 목록에 없다. */
   bans: { workspaceId: string; accountId: string; bannedAt: string }[];
-  /** 카드 미작성자 리마인드 발송 기록. 알림 센터가 생기면 실제 알림으로 바꾼다. */
+  /** 카드 미작성자 리마인드 발송 기록. 알림은 notifyRules.onCardReminder가 따로 남긴다. */
   reminders: { workspaceId: string; accountIds: string[]; sentAt: string }[];
   /** 이메일 계정의 비밀번호 해시. OAuth로만 가입한 계정은 없다 */
   credentials: Record<string, { passwordHash: string }>;
@@ -90,7 +97,7 @@ const SEED_PASSWORD_HASH = 'adb7a220a9fc0f2e7f11eb83d815e591330158c0b16f2db35ee8
 const SEED_WORKSPACE_PASSWORD_HASH = '6b5960ce025fca41a5e127b14ad6a8544685e224ef4566816cf90726d81c4ebc';
 
 const STORAGE_KEY = 'pickteam.renewal.mock';
-const VERSION = 9;
+const VERSION = 10;
 
 const daysFromNow = (days: number, hour = 23, minute = 59) => {
   const date = new Date();
@@ -301,6 +308,16 @@ export const seed = (): MockDb => ({
     { id: 'vc-t3', workspaceId: 'ws-1', teamId: 't-3', name: '달빛 회의실' },
   ],
   videoPresence: [{ channelId: 'vc-t1', accountId: 'u-02', joinedAt: hoursAgo(0.2) }],
+  notifications: [
+    { id: 'n-1', accountId: 'u-student', workspaceId: 'ws-1', type: 'TB_SCOUT_RECEIVED', category: 'TEAM_BUILDING', priority: 'HIGH', title: '달빛에서 스카우트를 보냈어요.', link: '/ws/ws-1/team-building/inbox', read: false, createdAt: hoursAgo(2) },
+    { id: 'n-2', accountId: 'u-student', workspaceId: 'ws-1', type: 'TB_SESSION_OPENED', category: 'TEAM_BUILDING', priority: 'HIGH', title: '팀 빌딩 모집이 시작됐어요. 마음에 드는 팀을 찾아보세요.', link: '/ws/ws-1/team-building', read: true, createdAt: hoursAgo(80) },
+    { id: 'n-3', accountId: 'u-01', workspaceId: 'ws-1', type: 'TB_APPLICATION_RECEIVED', category: 'TEAM_BUILDING', priority: 'HIGH', title: '윤지호님이 알파팀에 지원했어요.', link: '/ws/ws-1/team-building/inbox', read: false, createdAt: hoursAgo(5) },
+    { id: 'n-4', accountId: 'u-01', workspaceId: 'ws-1', type: 'KANBAN_TASK_COMPLETION_REQUESTED', category: 'KANBAN', priority: 'HIGH', title: '이영희님이 “DB 스키마 설계” 완료 승인을 요청했어요.', link: '/ws/ws-1/team/t-1/kanban?task=k-5', read: false, createdAt: hoursAgo(5) },
+    { id: 'n-5', accountId: 'u-01', workspaceId: 'ws-1', type: 'TB_APPLICATION_RECEIVED', category: 'TEAM_BUILDING', priority: 'HIGH', title: '박민준님이 알파팀에 지원했어요.', link: '/ws/ws-1/team-building/inbox', read: true, createdAt: hoursAgo(20) },
+    { id: 'n-6', accountId: 'u-instructor', workspaceId: 'ws-1', type: 'WS_MEMBER_JOINED', category: 'MEMBERSHIP', priority: 'LOW', title: '강도윤님이 워크스페이스에 합류했어요.', link: '/ws/ws-1/dashboard', read: false, createdAt: hoursAgo(30) },
+  ],
+  notificationSettings: {},
+  workspaceSeenAt: {},
   posts: [
     {
       id: 'p-1',

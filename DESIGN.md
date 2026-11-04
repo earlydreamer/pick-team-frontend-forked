@@ -109,6 +109,7 @@ Pretendard Variable을 로컬 번들(`src/design-system/fonts.css`, OFL)로 제�
 | `Card` | 경계로 구분, 제목 수준(`headingLevel`) 지정 |
 | `Avatar` | 이미지가 없거나 실패하면 이름 첫 글자 |
 | `Badge` | 색과 함께 텍스트로 상태 전달 |
+| `Switch`(리뉴얼 앱) | `role=switch`·`aria-checked`, 라벨과 설명 연결, 상태를 "켬·끔" 글자로도 표시. 꺼진 트랙은 neutral-500으로 3:1 이상 대비 |
 | `EmptyState`·`ErrorState`·`LoadingState`·`Skeleton` | 빈 상태는 다음 행동, 오류는 `role=alert`와 복구 행동, 로딩은 `role=status` |
 
 앱 셸(`src/layout`)은 데스크톱에서 워크스페이스 레일(72px)과 컨텍스트 탐색(248px)을 고정하고, 1024px 미만에서는 상단 막대와 탐색 서랍을 씁니다. 서랍은 Escape·이동 시 닫히고 메뉴 버튼으로 포커스를 돌려줍니다.
