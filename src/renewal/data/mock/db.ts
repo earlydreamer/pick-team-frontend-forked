@@ -1,6 +1,6 @@
 import { emptyCard, type PrCard } from '@/renewal/domain/card';
 import type { Account, WorkspaceRole } from '@/renewal/domain/workspace';
-import type { Team, TeamBuildingSession } from '@/renewal/domain/teamBuilding';
+import type { Team, TeamApplication, TeamBuildingSession } from '@/renewal/domain/teamBuilding';
 import type { Announcement } from '@/renewal/domain/announcement';
 
 /**
@@ -23,10 +23,11 @@ export interface MockDb {
   sessions: TeamBuildingSession[];
   teams: Team[];
   announcements: (Announcement & { workspaceId: string })[];
+  applications: TeamApplication[];
 }
 
 const STORAGE_KEY = 'pickteam.renewal.mock';
-const VERSION = 3;
+const VERSION = 4;
 
 const daysFromNow = (days: number, hour = 23, minute = 59) => {
   const date = new Date();
@@ -96,9 +97,9 @@ export const seed = (): MockDb => ({
         { accountId: 'u-03', role: 'MEMBER' },
         { accountId: 'u-04', role: 'MEMBER', teamId: 't-2' },
         { accountId: 'u-05', role: 'MEMBER', teamId: 't-2' },
-        { accountId: 'u-06', role: 'MEMBER' },
+        { accountId: 'u-06', role: 'MEMBER', teamId: 't-3' },
         { accountId: 'u-07', role: 'MEMBER' },
-        { accountId: 'u-08', role: 'MEMBER' },
+        { accountId: 'u-08', role: 'MEMBER', teamId: 't-3' },
         { accountId: 'u-09', role: 'MEMBER' },
         { accountId: 'u-10', role: 'MEMBER' },
         { accountId: 'u-11', role: 'MEMBER' },
@@ -115,14 +116,51 @@ export const seed = (): MockDb => ({
     },
   ],
   sessions: [{ id: 's-1', workspaceId: 'ws-1', status: 'OPEN', closesAt: daysFromNow(3), teamCapacity: 4 }],
+  applications: [
+    { id: 'app-1', sessionId: 's-1', direction: 'SCOUT', applicantId: 'u-student', teamId: 't-3', message: '프론트엔드 자리가 있어요. 저녁에 같이 할 수 있을 것 같아요.', status: 'PENDING', createdAt: hoursAgo(2) },
+    { id: 'app-2', sessionId: 's-1', direction: 'SCOUT', applicantId: 'u-student', teamId: 't-1', message: '같이 하실래요?', status: 'EXPIRED', reason: '팀 정원 조정으로 만료', createdAt: hoursAgo(72), decidedAt: hoursAgo(48) },
+    { id: 'app-3', sessionId: 's-1', direction: 'APPLY', applicantId: 'u-03', teamId: 't-1', message: '백엔드 지원합니다. 주말에 집중해서 할 수 있어요.', status: 'PENDING', createdAt: hoursAgo(20) },
+    { id: 'app-4', sessionId: 's-1', direction: 'APPLY', applicantId: 'u-07', teamId: 't-1', message: '기획과 일정 관리를 맡고 싶어요.', status: 'PENDING', createdAt: hoursAgo(5) },
+  ],
   announcements: [
     { id: 'a-1', workspaceId: 'ws-1', title: '팀 빌딩 마감 시각 안내', authorName: '박강사', createdAt: hoursAgo(1) },
     { id: 'a-2', workspaceId: 'ws-1', title: 'PR 카드 작성 가이드: 희망 역할과 태그 쓰는 법', authorName: '정매니저', createdAt: hoursAgo(26) },
     { id: 'a-3', workspaceId: 'ws-1', title: '알파팀 첫 회의 일정', authorName: '김철수', teamName: '알파팀', createdAt: hoursAgo(72) },
   ],
   teams: [
-    { id: 't-1', workspaceId: 'ws-1', name: '알파팀', leaderId: 'u-01', memberIds: ['u-01', 'u-02'] },
-    { id: 't-2', workspaceId: 'ws-1', name: '데이터 크루', leaderId: 'u-05', memberIds: ['u-04', 'u-05'] },
+    {
+      id: 't-1',
+      workspaceId: 'ws-1',
+      name: '알파팀',
+      leaderId: 'u-01',
+      memberIds: ['u-01', 'u-02'],
+      intro: '실서비스 수준까지 만들어 보고 싶어요.',
+      goalTemperature: 4,
+      recruitRoles: [
+        { role: 'BACKEND', count: 1, note: 'Spring Boot 경험 우대' },
+        { role: 'PM', count: 1 },
+      ],
+    },
+    {
+      id: 't-2',
+      workspaceId: 'ws-1',
+      name: '데이터 크루',
+      leaderId: 'u-05',
+      memberIds: ['u-04', 'u-05'],
+      intro: '데이터로 문제를 푸는 서비스를 만들어요.',
+      goalTemperature: 5,
+      recruitRoles: [{ role: 'BACKEND', count: 1 }, { role: 'DESIGN', count: 1 }],
+    },
+    {
+      id: 't-3',
+      workspaceId: 'ws-1',
+      name: '달빛',
+      leaderId: 'u-08',
+      memberIds: ['u-08', 'u-06'],
+      intro: '끝까지 완성하는 것이 목표예요.',
+      goalTemperature: 3,
+      recruitRoles: [{ role: 'FRONTEND', count: 1 }, { role: 'BACKEND', count: 1 }],
+    },
   ],
 });
 
