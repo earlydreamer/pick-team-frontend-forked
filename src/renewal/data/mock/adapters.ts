@@ -11,6 +11,7 @@ import * as collabRules from './collabRules';
 import * as teamSettingsRules from './teamSettingsRules';
 import * as chatRules from './chatRules';
 import * as notifyRules from './notifyRules';
+import * as adminRules from './workspaceAdminRules';
 import { defaultSettings, railCounts } from '@/renewal/domain/notification';
 import { progressOf } from '@/renewal/domain/kanban';
 import { INACTIVE_DAYS, type DashboardAlert } from '@/renewal/domain/dashboard';
@@ -252,6 +253,89 @@ export const mockDataSource: DataSource = {
         cardState: memberCardState(db.cards[accountId] ?? emptyCard()),
         card: visibleCard(db.cards[accountId] ?? emptyCard(), accountId === me.id),
       };
+    },
+  },
+
+  workspaceAdmin: {
+    async getSettings(workspaceId) {
+      await latency();
+      fail('workspaceSettings');
+      const { workspace, membership } = findWorkspaceOfMe(workspaceId);
+      const invite = adminRules.currentInvite(getDb(), workspaceId);
+      return {
+        id: workspace.id,
+        name: workspace.name,
+        myRole: membership.role,
+        memberCount: workspace.members.length,
+        capacity: workspace.capacity,
+        hasPassword: Boolean(workspace.passwordHash),
+        invite:
+          membership.role === 'MEMBER' || !invite
+            ? null
+            : { code: invite.code, expiresAt: invite.expiresAt, usedCount: invite.usedCount, expired: Boolean(invite.expiresAt && new Date(invite.expiresAt).getTime() <= Date.now()) },
+      };
+    },
+    async rename(workspaceId, name) {
+      const { me } = findWorkspaceOfMe(workspaceId);
+      await mutate('renameWorkspace', (db) => adminRules.renameWorkspace(db, workspaceId, me.id, name));
+    },
+    async refreshInvite(workspaceId, days) {
+      const { me } = findWorkspaceOfMe(workspaceId);
+      await mutate('refreshInvite', (db) => adminRules.refreshInvite(db, workspaceId, me.id, days));
+      const invite = adminRules.currentInvite(getDb(), workspaceId)!;
+      return { code: invite.code, expiresAt: invite.expiresAt, usedCount: invite.usedCount };
+    },
+    async changeRole(workspaceId, accountId, role) {
+      const { me } = findWorkspaceOfMe(workspaceId);
+      await mutate('changeRole', (db) => adminRules.changeRole(db, workspaceId, me.id, accountId, role));
+    },
+    async transferOwnership(workspaceId, accountId, confirmName) {
+      const { me } = findWorkspaceOfMe(workspaceId);
+      await mutate('transferOwnership', (db) => adminRules.transferOwnership(db, workspaceId, me.id, accountId, confirmName));
+    },
+    async kick(workspaceId, accountId) {
+      const { me } = findWorkspaceOfMe(workspaceId);
+      await mutate('kickMember', (db) => {
+        const result = adminRules.kickMember(db, workspaceId, me.id, accountId);
+        return result.successor ? notifyRules.onLeaderSucceeded(result.db, workspaceId, result.successor.teamId, result.successor.accountId, me.id) : result.db;
+      });
+    },
+    async ban(workspaceId, accountId) {
+      const { me } = findWorkspaceOfMe(workspaceId);
+      await mutate('banMember', (db) => {
+        const result = adminRules.banMember(db, workspaceId, me.id, accountId);
+        const next = result.successor ? notifyRules.onLeaderSucceeded(result.db, workspaceId, result.successor.teamId, result.successor.accountId, me.id) : result.db;
+        return notifyRules.onMemberBanned(next, workspaceId, accountId, me.id);
+      });
+    },
+    async listBans(workspaceId) {
+      await latency();
+      fail('bans');
+      const { me } = findWorkspaceOfMe(workspaceId);
+      const db = getDb();
+      sessionRules.requireManager(db, workspaceId, me.id);
+      return db.bans
+        .filter((ban) => ban.workspaceId === workspaceId)
+        .sort((a, b) => b.bannedAt.localeCompare(a.bannedAt))
+        .map((ban) => ({ account: db.accounts.find((account) => account.id === ban.accountId)!, bannedAt: ban.bannedAt }));
+    },
+    async unban(workspaceId, accountId) {
+      const { me } = findWorkspaceOfMe(workspaceId);
+      await mutate('unbanMember', (db) => adminRules.unbanMember(db, workspaceId, me.id, accountId));
+    },
+    async setPassword(workspaceId, password) {
+      const { me } = findWorkspaceOfMe(workspaceId);
+      await latency(350);
+      fail('workspacePassword');
+      commit(await adminRules.setWorkspacePassword(getDb(), workspaceId, me.id, password));
+    },
+    async leave(workspaceId) {
+      const { me } = findWorkspaceOfMe(workspaceId);
+      await mutate('leaveWorkspace', (db) => adminRules.leaveWorkspace(db, workspaceId, me.id));
+    },
+    async remove(workspaceId, confirmName) {
+      const { me } = findWorkspaceOfMe(workspaceId);
+      await mutate('deleteWorkspace', (db) => adminRules.deleteWorkspace(db, workspaceId, me.id, confirmName));
     },
   },
 

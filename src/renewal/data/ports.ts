@@ -20,6 +20,7 @@ import type { Account as ChatAccount } from '@/renewal/domain/workspace';
 import type { ChatMessage, ChatRoom, ChatRoomSummary, VideoChannel } from '@/renewal/domain/chat';
 import type { AppNotification, NotificationCategory, NotificationSettings } from '@/renewal/domain/notification';
 import type { Announcement } from '@/renewal/domain/announcement';
+import type { BannedMember, InviteView, WorkspaceSettings } from '@/renewal/domain/workspaceAdmin';
 import type { CreateWorkspaceInput, InviteInfo, JoinResult, OAuthProvider, SignUpInput } from '@/renewal/domain/auth';
 
 /**
@@ -229,6 +230,29 @@ export interface NotificationPort {
   updateSettings(settings: NotificationSettings): Promise<void>;
 }
 
+/**
+ * 워크스페이스 설정(SCR-WS-03, 13 §6.2). 권한은 서버가 워크스페이스 역할로 판정하고 FORBIDDEN을 돌려준다.
+ * 내보내기·차단은 팀, 채팅, 대기 지원 정리를 서버 트랜잭션 안에서 함께 한다(13 §5.1).
+ */
+export interface WorkspaceAdminPort {
+  getSettings(workspaceId: string): Promise<WorkspaceSettings>;
+  rename(workspaceId: string, name: string): Promise<void>;
+  /** 재발급하면 이전 링크는 바로 무효가 된다. days가 null이면 만료 없음 */
+  refreshInvite(workspaceId: string, days: number | null): Promise<InviteView>;
+  changeRole(workspaceId: string, accountId: string, role: 'ADMIN' | 'MEMBER'): Promise<void>;
+  /** 받는 사람 이름을 그대로 입력해야 한다(13 §5.3) */
+  transferOwnership(workspaceId: string, accountId: string, confirmName: string): Promise<void>;
+  kick(workspaceId: string, accountId: string): Promise<void>;
+  ban(workspaceId: string, accountId: string): Promise<void>;
+  listBans(workspaceId: string): Promise<BannedMember[]>;
+  unban(workspaceId: string, accountId: string): Promise<void>;
+  /** null이면 비밀번호를 없앤다 */
+  setPassword(workspaceId: string, password: string | null): Promise<void>;
+  leave(workspaceId: string): Promise<void>;
+  /** 워크스페이스 이름을 그대로 입력해야 한다 */
+  remove(workspaceId: string, confirmName: string): Promise<void>;
+}
+
 /** 초대 링크(10 §4.4, §6.2). 조회는 로그인하지 않아도 된다. */
 export interface InvitePort {
   /** 없는 코드는 NOT_FOUND, 만료·재발급된 코드는 GONE */
@@ -255,6 +279,7 @@ export interface DataSource {
   kind: 'mock' | 'http';
   session: SessionPort;
   workspaces: WorkspacePort;
+  workspaceAdmin: WorkspaceAdminPort;
   cards: CardPort;
   teamBuilding: TeamBuildingPort;
   dashboard: DashboardPort;

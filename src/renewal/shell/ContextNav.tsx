@@ -30,6 +30,7 @@ const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title
 /**
  * 컨텍스트 내비게이션(02 §2.3).
  * 워크스페이스, 관리(개설자·매니저만), 내 팀, 내 계정 순서로 그린다.
+ * 멤버에게는 설정 화면을 "워크스페이스 정보"로 보여 준다. 멤버가 여는 탭은 기본 정보와 나가기뿐이다(13 §4.1).
  * 팀 빌딩 항목은 세션이 없으면 숨기고, 모집 중이면 마감 D-day를 붙인다(02 §1-3).
  * 세션 운영은 세션이 없어도 보여 매니저가 세션을 만들 수 있게 한다(12 §5.4-8).
  * 커뮤니케이션 섹션은 최근 채팅방 6개와 미읽음 수, 내 팀 회의실을 보여 준다. 워크스페이스 공지 화면은 아직 없다.
@@ -82,6 +83,14 @@ export const ContextNav: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }
                   </span>
                 )}
               </Link>
+            </li>
+          )}
+          {!isManager && (
+            <li>
+              <NavLink to={`${base}/settings`} className={itemClass} onClick={onNavigate}>
+                <Cog6ToothIcon className="h-5 w-5 shrink-0" aria-hidden="true" />
+                워크스페이스 정보
+              </NavLink>
             </li>
           )}
         </Section>

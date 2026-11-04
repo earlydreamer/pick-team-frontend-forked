@@ -36,6 +36,8 @@ export const keys = {
   messages: (id: string, roomId: string) => ['workspaces', id, 'chat', roomId, 'messages'] as const,
   videoChannels: (id: string) => ['workspaces', id, 'video'] as const,
   videoChannel: (id: string, channelId: string) => ['workspaces', id, 'video', channelId] as const,
+  workspaceSettings: (id: string) => ['workspaces', id, 'settings'] as const,
+  bans: (id: string) => ['workspaces', id, 'bans'] as const,
 };
 
 export const useMe = () => useQuery({ queryKey: keys.me, queryFn: () => data.session.me() });
@@ -254,3 +256,37 @@ export const useRemoveNotification = () => useNotificationMutation((id: string) 
 export const useMarkWorkspaceSeen = () => useNotificationMutation((workspaceId: string) => data.notifications.markWorkspaceSeen(workspaceId));
 export const useNotificationSettings = () => useQuery({ queryKey: notificationKeys.settings, queryFn: () => data.notifications.getSettings() });
 export const useUpdateNotificationSettings = () => useNotificationMutation((settings: NotificationSettings) => data.notifications.updateSettings(settings));
+
+/*
+ * 워크스페이스 설정(SCR-WS-03). 이름·역할·멤버 구성이 바뀌면 레일과 내비에도 보이므로
+ * 워크스페이스 목록(['workspaces'])째로 새로 고친다.
+ */
+export const useWorkspaceSettings = (id: string) => useQuery({ queryKey: keys.workspaceSettings(id), queryFn: () => data.workspaceAdmin.getSettings(id), enabled: Boolean(id) });
+export const useBans = (id: string, enabled = true) => useQuery({ queryKey: keys.bans(id), queryFn: () => data.workspaceAdmin.listBans(id), enabled: Boolean(id) && enabled });
+
+const useAdminMutation = <Input, Output>(fn: (input: Input) => Promise<Output>) => {
+  const client = useQueryClient();
+  return useMutation({ mutationFn: fn, onSettled: () => client.invalidateQueries({ queryKey: keys.workspaces }) });
+};
+export const useRenameWorkspace = (id: string) => useAdminMutation((name: string) => data.workspaceAdmin.rename(id, name));
+export const useRefreshInvite = (id: string) => useAdminMutation((days: number | null) => data.workspaceAdmin.refreshInvite(id, days));
+export const useChangeRole = (id: string) => useAdminMutation((input: { accountId: string; role: 'ADMIN' | 'MEMBER' }) => data.workspaceAdmin.changeRole(id, input.accountId, input.role));
+export const useTransferOwnership = (id: string) => useAdminMutation((input: { accountId: string; confirmName: string }) => data.workspaceAdmin.transferOwnership(id, input.accountId, input.confirmName));
+export const useKickMember = (id: string) => useAdminMutation((accountId: string) => data.workspaceAdmin.kick(id, accountId));
+export const useBanMember = (id: string) => useAdminMutation((accountId: string) => data.workspaceAdmin.ban(id, accountId));
+export const useUnbanMember = (id: string) => useAdminMutation((accountId: string) => data.workspaceAdmin.unban(id, accountId));
+export const useSetWorkspacePassword = (id: string) => useAdminMutation((password: string | null) => data.workspaceAdmin.setPassword(id, password));
+
+/**
+ * 나가기·삭제는 이 워크스페이스의 쿼리를 다시 부르지 않는다(이제 404다). 목록과 알림만 새로 고치고,
+ * 화면이 다른 곳으로 옮긴 뒤 남은 캐시는 쓰이지 않다가 정리된다.
+ */
+const useExitMutation = <Input,>(fn: (input: Input) => Promise<void>) => {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: fn,
+    onSettled: () => Promise.all([client.invalidateQueries({ queryKey: keys.workspaces, exact: true }), client.invalidateQueries({ queryKey: notificationKeys.all })]),
+  });
+};
+export const useLeaveWorkspace = (id: string) => useExitMutation((_: void) => data.workspaceAdmin.leave(id));
+export const useDeleteWorkspace = (id: string) => useExitMutation((confirmName: string) => data.workspaceAdmin.remove(id, confirmName));
