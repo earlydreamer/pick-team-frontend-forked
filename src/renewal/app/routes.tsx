@@ -30,6 +30,7 @@ import { ChatRoomScreen } from '@/renewal/features/chat/ChatRoomScreen';
 import { VideoScreen } from '@/renewal/features/chat/VideoScreen';
 import { NotificationsScreen } from '@/renewal/features/notifications/NotificationsScreen';
 import { AccountSettingsScreen } from '@/renewal/features/account/AccountSettingsScreen';
+import { MyPageScreen } from '@/renewal/features/account/MyPageScreen';
 import { WorkspaceSettingsScreen } from '@/renewal/features/workspaceSettings/WorkspaceSettingsScreen';
 
 /**
@@ -55,7 +56,7 @@ export const AppRoutes: React.FC = () => (
       <Route index element={<RootRedirect />} />
       <Route path="welcome" element={<WelcomeScreen />} />
       <Route path="notifications" element={<NotificationsScreen />} />
-      <Route path="me" element={<PendingScreen screenId="SCR-MY-01" title="마이페이지" />} />
+      <Route path="me" element={<MyPageScreen />} />
       <Route path="me/card" element={<CardEditScreen />} />
       <Route path="privacy" element={<PendingScreen screenId="17-policy-operations.md" title="개인정보 처리방침" />} />
       <Route path="me/settings" element={<AccountSettingsScreen />} />

@@ -69,7 +69,7 @@ const DeleteTeamModal: React.FC<{ open: boolean; teamName: string; pending: bool
       }
     >
       <label htmlFor={id} className="mb-1.5 block text-sm font-semibold">
-        확인을 위해 팀 이름 <span className="font-bold">{teamName}</span>을 입력해 주세요
+        확인을 위해 팀 이름을 입력해 주세요: <span className="font-bold">{teamName}</span>
       </label>
       <input id={id} value={value} onChange={(event) => setValue(event.target.value)} autoComplete="off" className={fieldClassName(false)} />
     </Modal>

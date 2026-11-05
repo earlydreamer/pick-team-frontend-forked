@@ -12,6 +12,7 @@ import * as teamSettingsRules from './teamSettingsRules';
 import * as chatRules from './chatRules';
 import * as notifyRules from './notifyRules';
 import * as adminRules from './workspaceAdminRules';
+import * as accountRules from './accountRules';
 import { defaultSettings, railCounts } from '@/renewal/domain/notification';
 import { progressOf } from '@/renewal/domain/kanban';
 import { INACTIVE_DAYS, type DashboardAlert } from '@/renewal/domain/dashboard';
@@ -339,7 +340,35 @@ export const mockDataSource: DataSource = {
     },
   },
 
+  account: {
+    async myData() {
+      await latency();
+      fail('myData');
+      return accountRules.myData(getDb(), requireMe().id);
+    },
+    async updateName(name) {
+      const me = requireMe();
+      await mutate('updateName', (db) => accountRules.updateName(db, me.id, name));
+    },
+    async changePassword(current, next) {
+      const me = requireMe();
+      await latency(350);
+      fail('changePassword');
+      commit(await accountRules.changePassword(getDb(), me.id, current, next));
+    },
+    async deleteAccount(confirm) {
+      const me = requireMe();
+      await latency(500);
+      fail('deleteAccount');
+      commit(await accountRules.deleteAccount(getDb(), me.id, confirm));
+    },
+  },
+
   cards: {
+    async deleteMine() {
+      const me = requireMe();
+      await mutate('deleteCard', (db) => accountRules.deleteCard(db, me.id));
+    },
     async getMine() {
       await latency();
       const me = requireMe();

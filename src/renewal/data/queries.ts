@@ -36,6 +36,7 @@ export const keys = {
   messages: (id: string, roomId: string) => ['workspaces', id, 'chat', roomId, 'messages'] as const,
   videoChannels: (id: string) => ['workspaces', id, 'video'] as const,
   videoChannel: (id: string, channelId: string) => ['workspaces', id, 'video', channelId] as const,
+  myData: ['me', 'data'] as const,
   workspaceSettings: (id: string) => ['workspaces', id, 'settings'] as const,
   bans: (id: string) => ['workspaces', id, 'bans'] as const,
 };
@@ -290,3 +291,24 @@ const useExitMutation = <Input,>(fn: (input: Input) => Promise<void>) => {
 };
 export const useLeaveWorkspace = (id: string) => useExitMutation((_: void) => data.workspaceAdmin.leave(id));
 export const useDeleteWorkspace = (id: string) => useExitMutation((confirmName: string) => data.workspaceAdmin.remove(id, confirmName));
+
+/*
+ * 내 계정(SCR-MY-01, SCR-MY-03). 이름과 카드는 워크스페이스 화면 곳곳에 보이므로 바꾸면 워크스페이스 쿼리도 새로 고친다.
+ */
+export const useMyData = () => useQuery({ queryKey: keys.myData, queryFn: () => data.account.myData() });
+const useAccountMutation = <Input, Output>(fn: (input: Input) => Promise<Output>) => {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: fn,
+    onSettled: () => Promise.all([client.invalidateQueries({ queryKey: ['me'] }), client.invalidateQueries({ queryKey: keys.workspaces })]),
+  });
+};
+export const useUpdateName = () => useAccountMutation((name: string) => data.account.updateName(name));
+export const useChangePassword = () => useAccountMutation((input: { current: string; next: string }) => data.account.changePassword(input.current, input.next));
+export const useDeleteCard = () => useAccountMutation((_: void) => data.cards.deleteMine());
+/** 계정 삭제가 끝나면 로그아웃 상태이므로 캐시를 모두 비운다. 화면은 로그인으로 보낸다. */
+export const useDeleteAccount = () => {
+  const client = useQueryClient();
+  return useMutation({ mutationFn: (confirm: string) => data.account.deleteAccount(confirm), onSuccess: () => client.clear() });
+};
+

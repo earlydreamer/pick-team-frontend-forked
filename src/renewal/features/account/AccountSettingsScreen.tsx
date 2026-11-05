@@ -4,9 +4,10 @@ import { BellSlashIcon } from '@heroicons/react/24/outline';
 import { CATEGORY_LABEL, visibleCategories, type NotificationCategory, type NotificationSettings } from '@/renewal/domain/notification';
 import { isManager } from '@/renewal/domain/workspace';
 import type { ChatRoomSummary } from '@/renewal/domain/chat';
-import { useChatRoomsOf, useMyWorkspaces, useNotificationSettings, useSetMuted, useUpdateNotificationSettings } from '@/renewal/data/queries';
+import { useChatRoomsOf, useMyData, useMyWorkspaces, useNotificationSettings, useSetMuted, useUpdateNotificationSettings } from '@/renewal/data/queries';
 import { Avatar, Button, ErrorState, LoadingState, Switch, toast } from '@/renewal/ui';
 import { errorMessage } from '@/renewal/features/teamSpace/TaskModals';
+import { AccountInfoSection, DeleteAccountSection, PasswordSection } from './AccountSecurity';
 
 const CATEGORY_HINT: Partial<Record<NotificationCategory, string>> = {
   TEAM_BUILDING: '지원·스카우트, 모집 시작과 결과, 카드 작성 요청',
@@ -122,11 +123,12 @@ const MutedRoomsSection: React.FC<{ workspaceIds: string[]; nameOf: (id: string)
 };
 
 /**
- * 계정 설정(SCR-MY-03). 이번 단계는 알림 수신 설정과 채팅방 음소거만 연다(16 §4.3).
+ * 계정 설정(SCR-MY-03). 계정 정보, 비밀번호 변경, 알림 수신 설정과 채팅방 음소거(16 §4.3), 계정 삭제(17 §6.4).
  * 멤버십·관리 계열은 한 곳에서라도 매니저·개설자인 사람에게만 보인다(16-D2).
  */
 export const AccountSettingsScreen: React.FC = () => {
   const workspaces = useMyWorkspaces();
+  const myData = useMyData();
   const list = workspaces.data ?? [];
   const manager = list.some((workspace) => isManager(workspace.myRole));
   const nameOf = (id: string) => list.find((workspace) => workspace.id === id)?.name;
@@ -134,6 +136,16 @@ export const AccountSettingsScreen: React.FC = () => {
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-6 sm:px-6 lg:py-8">
       <h1 className="mb-6 text-2xl font-bold leading-8">계정 설정</h1>
+      {myData.isLoading ? (
+        <LoadingState compact label="계정 정보를 불러오는 중이에요" />
+      ) : myData.isError || !myData.data ? (
+        <ErrorState compact title="계정 정보를 불러오지 못했어요" description="잠시 뒤 다시 시도해 주세요." action={<Button size="sm" onClick={() => myData.refetch()}>다시 시도</Button>} />
+      ) : (
+        <div className="mb-4 space-y-4">
+          <AccountInfoSection data={myData.data} />
+          <PasswordSection data={myData.data} />
+        </div>
+      )}
       <section aria-labelledby="settings-notifications" className="rounded-card border border-outline-soft bg-surface p-4 sm:p-6">
         <h2 id="settings-notifications" className="mb-2 text-lg font-bold">
           알림 수신
@@ -146,6 +158,11 @@ export const AccountSettingsScreen: React.FC = () => {
         </h2>
         {workspaces.isLoading ? <LoadingState compact /> : <MutedRoomsSection workspaceIds={list.map((workspace) => workspace.id)} nameOf={nameOf} />}
       </section>
+      {myData.data && (
+        <div className="mt-4">
+          <DeleteAccountSection data={myData.data} />
+        </div>
+      )}
     </div>
   );
 };
