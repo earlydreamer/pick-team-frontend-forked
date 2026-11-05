@@ -13,6 +13,7 @@ import * as chatRules from './chatRules';
 import * as notifyRules from './notifyRules';
 import * as adminRules from './workspaceAdminRules';
 import * as accountRules from './accountRules';
+import * as wsAnnouncementRules from './workspaceAnnouncementRules';
 import { defaultSettings, railCounts } from '@/renewal/domain/notification';
 import { progressOf } from '@/renewal/domain/kanban';
 import { INACTIVE_DAYS, type DashboardAlert } from '@/renewal/domain/dashboard';
@@ -433,6 +434,28 @@ export const mockDataSource: DataSource = {
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
         .slice(0, limit)
         .map(({ workspaceId: _ignored, ...item }) => item);
+    },
+    async listWorkspace(workspaceId) {
+      await latency();
+      fail('workspaceAnnouncements');
+      const { me } = findWorkspaceOfMe(workspaceId);
+      return wsAnnouncementRules.listWorkspaceAnnouncements(getDb(), workspaceId, me.id);
+    },
+    async createWorkspace(workspaceId, input) {
+      const { me } = findWorkspaceOfMe(workspaceId);
+      await latency(350);
+      fail('createWorkspaceAnnouncement');
+      const result = wsAnnouncementRules.createWorkspaceAnnouncement(getDb(), workspaceId, me.id, input);
+      commit(notifyRules.onWorkspaceAnnouncement(result.db, workspaceId, result.announcementId, input.title.trim(), me.id));
+      return result.announcementId;
+    },
+    async updateWorkspace(workspaceId, announcementId, input) {
+      const { me } = findWorkspaceOfMe(workspaceId);
+      await mutate('updateWorkspaceAnnouncement', (db) => wsAnnouncementRules.updateWorkspaceAnnouncement(db, workspaceId, me.id, announcementId, input));
+    },
+    async removeWorkspace(workspaceId, announcementId) {
+      const { me } = findWorkspaceOfMe(workspaceId);
+      await mutate('deleteWorkspaceAnnouncement', (db) => wsAnnouncementRules.deleteWorkspaceAnnouncement(db, workspaceId, me.id, announcementId));
     },
   },
 

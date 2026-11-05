@@ -33,6 +33,7 @@ import { VideoScreen } from '@/renewal/features/chat/VideoScreen';
 import { NotificationsScreen } from '@/renewal/features/notifications/NotificationsScreen';
 import { AccountSettingsScreen } from '@/renewal/features/account/AccountSettingsScreen';
 import { MyPageScreen } from '@/renewal/features/account/MyPageScreen';
+import { WorkspaceAnnouncementsScreen } from '@/renewal/features/announcements/WorkspaceAnnouncementsScreen';
 import { WorkspaceSettingsScreen } from '@/renewal/features/workspaceSettings/WorkspaceSettingsScreen';
 
 /**
@@ -68,6 +69,7 @@ export const AppRoutes: React.FC = () => (
       <Route path="ws/:wsId">
         <Route index element={<HomeScreen />} />
         <Route path="members" element={<GalleryScreen />} />
+        <Route path="announcements" element={<WorkspaceAnnouncementsScreen />} />
         <Route path="members/:accountId" element={<MemberDetailScreen />} />
         <Route path="team-building" element={<TeamBuildingHome />} />
         <Route path="team-building/teams/:teamId" element={<TeamRecruitDetail />} />

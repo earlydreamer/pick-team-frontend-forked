@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { ArrowRightIcon, IdentificationIcon, MegaphoneIcon, UserGroupIcon, UsersIcon } from '@heroicons/react/24/outline';
 import { cardStatus } from '@/renewal/domain/card';
 import { dDayLabel, formatDeadline } from '@/renewal/domain/teamBuilding';
-import { relativeTime } from '@/renewal/domain/announcement';
+import { announcementLink, relativeTime } from '@/renewal/domain/announcement';
 import { Avatar, Badge, Button, EmptyState, ErrorState, LoadingState, Skeleton, buttonClassName } from '@/renewal/ui';
 import { useMe, useMembers, useMyCard, useRecentAnnouncements, useSession, useTeams, useWorkspace } from '@/renewal/data/queries';
 import { MemberCardTile } from '@/renewal/features/members/MemberCardTile';
@@ -194,10 +194,14 @@ export const HomeScreen: React.FC = () => {
       </div>
 
       <section aria-labelledby="home-announcements" className="mt-8">
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-3 flex items-center justify-between gap-3">
           <h2 id="home-announcements" className="text-lg font-bold">
             최근 공지
           </h2>
+          <Link to={`${base}/announcements`} className="inline-flex min-h-touch items-center gap-1 text-sm font-semibold text-primary underline-offset-4 hover:underline">
+            전체 공지 보기
+            <ArrowRightIcon className="h-4 w-4" aria-hidden="true" />
+          </Link>
         </div>
         <div className="rounded-card border border-outline-soft bg-surface">
           {announcements.isLoading && (
@@ -223,12 +227,14 @@ export const HomeScreen: React.FC = () => {
             ) : (
               <ul className="divide-y divide-outline-soft">
                 {announcements.data.map((item) => (
-                  <li key={item.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3">
-                    <Badge tone={item.teamName ? 'neutral' : 'primary'}>{item.teamName ?? '전체'}</Badge>
-                    <span className="min-w-0 flex-1 text-[0.9375rem]">{item.title}</span>
-                    <span className="text-xs text-muted">
-                      {item.authorName} · <time dateTime={item.createdAt}>{relativeTime(item.createdAt)}</time>
-                    </span>
+                  <li key={item.id}>
+                    <Link to={announcementLink(wsId, item)} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 hover:bg-surface-container">
+                      <Badge tone={item.teamName ? 'neutral' : 'primary'}>{item.teamName ?? '전체'}</Badge>
+                      <span className="min-w-0 flex-1 text-[0.9375rem]">{item.title}</span>
+                      <span className="text-xs text-muted">
+                        {item.authorName} · <time dateTime={item.createdAt}>{relativeTime(item.createdAt)}</time>
+                      </span>
+                    </Link>
                   </li>
                 ))}
               </ul>

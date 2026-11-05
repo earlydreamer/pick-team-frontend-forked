@@ -290,8 +290,14 @@ export interface DashboardPort {
 }
 
 export interface AnnouncementPort {
-  /** 워크스페이스에서 내가 볼 수 있는 최근 공지(최신순) */
+  /** 워크스페이스에서 내가 볼 수 있는 최근 공지(최신순). 전체 공지와 내 팀 공지를 섞는다 */
   listRecent(workspaceId: string, limit: number): Promise<Announcement[]>;
+  /** 워크스페이스 전체 공지(최신순). 멤버 모두 읽는다 */
+  listWorkspace(workspaceId: string): Promise<TeamAnnouncement[]>;
+  /** 개설자·매니저만. 멤버 모두에게 알림이 간다 */
+  createWorkspace(workspaceId: string, input: AnnouncementInput): Promise<string>;
+  updateWorkspace(workspaceId: string, announcementId: string, input: AnnouncementInput): Promise<void>;
+  removeWorkspace(workspaceId: string, announcementId: string): Promise<void>;
 }
 
 export interface DataSource {

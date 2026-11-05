@@ -39,6 +39,7 @@ export const keys = {
   videoChannel: (id: string, channelId: string) => ['workspaces', id, 'video', channelId] as const,
   myData: ['me', 'data'] as const,
   policyConsent: ['me', 'policy-consent'] as const,
+  workspaceAnnouncements: (id: string) => ['workspaces', id, 'announcements', 'workspace'] as const,
   workspaceSettings: (id: string) => ['workspaces', id, 'settings'] as const,
   bans: (id: string) => ['workspaces', id, 'bans'] as const,
 };
@@ -317,4 +318,15 @@ export const useDeleteAccount = () => {
 /** 약관 동의(17 §6.2). 소셜 로그인으로 처음 들어온 계정은 첫 화면 전에 동의를 받는다. */
 export const usePolicyConsent = (enabled: boolean) => useQuery({ queryKey: keys.policyConsent, queryFn: () => data.session.policyConsent(), enabled });
 export const useAgreePolicies = () => useAccountMutation((agreements: Agreements) => data.session.agreePolicies(agreements));
+
+/** 워크스페이스 전체 공지. 바꾸면 홈의 최근 공지(['workspaces', id, 'announcements'])도 함께 새로 고친다. */
+export const useWorkspaceAnnouncements = (id: string) => useQuery({ queryKey: keys.workspaceAnnouncements(id), queryFn: () => data.announcements.listWorkspace(id), enabled: Boolean(id) });
+const useWsAnnouncementMutation = <Input, Output>(id: string, fn: (input: Input) => Promise<Output>) => {
+  const client = useQueryClient();
+  return useMutation({ mutationFn: fn, onSettled: () => Promise.all([client.invalidateQueries({ queryKey: keys.announcements(id) }), client.invalidateQueries({ queryKey: notificationKeys.all })]) });
+};
+export const useCreateWorkspaceAnnouncement = (id: string) => useWsAnnouncementMutation(id, (input: AnnouncementInput) => data.announcements.createWorkspace(id, input));
+export const useUpdateWorkspaceAnnouncement = (id: string) =>
+  useWsAnnouncementMutation(id, (input: { announcementId: string; announcement: AnnouncementInput }) => data.announcements.updateWorkspace(id, input.announcementId, input.announcement));
+export const useDeleteWorkspaceAnnouncement = (id: string) => useWsAnnouncementMutation(id, (announcementId: string) => data.announcements.removeWorkspace(id, announcementId));
 
