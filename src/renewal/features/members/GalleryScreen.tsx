@@ -184,7 +184,7 @@ export const GalleryScreen: React.FC = () => {
           <p className="text-warning">
             {myState === 'PRIVATE' ? '내 카드는 비공개라 다른 멤버에게 보이지 않아요.' : '내 카드가 아직 없어서 다른 멤버에게 보이지 않아요.'}
           </p>
-          <Link to={myState === 'PRIVATE' ? '/me/card' : `/ws/${wsId}/onboarding`} className="font-semibold text-ink underline underline-offset-4">
+          <Link to={myState === 'PRIVATE' ? '/me/card' : `/ws/${wsId}/onboarding`} className="inline-flex min-h-touch items-center font-semibold text-ink underline underline-offset-4">
             {myState === 'PRIVATE' ? '공개 설정 바꾸기' : '카드 만들기'}
           </Link>
         </div>
