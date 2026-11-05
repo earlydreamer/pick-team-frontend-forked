@@ -117,7 +117,18 @@ const MutedRoomsSection: React.FC<{ workspaceIds: string[]; nameOf: (id: string)
           ))}
         </ul>
       )}
-      {failed && <p role="alert" className="mt-2 text-sm text-danger">일부 워크스페이스의 채팅방을 불러오지 못했어요.</p>}
+      {failed && (
+        <p role="alert" className="mt-2 flex flex-wrap items-center gap-x-2 text-sm text-danger">
+          일부 워크스페이스의 채팅방을 불러오지 못했어요.
+          <button
+            type="button"
+            onClick={() => results.forEach((result) => result.isError && result.refetch())}
+            className="inline-flex min-h-touch items-center font-semibold text-primary underline underline-offset-2"
+          >
+            다시 시도
+          </button>
+        </p>
+      )}
     </div>
   );
 };

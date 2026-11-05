@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { MapIcon, WrenchScrewdriverIcon, LockClosedIcon } from '@heroicons/react/24/outline';
+import { MapIcon, LockClosedIcon } from '@heroicons/react/24/outline';
 import { EmptyState, ErrorState, LoadingState, buttonClassName, toast } from '@/renewal/ui';
 import { useMe, useMyWorkspaces } from '@/renewal/data/queries';
 import { workspaceEntryPath } from '@/renewal/shell/entry';
@@ -30,22 +30,6 @@ export const RootRedirect: React.FC = () => {
   return <Navigate to={workspaceEntryPath(me.data?.id, data[0])} replace />;
 };
 
-/**
- * 아직 구현하지 않은 IA 화면. 빈 화면 대신 화면 ID와 상태를 알려 막다른 길을 만들지 않는다.
- */
-export const PendingScreen: React.FC<{ screenId: string; title: string }> = ({ screenId, title }) => (
-  <EmptyState
-    className="min-h-[60vh]"
-    icon={<WrenchScrewdriverIcon className="h-7 w-7" />}
-    title={`${title} 화면은 준비 중이에요`}
-    description={<span className="tabular-nums">{screenId}</span>}
-    action={
-      <Link to="/" className={buttonClassName('outline')}>
-        홈으로 가기
-      </Link>
-    }
-  />
-);
 
 export const NotFoundScreen: React.FC = () => (
   <EmptyState
