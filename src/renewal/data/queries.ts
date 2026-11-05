@@ -41,6 +41,7 @@ export const keys = {
   myData: ['me', 'data'] as const,
   policyConsent: ['me', 'policy-consent'] as const,
   adminReports: (status: string) => ['admin', 'reports', status] as const,
+  workspaceReports: (workspaceId: string) => ['workspaces', workspaceId, 'reports'] as const,
   workspaceAnnouncements: (id: string) => ['workspaces', id, 'announcements', 'workspace'] as const,
   workspaceSettings: (id: string) => ['workspaces', id, 'settings'] as const,
   bans: (id: string) => ['workspaces', id, 'bans'] as const,
@@ -342,4 +343,13 @@ const useAdminReportMutation = <Input, Output>(fn: (input: Input) => Promise<Out
 };
 export const useStartReview = () => useAdminReportMutation((reportId: string) => data.reports.startReview(reportId));
 export const useResolveReport = () => useAdminReportMutation((input: { reportId: string; action: ReportAction; memo?: string }) => data.reports.resolve(input.reportId, input.action, input.memo));
+
+/** 워크스페이스 운영진의 신고 수신함(17 §2). 처리하면 멤버·메시지·게시글이 바뀔 수 있어 워크스페이스 쿼리 전체를 새로 고친다. */
+export const useWorkspaceReports = (workspaceId: string) => useQuery({ queryKey: keys.workspaceReports(workspaceId), queryFn: () => data.reports.listWorkspace(workspaceId), enabled: Boolean(workspaceId) });
+export const useOpenReportCount = (workspaceId: string, enabled: boolean) =>
+  useQuery({ queryKey: [...keys.workspaceReports(workspaceId), 'open-count'], queryFn: () => data.reports.getOpenCount(workspaceId), enabled: enabled && Boolean(workspaceId) });
+export const useStartWorkspaceReview = (workspaceId: string) => useAdminReportMutation((reportId: string) => data.reports.startWorkspaceReview(workspaceId, reportId));
+export const useResolveInWorkspace = (workspaceId: string) =>
+  useAdminReportMutation((input: { reportId: string; action: ReportAction; memo?: string }) => data.reports.resolveInWorkspace(workspaceId, input.reportId, input.action, input.memo));
+export const useEscalateReport = (workspaceId: string) => useAdminReportMutation((input: { reportId: string; memo?: string }) => data.reports.escalate(workspaceId, input.reportId, input.memo));
 

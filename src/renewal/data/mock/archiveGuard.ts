@@ -21,7 +21,8 @@ const ALLOWED: Partial<Record<keyof DataSource, string[]>> = {
   video: ['leave'],
   workspaceAdmin: ['leave', 'remove', 'setArchived'],
 };
-const GUARDED: (keyof DataSource)[] = ['workspaceAdmin', 'announcements', 'teamBuilding', 'teamSpace', 'chat', 'video', 'dashboard'];
+// reports는 운영진 처리(첫 인자가 워크스페이스 id)만 막힌다. 신고 제출과 시스템 관리자 처리는 첫 인자가 id가 아니라 그대로 열린다.
+const GUARDED: (keyof DataSource)[] = ['workspaceAdmin', 'announcements', 'teamBuilding', 'teamSpace', 'chat', 'video', 'dashboard', 'reports'];
 
 type AnyPort = Record<string, (...args: unknown[]) => Promise<unknown>>;
 

@@ -8,7 +8,7 @@ import type { Post } from '@/renewal/domain/collab';
 import type { ChatMessage, ChatRoom, VideoChannel } from '@/renewal/domain/chat';
 import type { AppNotification, NotificationSettings } from '@/renewal/domain/notification';
 import type { PolicyConsent } from '@/renewal/domain/policy';
-import type { ReportAction, ReportReason, ReportStatus, ReportTargetType } from '@/renewal/domain/report';
+import type { ReportAction, ReportEscalation, ReportHandler, ReportReason, ReportStatus, ReportTargetType } from '@/renewal/domain/report';
 
 /**
  * 목업 단계의 데이터 저장소. 브라우저 localStorage에 저장해 새로고침해도 유지된다.
@@ -94,6 +94,9 @@ export interface MockReport {
   adminMemo?: string;
   createdAt: string;
   resolvedAt?: string;
+  escalation?: ReportEscalation;
+  escalatedAt?: string;
+  handledBy?: ReportHandler;
 }
 
 export interface MockVerification {

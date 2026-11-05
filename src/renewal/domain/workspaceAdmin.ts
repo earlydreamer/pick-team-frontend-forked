@@ -5,13 +5,15 @@ import type { Account, WorkspaceRole } from './workspace';
  * 권한 판정은 워크스페이스 역할 하나로 한다(13 §6.3).
  */
 
-export type SettingsTab = 'general' | 'invite' | 'members' | 'bans' | 'security' | 'danger';
+export type SettingsTab = 'general' | 'invite' | 'members' | 'bans' | 'reports' | 'security' | 'danger';
 
 export const SETTINGS_TABS: { id: SettingsTab; label: string; roles: WorkspaceRole[] }[] = [
   { id: 'general', label: '일반', roles: ['OWNER', 'ADMIN', 'MEMBER'] },
   { id: 'invite', label: '초대', roles: ['OWNER', 'ADMIN'] },
   { id: 'members', label: '멤버 관리', roles: ['OWNER', 'ADMIN'] },
   { id: 'bans', label: '차단 목록', roles: ['OWNER', 'ADMIN'] },
+  // 17 §2: 워크스페이스 범위 신고의 1차 수신
+  { id: 'reports', label: '신고', roles: ['OWNER', 'ADMIN'] },
   { id: 'security', label: '보안', roles: ['OWNER'] },
   { id: 'danger', label: '위험 구역', roles: ['OWNER'] },
 ];
