@@ -53,6 +53,8 @@ export interface MockDb {
   notifications: AppNotification[];
   /** 계정별 수신 설정. 없으면 기본값(전부 켬) */
   notificationSettings: Record<string, NotificationSettings>;
+  /** 시각 기반 알림을 보낸 기록. 같은 알림을 두 번 보내지 않게 한다(timedRules) */
+  sentTimedEvents: string[];
   /** WS 레일 배지 기준 시각. 키는 `계정:워크스페이스`(16-D5) */
   workspaceSeenAt: Record<string, string>;
   /** 결성 직후 체크리스트에서 "역할 확정"을 마친 팀 */
@@ -100,7 +102,7 @@ const SEED_PASSWORD_HASH = 'adb7a220a9fc0f2e7f11eb83d815e591330158c0b16f2db35ee8
 const SEED_WORKSPACE_PASSWORD_HASH = '6b5960ce025fca41a5e127b14ad6a8544685e224ef4566816cf90726d81c4ebc';
 
 const STORAGE_KEY = 'pickteam.renewal.mock';
-const VERSION = 11;
+const VERSION = 12;
 
 const daysFromNow = (days: number, hour = 23, minute = 59) => {
   const date = new Date();
@@ -321,6 +323,7 @@ export const seed = (): MockDb => ({
   ],
   notificationSettings: {},
   workspaceSeenAt: {},
+  sentTimedEvents: [],
   posts: [
     {
       id: 'p-1',

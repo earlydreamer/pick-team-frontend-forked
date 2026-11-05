@@ -14,6 +14,7 @@ import * as notifyRules from './notifyRules';
 import * as adminRules from './workspaceAdminRules';
 import * as accountRules from './accountRules';
 import * as wsAnnouncementRules from './workspaceAnnouncementRules';
+import { runTimedEvents } from './timedRules';
 import { defaultSettings, railCounts } from '@/renewal/domain/notification';
 import { progressOf } from '@/renewal/domain/kanban';
 import { INACTIVE_DAYS, type DashboardAlert } from '@/renewal/domain/dashboard';
@@ -112,6 +113,13 @@ const summarize = (db: MockDb, team: Team, viewerId: string, capacity: number): 
 const toView = (db: MockDb, app: TeamApplication): ApplicationView => {
   const team = db.teams.find((item) => item.id === app.teamId)!;
   return { application: app, team: { id: team.id, name: team.name }, applicant: db.accounts.find((account) => account.id === app.applicantId)! };
+};
+
+/** 서버 스케줄러 대신 알림을 조회할 때 시각 기반 알림을 계산한다(timedRules). 바뀐 것이 있을 때만 저장한다. */
+const tickTimedEvents = () => {
+  const db = getDb();
+  const next = runTimedEvents(db);
+  if (next !== db) commit(next);
 };
 
 const mutate = async (operation: string, change: (db: MockDb) => MockDb) => {
@@ -973,6 +981,7 @@ export const mockDataSource: DataSource = {
       await latency(150);
       fail('notifications');
       const me = requireMe();
+      tickTimedEvents();
       const all = getDb()
         .notifications.filter((item) => item.accountId === me.id && (!category || item.category === category))
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -980,6 +989,7 @@ export const mockDataSource: DataSource = {
     },
     async unreadSummary() {
       await latency(100);
+      tickTimedEvents();
       const db = getDb();
       const me = db.currentAccountId;
       const mine = db.notifications.filter((item) => item.accountId === me);
