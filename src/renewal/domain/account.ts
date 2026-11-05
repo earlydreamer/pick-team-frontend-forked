@@ -1,6 +1,7 @@
 import { TIME_SLOT_LABEL, WEEKLY_HOURS_LABEL, WORKSTYLE_LABEL, cardStatus, roleText, type PrCard } from './card';
 import { WORKSPACE_ROLE_LABEL, type Account, type WorkspaceRole } from './workspace';
 import type { NotificationSettings } from './notification';
+import type { PolicyConsent } from './policy';
 
 /**
  * 마이페이지(SCR-MY-01)와 계정 설정(SCR-MY-03)의 내 데이터.
@@ -24,6 +25,8 @@ export interface MyData {
   card: PrCard;
   workspaces: MyWorkspace[];
   notificationSettings: NotificationSettings;
+  /** 이용약관·개인정보 처리방침·연령 동의 기록 */
+  policyConsent: PolicyConsent | null;
   /** 계정을 지우기 전에 먼저 해야 할 일. 비어 있으면 바로 지울 수 있다 */
   deletionBlockers: string[];
 }
@@ -51,6 +54,7 @@ export const myDataRows = (data: MyData): DataRow[] => {
     { label: '이름', value: account.name, scope: members },
     { label: '프로필 사진', value: account.profileImageUrl ? '있음' : EMPTY, scope: members },
     { label: '로그인 방식', value: join(data.loginMethods.map((method) => LOGIN_METHOD_LABEL[method])), scope: '나만' },
+    { label: '약관·개인정보 동의', value: data.policyConsent ? `${new Date(data.policyConsent.agreedAt).toLocaleString('ko-KR')} (${data.policyConsent.version} 판)` : EMPTY, scope: '나만' },
     { label: '카드 작성 동의', value: card.consentGivenAt ? new Date(card.consentGivenAt).toLocaleString('ko-KR') : EMPTY, scope: '나만' },
     { label: '희망 역할', value: join([card.desiredRole1, card.desiredRole2].filter((role): role is NonNullable<typeof role> => Boolean(role)).map((role) => roleText(card, role) ?? '')), scope: cardScope },
     { label: '주간 가용 시간', value: card.weeklyAvailableHours ? WEEKLY_HOURS_LABEL[card.weeklyAvailableHours] : EMPTY, scope: cardScope },
@@ -74,6 +78,7 @@ export const exportMyData = (data: MyData, now = new Date()) => ({
   card: data.card,
   workspaces: data.workspaces,
   notificationSettings: data.notificationSettings,
+  policyConsent: data.policyConsent,
 });
 
 export const exportFileName = (now = new Date()) => `pickteam-my-data-${now.toISOString().slice(0, 10)}.json`;

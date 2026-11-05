@@ -21,6 +21,7 @@ import type { ChatMessage, ChatRoom, ChatRoomSummary, VideoChannel } from '@/ren
 import type { AppNotification, NotificationCategory, NotificationSettings } from '@/renewal/domain/notification';
 import type { Announcement } from '@/renewal/domain/announcement';
 import type { MyData } from '@/renewal/domain/account';
+import type { Agreements, PolicyConsent } from '@/renewal/domain/policy';
 import type { BannedMember, InviteView, WorkspaceSettings } from '@/renewal/domain/workspaceAdmin';
 import type { CreateWorkspaceInput, InviteInfo, JoinResult, OAuthProvider, SignUpInput } from '@/renewal/domain/auth';
 
@@ -63,6 +64,10 @@ export interface SessionPort {
   oauthExchange(provider: OAuthProvider, code: string): Promise<Account>;
   /** 프로필 사진 변경. null이면 삭제한다 */
   updateProfileImage(file: File | null): Promise<Account>;
+  /** 약관·개인정보·연령 동의 기록. 없으면 null(소셜 로그인으로 처음 들어온 계정) */
+  policyConsent(): Promise<PolicyConsent | null>;
+  /** 첫 화면 전에 받는 동의(17 §6.2). 빠진 항목이 있으면 INVALID */
+  agreePolicies(agreements: Agreements): Promise<void>;
 }
 
 export interface WorkspacePort {

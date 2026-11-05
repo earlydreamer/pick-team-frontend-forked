@@ -82,6 +82,7 @@ export const deleteAccount = async (db: MockDb, accountId: string, confirm: stri
   const { [accountId]: _credential, ...credentials } = left.credentials;
   const { [accountId]: _card, ...cards } = left.cards;
   const { [accountId]: _settings, ...notificationSettings } = left.notificationSettings;
+  const { [accountId]: _consent, ...policyConsents } = left.policyConsents;
   return {
     ...left,
     currentAccountId: null,
@@ -89,6 +90,7 @@ export const deleteAccount = async (db: MockDb, accountId: string, confirm: stri
     credentials,
     cards,
     notificationSettings,
+    policyConsents,
     oauthLinks: left.oauthLinks.filter((link) => link.accountId !== accountId),
     notifications: left.notifications.filter((item) => item.accountId !== accountId),
     chatMutes: left.chatMutes.filter((key) => !key.endsWith(`:${accountId}`)),
@@ -109,6 +111,7 @@ export const myData = (db: MockDb, accountId: string): MyData => {
         return { id: workspace.id, name: workspace.name, role: member.role, teamName: team?.name, teamLeader: team ? team.leaderId === accountId : undefined };
       }),
     notificationSettings: db.notificationSettings[accountId] ?? defaultSettings(),
+    policyConsent: db.policyConsents[accountId] ?? null,
     deletionBlockers: deletionBlockers(db, accountId),
   };
 };

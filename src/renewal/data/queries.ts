@@ -5,6 +5,7 @@ import type { TaskAction, TaskInput } from '@/renewal/domain/kanban';
 import type { AnnouncementInput, PostInput, ScheduleInput } from '@/renewal/domain/collab';
 import type { TeamInfoInput } from '@/renewal/domain/teamSpace';
 import type { NotificationCategory, NotificationSettings } from '@/renewal/domain/notification';
+import type { Agreements } from '@/renewal/domain/policy';
 import { data } from './index';
 
 /** 쿼리 키를 한곳에서 관리해 무효화 범위를 분명히 한다. */
@@ -37,6 +38,7 @@ export const keys = {
   videoChannels: (id: string) => ['workspaces', id, 'video'] as const,
   videoChannel: (id: string, channelId: string) => ['workspaces', id, 'video', channelId] as const,
   myData: ['me', 'data'] as const,
+  policyConsent: ['me', 'policy-consent'] as const,
   workspaceSettings: (id: string) => ['workspaces', id, 'settings'] as const,
   bans: (id: string) => ['workspaces', id, 'bans'] as const,
 };
@@ -311,4 +313,8 @@ export const useDeleteAccount = () => {
   const client = useQueryClient();
   return useMutation({ mutationFn: (confirm: string) => data.account.deleteAccount(confirm), onSuccess: () => client.clear() });
 };
+
+/** 약관 동의(17 §6.2). 소셜 로그인으로 처음 들어온 계정은 첫 화면 전에 동의를 받는다. */
+export const usePolicyConsent = (enabled: boolean) => useQuery({ queryKey: keys.policyConsent, queryFn: () => data.session.policyConsent(), enabled });
+export const useAgreePolicies = () => useAccountMutation((agreements: Agreements) => data.session.agreePolicies(agreements));
 

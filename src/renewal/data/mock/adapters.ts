@@ -175,6 +175,14 @@ export const mockDataSource: DataSource = {
       // 목업은 제공자 화면 없이 바로 콜백으로 돌아온다. http 어댑터는 백엔드 OAuth 시작 주소를 돌려준다.
       return `/oauth/callback?provider=${provider}&code=mock-${provider}`;
     },
+    async policyConsent() {
+      await latency(100);
+      return getDb().policyConsents[requireMe().id] ?? null;
+    },
+    async agreePolicies(agreements) {
+      const me = requireMe();
+      await mutate('agreePolicies', (db) => authRules.agreePolicies(db, me.id, agreements));
+    },
     async oauthExchange(provider, code) {
       await latency(400);
       fail('oauth');

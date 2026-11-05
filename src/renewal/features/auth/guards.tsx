@@ -1,7 +1,7 @@
 import React from 'react';
 import { Navigate, Outlet, useLocation, useSearchParams } from 'react-router-dom';
 import { safeRedirect } from '@/renewal/domain/auth';
-import { useMe } from '@/renewal/data/queries';
+import { useMe, usePolicyConsent } from '@/renewal/data/queries';
 import { Button, ErrorState, LoadingState } from '@/renewal/ui';
 
 /**
@@ -24,6 +24,21 @@ export const RequireAuth: React.FC = () => {
   if (!me.data) {
     const target = `${location.pathname}${location.search}`;
     return <Navigate to={target === '/' ? '/login' : `/login?redirect=${encodeURIComponent(target)}`} replace />;
+  }
+  return <Outlet />;
+};
+
+/**
+ * 약관 동의가 있어야 하는 화면(17 §6.2). 소셜 로그인으로 처음 들어온 계정은 동의 화면으로 보내고 목적지를 보존한다.
+ * 동의한 사람이 대부분이라 조회를 기다리며 화면을 막지 않는다. 동의가 없다고 확인되면 그때 옮긴다.
+ * 조회에 실패해도 막지 않는다. 서버가 쓰기 요청에서 다시 확인한다.
+ */
+export const RequireConsent: React.FC = () => {
+  const consent = usePolicyConsent(true);
+  const location = useLocation();
+  if (consent.isSuccess && !consent.data) {
+    const target = `${location.pathname}${location.search}`;
+    return <Navigate to={target === '/' ? '/agreements' : `/agreements?redirect=${encodeURIComponent(target)}`} replace />;
   }
   return <Outlet />;
 };

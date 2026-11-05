@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { MOCK_PASSWORD, seed, type MockDb } from './db';
 import { DataError } from '../ports';
-import { createWorkspace, getInvite, joinByInvite, oauthSignIn, requestCode, resetPassword, signIn, signUp, verifyCode } from './authRules';
+import { agreePolicies, createWorkspace, getInvite, joinByInvite, oauthSignIn, requestCode, resetPassword, signIn, signUp, verifyCode } from './authRules';
+
+const ALL = { terms: true, privacy: true, age: true };
 
 const codeOf = async (fn: () => unknown) => {
   try {
@@ -36,15 +38,31 @@ describe('가입', () => {
   it('코드 확인 후 가입하면 계정이 생기고 로그인된다', async () => {
     let db = requestCode(seed(), NEW_EMAIL, 'SIGNUP', Date.now(), fixed);
     db = verifyCode(db, NEW_EMAIL, 'SIGNUP', '123456');
-    const result = await signUp(db, { email: NEW_EMAIL, name: '새 수강생', password: 'Pickteam1!' });
+    const result = await signUp(db, { email: NEW_EMAIL, name: '새 수강생', password: 'Pickteam1!', agreements: ALL });
     expect(result.db.currentAccountId).toBe(result.accountId);
     expect(result.db.verifications).toHaveLength(0);
     expect((await signIn(result.db, NEW_EMAIL, 'Pickteam1!')).accountId).toBe(result.accountId);
   });
 
+  it('약관·개인정보 동의와 만 14세 이상 확인이 모두 있어야 가입하고, 동의를 기록한다', async () => {
+    let db = requestCode(seed(), NEW_EMAIL, 'SIGNUP', Date.now(), fixed);
+    db = verifyCode(db, NEW_EMAIL, 'SIGNUP', '123456');
+    await expect(signUp(db, { email: NEW_EMAIL, name: '새 수강생', password: 'Pickteam1!', agreements: { ...ALL, privacy: false } })).rejects.toThrow('동의해 주세요');
+    await expect(signUp(db, { email: NEW_EMAIL, name: '새 수강생', password: 'Pickteam1!', agreements: { ...ALL, age: false } })).rejects.toThrow('만 14세 미만');
+    const result = await signUp(db, { email: NEW_EMAIL, name: '새 수강생', password: 'Pickteam1!', agreements: ALL });
+    expect(result.db.policyConsents[result.accountId]?.version).toBeTruthy();
+  });
+
+  it('소셜 로그인으로 처음 만든 계정은 동의가 없고, 동의하면 기록한다', () => {
+    const created = oauthSignIn(seed(), 'google', { subject: 'g-new', email: 'g.new@example.com', name: '구글 사용자' });
+    expect(created.db.policyConsents[created.accountId]).toBeUndefined();
+    expect(() => agreePolicies(created.db, created.accountId, { ...ALL, terms: false })).toThrow('동의해 주세요');
+    expect(agreePolicies(created.db, created.accountId, ALL).policyConsents[created.accountId]).toBeTruthy();
+  });
+
   it('코드를 확인하지 않으면 가입할 수 없다', async () => {
     const db = requestCode(seed(), NEW_EMAIL, 'SIGNUP', Date.now(), fixed);
-    expect(await codeOf(() => signUp(db, { email: NEW_EMAIL, name: '새 수강생', password: 'Pickteam1!' }))).toBe('INVALID');
+    expect(await codeOf(() => signUp(db, { email: NEW_EMAIL, name: '새 수강생', password: 'Pickteam1!', agreements: ALL }))).toBe('INVALID');
   });
 
   it('5분이 지난 코드는 GONE, 틀린 코드는 INVALID다', async () => {
