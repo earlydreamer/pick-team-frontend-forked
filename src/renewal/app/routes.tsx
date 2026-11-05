@@ -1,40 +1,75 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { Route, Routes } from 'react-router-dom';
 import { AppShell } from '@/renewal/shell/AppShell';
 import { NotFoundScreen, RootRedirect } from '@/renewal/screens/system';
-import { WelcomeScreen } from '@/renewal/features/auth/WelcomeScreen';
-import { OnboardingScreen } from '@/renewal/features/card/OnboardingScreen';
-import { CardEditScreen } from '@/renewal/features/card/CardEditScreen';
-import { GalleryScreen } from '@/renewal/features/members/GalleryScreen';
-import { MemberDetailScreen } from '@/renewal/features/members/MemberDetailScreen';
-import { HomeScreen } from '@/renewal/features/home/HomeScreen';
-import { TeamBuildingHome } from '@/renewal/features/teamBuilding/TeamBuildingHome';
-import { TeamRecruitDetail } from '@/renewal/features/teamBuilding/TeamRecruitDetail';
-import { InboxScreen } from '@/renewal/features/teamBuilding/InboxScreen';
-import { ManageScreen } from '@/renewal/features/manage/ManageScreen';
-import { DashboardScreen } from '@/renewal/features/dashboard/DashboardScreen';
 import { GuestOnly, RequireAuth, RequireConsent } from '@/renewal/features/auth/guards';
-import { AgreementsScreen } from '@/renewal/features/policy/AgreementsScreen';
-import { PrivacyScreen, TermsScreen } from '@/renewal/features/policy/PolicyScreens';
-import { LoginScreen } from '@/renewal/features/auth/LoginScreen';
-import { SignupScreen } from '@/renewal/features/auth/SignupScreen';
-import { ResetPasswordScreen } from '@/renewal/features/auth/ResetPasswordScreen';
-import { OAuthCallbackScreen } from '@/renewal/features/auth/OAuthCallbackScreen';
-import { InviteScreen } from '@/renewal/features/auth/InviteScreen';
-import { TeamMemberOnly, TeamSpaceLayout } from '@/renewal/features/teamSpace/TeamSpaceLayout';
-import { OverviewScreen } from '@/renewal/features/teamSpace/OverviewScreen';
-import { KanbanScreen } from '@/renewal/features/teamSpace/KanbanScreen';
-import { CalendarScreen } from '@/renewal/features/teamSpace/CalendarScreen';
-import { AnnouncementsScreen, BoardScreen, PostDetailScreen } from '@/renewal/features/teamSpace/BoardScreens';
-import { TeamSettingsScreen } from '@/renewal/features/teamSpace/TeamSettingsScreen';
-import { ChatListScreen } from '@/renewal/features/chat/ChatListScreen';
-import { ChatRoomScreen } from '@/renewal/features/chat/ChatRoomScreen';
-import { VideoScreen } from '@/renewal/features/chat/VideoScreen';
-import { NotificationsScreen } from '@/renewal/features/notifications/NotificationsScreen';
-import { AccountSettingsScreen } from '@/renewal/features/account/AccountSettingsScreen';
-import { MyPageScreen } from '@/renewal/features/account/MyPageScreen';
-import { WorkspaceAnnouncementsScreen } from '@/renewal/features/announcements/WorkspaceAnnouncementsScreen';
-import { WorkspaceSettingsScreen } from '@/renewal/features/workspaceSettings/WorkspaceSettingsScreen';
+import { LoadingState } from '@/renewal/ui';
+
+/**
+ * 화면 단위 코드 분할. 셸, 가드, 시스템 화면만 첫 번들에 두고 나머지 화면은 처음 열 때 내려받는다.
+ * 화면 모듈은 이름 있는 내보내기를 쓰므로 lazy가 요구하는 default 형태로 감싼다.
+ * 같은 파일의 화면들은 한 덩어리로 묶여 함께 내려받는다.
+ */
+const lazyNamed = <M extends Record<string, unknown>, K extends keyof M>(load: () => Promise<M>, name: K) =>
+  lazy(() => load().then((module) => ({ default: module[name] as React.ComponentType })));
+
+const auth = {
+  login: () => import('@/renewal/features/auth/LoginScreen'),
+  signup: () => import('@/renewal/features/auth/SignupScreen'),
+  reset: () => import('@/renewal/features/auth/ResetPasswordScreen'),
+  oauth: () => import('@/renewal/features/auth/OAuthCallbackScreen'),
+  invite: () => import('@/renewal/features/auth/InviteScreen'),
+  welcome: () => import('@/renewal/features/auth/WelcomeScreen'),
+};
+const policy = {
+  agreements: () => import('@/renewal/features/policy/AgreementsScreen'),
+  documents: () => import('@/renewal/features/policy/PolicyScreens'),
+};
+const teamSpace = {
+  layout: () => import('@/renewal/features/teamSpace/TeamSpaceLayout'),
+  board: () => import('@/renewal/features/teamSpace/BoardScreens'),
+};
+
+const LoginScreen = lazyNamed(auth.login, 'LoginScreen');
+const SignupScreen = lazyNamed(auth.signup, 'SignupScreen');
+const ResetPasswordScreen = lazyNamed(auth.reset, 'ResetPasswordScreen');
+const OAuthCallbackScreen = lazyNamed(auth.oauth, 'OAuthCallbackScreen');
+const InviteScreen = lazyNamed(auth.invite, 'InviteScreen');
+const WelcomeScreen = lazyNamed(auth.welcome, 'WelcomeScreen');
+const AgreementsScreen = lazyNamed(policy.agreements, 'AgreementsScreen');
+const PrivacyScreen = lazyNamed(policy.documents, 'PrivacyScreen');
+const TermsScreen = lazyNamed(policy.documents, 'TermsScreen');
+const OnboardingScreen = lazyNamed(() => import('@/renewal/features/card/OnboardingScreen'), 'OnboardingScreen');
+const CardEditScreen = lazyNamed(() => import('@/renewal/features/card/CardEditScreen'), 'CardEditScreen');
+const GalleryScreen = lazyNamed(() => import('@/renewal/features/members/GalleryScreen'), 'GalleryScreen');
+const MemberDetailScreen = lazyNamed(() => import('@/renewal/features/members/MemberDetailScreen'), 'MemberDetailScreen');
+const HomeScreen = lazyNamed(() => import('@/renewal/features/home/HomeScreen'), 'HomeScreen');
+const TeamBuildingHome = lazyNamed(() => import('@/renewal/features/teamBuilding/TeamBuildingHome'), 'TeamBuildingHome');
+const TeamRecruitDetail = lazyNamed(() => import('@/renewal/features/teamBuilding/TeamRecruitDetail'), 'TeamRecruitDetail');
+const InboxScreen = lazyNamed(() => import('@/renewal/features/teamBuilding/InboxScreen'), 'InboxScreen');
+const ManageScreen = lazyNamed(() => import('@/renewal/features/manage/ManageScreen'), 'ManageScreen');
+const DashboardScreen = lazyNamed(() => import('@/renewal/features/dashboard/DashboardScreen'), 'DashboardScreen');
+const TeamSpaceLayout = lazyNamed(teamSpace.layout, 'TeamSpaceLayout');
+// 팀 스페이스 탭 가드. 레이아웃과 같은 모듈이라 함께 내려받는다.
+const TeamMemberOnly = lazyNamed(teamSpace.layout, 'TeamMemberOnly') as unknown as React.FC<{ children: React.ReactNode }>;
+const OverviewScreen = lazyNamed(() => import('@/renewal/features/teamSpace/OverviewScreen'), 'OverviewScreen');
+const KanbanScreen = lazyNamed(() => import('@/renewal/features/teamSpace/KanbanScreen'), 'KanbanScreen');
+const CalendarScreen = lazyNamed(() => import('@/renewal/features/teamSpace/CalendarScreen'), 'CalendarScreen');
+const BoardScreen = lazyNamed(teamSpace.board, 'BoardScreen');
+const PostDetailScreen = lazyNamed(teamSpace.board, 'PostDetailScreen');
+const AnnouncementsScreen = lazyNamed(teamSpace.board, 'AnnouncementsScreen');
+const TeamSettingsScreen = lazyNamed(() => import('@/renewal/features/teamSpace/TeamSettingsScreen'), 'TeamSettingsScreen');
+const ChatListScreen = lazyNamed(() => import('@/renewal/features/chat/ChatListScreen'), 'ChatListScreen');
+const ChatRoomScreen = lazyNamed(() => import('@/renewal/features/chat/ChatRoomScreen'), 'ChatRoomScreen');
+const VideoScreen = lazyNamed(() => import('@/renewal/features/chat/VideoScreen'), 'VideoScreen');
+const NotificationsScreen = lazyNamed(() => import('@/renewal/features/notifications/NotificationsScreen'), 'NotificationsScreen');
+const AccountSettingsScreen = lazyNamed(() => import('@/renewal/features/account/AccountSettingsScreen'), 'AccountSettingsScreen');
+const MyPageScreen = lazyNamed(() => import('@/renewal/features/account/MyPageScreen'), 'MyPageScreen');
+const WorkspaceAnnouncementsScreen = lazyNamed(() => import('@/renewal/features/announcements/WorkspaceAnnouncementsScreen'), 'WorkspaceAnnouncementsScreen');
+const WorkspaceSettingsScreen = lazyNamed(() => import('@/renewal/features/workspaceSettings/WorkspaceSettingsScreen'), 'WorkspaceSettingsScreen');
+
+/** 셸 밖 화면(인증, 정책, 온보딩)이 내려받는 동안 보이는 자리. 셸 안 화면은 AppShell이 따로 감싼다. */
+const ScreenFallback: React.FC = () => <LoadingState className="min-h-screen" label="화면을 불러오는 중이에요" />;
 
 /**
  * 리뉴얼 라우트. URL 체계는 docs/renewal/spec/02-information-architecture.md §4를 따른다.
@@ -42,6 +77,7 @@ import { WorkspaceSettingsScreen } from '@/renewal/features/workspaceSettings/Wo
  * 인증 화면과 초대 랜딩을 뺀 모든 화면은 RequireAuth 아래에 둔다.
  */
 export const AppRoutes: React.FC = () => (
+  <Suspense fallback={<ScreenFallback />}>
   <Routes>
     {/* 인증 화면(10 §4). 로그인한 사람은 원래 목적지로 보낸다. */}
     <Route element={<GuestOnly />}>
@@ -97,4 +133,5 @@ export const AppRoutes: React.FC = () => (
     </Route>
     </Route>
   </Routes>
+  </Suspense>
 );

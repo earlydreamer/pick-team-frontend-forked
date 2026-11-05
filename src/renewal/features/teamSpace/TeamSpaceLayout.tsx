@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { Suspense, useRef } from 'react';
 import { Link, NavLink, Outlet, useLocation, useOutletContext, useParams } from 'react-router-dom';
 import { Cog6ToothIcon, EyeIcon, LockClosedIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
 import { activeDelegation, type TeamSpace } from '@/renewal/domain/teamSpace';
@@ -124,7 +124,10 @@ export const TeamSpaceLayout: React.FC = () => {
         </p>
       )}
       <div className="mx-auto max-w-6xl px-4 pt-6 sm:px-6 lg:px-10">
-        <Outlet context={{ workspaceId: wsId, teamId, space: space.data, base } satisfies TeamSpaceContext} />
+        {/* 탭 화면을 내려받는 동안 팀 머리글과 탭은 그대로 둔다(R20). */}
+        <Suspense fallback={<LoadingState className="min-h-[40vh]" label="화면을 불러오는 중이에요" />}>
+          <Outlet context={{ workspaceId: wsId, teamId, space: space.data, base } satisfies TeamSpaceContext} />
+        </Suspense>
       </div>
     </div>
   );

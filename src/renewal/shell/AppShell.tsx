@@ -1,8 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import { data } from '@/renewal/data';
 import { useMarkWorkspaceSeen } from '@/renewal/data/queries';
+import { LoadingState } from '@/renewal/ui';
 import { BrandLockup } from './BrandMark';
 import { WorkspaceRail } from './WorkspaceRail';
 import { ContextNav } from './ContextNav';
@@ -122,7 +123,10 @@ export const AppShell: React.FC = () => {
       )}
 
       <main id="main" tabIndex={-1} className={`min-h-screen pt-14 focus:outline-none md:pl-16 ${inWorkspace ? 'lg:pl-[304px]' : ''}`}>
-        <Outlet />
+        {/* 화면 코드를 내려받는 동안 셸(헤더, 레일, 내비)은 그대로 두고 본문만 기다린다(R20 코드 분할). */}
+        <Suspense fallback={<LoadingState className="min-h-[60vh]" label="화면을 불러오는 중이에요" />}>
+          <Outlet />
+        </Suspense>
       </main>
     </div>
   );
