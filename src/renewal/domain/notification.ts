@@ -26,12 +26,15 @@ export type NotificationType =
   | 'TB_SCOUT_REJECTED'
   | 'TB_SESSION_OPENED'
   | 'TB_SESSION_RESOLVED'
+  | 'TB_SESSION_CLOSING_SOON'
+  | 'TB_UNASSIGNED_WARNING'
   | 'CARD_REMINDER'
   | 'KANBAN_TASK_ASSIGNED'
   | 'KANBAN_TASK_COMPLETION_REQUESTED'
   | 'KANBAN_TASK_COMPLETION_APPROVED'
   | 'KANBAN_TASK_COMPLETION_REJECTED'
   | 'SCHEDULE_CREATED'
+  | 'SCHEDULE_REMINDER'
   | 'ANNOUNCEMENT_CREATED'
   | 'POST_COMMENT_ADDED'
   | 'NEW_CHAT_MESSAGE'
@@ -49,6 +52,8 @@ export const TYPE_META: Record<NotificationType, { category: NotificationCategor
   TB_SCOUT_REJECTED: { category: 'TEAM_BUILDING', priority: 'MEDIUM' },
   TB_SESSION_OPENED: { category: 'TEAM_BUILDING', priority: 'HIGH' },
   TB_SESSION_RESOLVED: { category: 'TEAM_BUILDING', priority: 'HIGH' },
+  TB_SESSION_CLOSING_SOON: { category: 'TEAM_BUILDING', priority: 'HIGH' },
+  TB_UNASSIGNED_WARNING: { category: 'TEAM_BUILDING', priority: 'HIGH' },
   // 카탈로그 밖 이벤트. 대시보드의 미작성자 리마인드(11 US-11-05)를 알림으로 보낸다. 카드는 팀 빌딩 참여 조건이라 팀 빌딩 계열에 둔다.
   CARD_REMINDER: { category: 'TEAM_BUILDING', priority: 'MEDIUM' },
   KANBAN_TASK_ASSIGNED: { category: 'KANBAN', priority: 'MEDIUM' },
@@ -56,6 +61,7 @@ export const TYPE_META: Record<NotificationType, { category: NotificationCategor
   KANBAN_TASK_COMPLETION_APPROVED: { category: 'KANBAN', priority: 'MEDIUM' },
   KANBAN_TASK_COMPLETION_REJECTED: { category: 'KANBAN', priority: 'MEDIUM' },
   SCHEDULE_CREATED: { category: 'SCHEDULE', priority: 'MEDIUM' },
+  SCHEDULE_REMINDER: { category: 'SCHEDULE', priority: 'HIGH' },
   ANNOUNCEMENT_CREATED: { category: 'ANNOUNCEMENT', priority: 'HIGH' },
   POST_COMMENT_ADDED: { category: 'ANNOUNCEMENT', priority: 'MEDIUM' },
   NEW_CHAT_MESSAGE: { category: 'CHAT', priority: 'MEDIUM' },
@@ -116,6 +122,10 @@ export const dayGroup = (iso: string, now = new Date()) => {
 };
 
 export const NOTIFICATION_PAGE_SIZE = 20;
+
+/** 팀 빌딩 마감 임박 기준(16-D3)과 일정 리마인더 시각(16-D4) */
+export const CLOSING_SOON_MS = 24 * 3_600_000;
+export const SCHEDULE_REMINDER_MS = 5 * 60_000;
 
 /** 수신 설정에 보일 계열. 멤버십·관리는 매니저·개설자에게만 보인다(16-D2). */
 export const visibleCategories = (manager: boolean) => NOTIFICATION_CATEGORIES.filter((category) => manager || category !== 'MEMBERSHIP');
