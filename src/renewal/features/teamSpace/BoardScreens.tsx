@@ -20,6 +20,7 @@ import { Avatar, Button, EmptyState, ErrorState, LoadingState, fieldClassName, t
 import { AnnouncementBoard } from '@/renewal/features/announcements/AnnouncementBoard';
 import { TextEditorModal } from './TextEditorModal';
 import { ReportModal } from '@/renewal/features/reports/ReportModal';
+import { useWritable } from '@/renewal/shell/useWritable';
 import { MissingRedirect } from '@/renewal/screens/system';
 import { ConfirmModal } from '@/renewal/features/teamBuilding/shared';
 import { useTeamSpaceContext } from './TeamSpaceLayout';
@@ -42,6 +43,7 @@ const attempt = async (work: () => Promise<unknown>, done?: string) => {
  */
 export const BoardScreen: React.FC = () => {
   const { workspaceId, teamId, space, base } = useTeamSpaceContext();
+  const writable = useWritable(workspaceId);
   const navigate = useNavigate();
   const posts = usePosts(workspaceId, teamId);
   const create = useCreatePost(workspaceId, teamId);
@@ -57,9 +59,11 @@ export const BoardScreen: React.FC = () => {
     <div>
       <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="text-xl font-bold">게시판</h2>
-        <Button leftIcon={<PencilSquareIcon className="h-5 w-5" />} onClick={() => setWriting(true)}>
-          글 작성
-        </Button>
+        {writable && (
+          <Button leftIcon={<PencilSquareIcon className="h-5 w-5" />} onClick={() => setWriting(true)}>
+            글 작성
+          </Button>
+        )}
       </div>
       {posts.data.length === 0 ? (
         <div className="rounded-card border border-dashed border-outline-soft bg-surface">
@@ -113,6 +117,7 @@ export const BoardScreen: React.FC = () => {
 export const PostDetailScreen: React.FC = () => {
   const { postId = '' } = useParams<{ postId: string }>();
   const { workspaceId, teamId, space, base } = useTeamSpaceContext();
+  const writable = useWritable(workspaceId);
   const navigate = useNavigate();
   const me = useMe();
   const posts = usePosts(workspaceId, teamId);
@@ -135,7 +140,8 @@ export const PostDetailScreen: React.FC = () => {
   if (!post) return <MissingRedirect to={`${base}/board`} silent={seenPostRef.current === postId} message="삭제됐거나 볼 수 없는 글이에요." />;
   seenPostRef.current = postId;
 
-  const viewer = { accountId: me.data?.id ?? '', isLeader: space.access.isLeader };
+  // 보관된 워크스페이스에서는 수정·삭제를 보이지 않는다(R24).
+  const viewer = writable ? { accountId: me.data?.id ?? '', isLeader: space.access.isLeader } : { accountId: '', isLeader: false };
   const author = space.members.find((member) => member.account.id === post.authorId)?.account;
   const nameOf = (id: string) => space.members.find((member) => member.account.id === id)?.account.name ?? '이전 팀원';
 
@@ -202,6 +208,7 @@ export const PostDetailScreen: React.FC = () => {
             ))}
           </ul>
         )}
+        {writable && (
         <form
           className="flex gap-2"
           onSubmit={async (event) => {
@@ -217,6 +224,7 @@ export const PostDetailScreen: React.FC = () => {
             등록
           </Button>
         </form>
+        )}
       </section>
 
       <ReportModal target={reporting ? { type: 'POST', id: post.id, workspaceId, label: `${nameOf(post.authorId)}님의 글 "${post.title}"` } : null} onClose={() => setReporting(false)} />
@@ -251,6 +259,7 @@ export const PostDetailScreen: React.FC = () => {
  */
 export const AnnouncementsScreen: React.FC = () => {
   const { workspaceId, teamId, space } = useTeamSpaceContext();
+  const writable = useWritable(workspaceId);
   const announcements = useTeamAnnouncements(workspaceId, teamId);
   const create = useCreateAnnouncement(workspaceId, teamId);
   const update = useUpdateAnnouncement(workspaceId, teamId);
@@ -260,7 +269,7 @@ export const AnnouncementsScreen: React.FC = () => {
       <AnnouncementBoard
         heading={<h2 className="text-xl font-bold">팀 공지</h2>}
         query={announcements}
-        canWrite={space.access.isLeader}
+        canWrite={space.access.isLeader && writable}
         writeDescription="공지는 팀원 모두에게 보이고 워크스페이스 홈의 최근 공지에도 실려요."
         emptyDescription="팀 전체가 알아야 할 내용을 공지로 남겨 보세요."
         create={(input) => create.mutateAsync(input)}

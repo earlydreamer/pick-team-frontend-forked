@@ -8,6 +8,7 @@ import { useCreateSchedule, useDeleteSchedule, useMe, useSchedules, useUpdateSch
 import { Button, ErrorState, LoadingState, Modal, fieldClassName, toast } from '@/renewal/ui';
 import { ConfirmModal } from '@/renewal/features/teamBuilding/shared';
 import { useTeamSpaceContext } from './TeamSpaceLayout';
+import { useWritable } from '@/renewal/shell/useWritable';
 import { errorMessage } from './TaskModals';
 
 type View = 'month' | 'week' | 'list';
@@ -213,6 +214,7 @@ const ScheduleModal: React.FC<{
  */
 export const CalendarScreen: React.FC = () => {
   const { workspaceId, teamId, space } = useTeamSpaceContext();
+  const writable = useWritable(workspaceId);
   const [params, setParams] = useSearchParams();
   const me = useMe();
   const schedules = useSchedules(workspaceId, teamId);
@@ -288,9 +290,11 @@ export const CalendarScreen: React.FC = () => {
               </button>
             ))}
           </div>
-          <Button leftIcon={<PlusIcon className="h-5 w-5" />} onClick={() => setEditing({ day: anchor })}>
-            일정 추가
-          </Button>
+          {writable && (
+            <Button leftIcon={<PlusIcon className="h-5 w-5" />} onClick={() => setEditing({ day: anchor })}>
+              일정 추가
+            </Button>
+          )}
         </div>
       </div>
 
@@ -450,7 +454,7 @@ export const CalendarScreen: React.FC = () => {
         open={editing !== null}
         schedule={editing?.schedule}
         initialDay={editing?.day ?? anchor}
-        canEdit={editing?.schedule ? canEditSchedule(editing.schedule, viewer) : true}
+        canEdit={writable && (editing?.schedule ? canEditSchedule(editing.schedule, viewer) : true)}
         pending={create.isPending || update.isPending}
         onClose={() => setEditing(null)}
         onSubmit={save}

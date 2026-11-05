@@ -9,6 +9,7 @@ import { DataError } from '@/renewal/data';
 import { useApprove, useDashboard, useRemindCardWriters, useWorkspace } from '@/renewal/data/queries';
 import { Badge, Button, ErrorState, LoadingState, buttonClassName, toast } from '@/renewal/ui';
 import { ForbiddenScreen, NotFoundScreen } from '@/renewal/screens/system';
+import { useWritable } from '@/renewal/shell/useWritable';
 import { josa } from '@/renewal/domain/josa';
 
 const errorToast = (error: unknown) => toast.error(error instanceof Error ? error.message : '요청을 처리하지 못했어요. 다시 시도해 주세요.');
@@ -32,6 +33,7 @@ const Progress: React.FC<{ value: number; label: string; tone?: 'primary' | 'war
 /** 위젯 A: 가입·카드 현황. 카드 현황은 팀 빌딩 참여 대상(멤버 역할) 기준이다. */
 const CardsWidget: React.FC<{ wsId: string; view: DashboardView }> = ({ wsId, view }) => {
   const remind = useRemindCardWriters(wsId);
+  const writable = useWritable(wsId);
   const rate = writtenRate(view.cards);
   const { workspace, cards } = view;
   return (
@@ -59,7 +61,7 @@ const CardsWidget: React.FC<{ wsId: string; view: DashboardView }> = ({ wsId, vi
             className="mt-4 w-full"
             variant="outline"
             leftIcon={<PaperAirplaneIcon className="h-5 w-5" />}
-            disabled={cards.notWritten === 0}
+            disabled={cards.notWritten === 0 || !writable}
             loading={remind.isPending}
             onClick={async () => {
               try {
@@ -155,7 +157,7 @@ const ProgressWidget: React.FC<{ view: DashboardView }> = ({ view }) => (
 );
 
 /** 위젯 D: 이상 신호. 차단 이력은 차단 목록으로, 전체에 알릴 일은 워크스페이스 공지 작성으로 잇는다(R16). */
-const AlertsWidget: React.FC<{ wsId: string; view: DashboardView }> = ({ wsId, view }) => (
+const AlertsWidget: React.FC<{ wsId: string; view: DashboardView; writable: boolean }> = ({ wsId, view, writable }) => (
   <Widget id="dsh-alerts" title="이상 신호" className="lg:col-span-2">
     {view.alerts.length === 0 ? (
       <p className="flex items-center gap-2 text-sm text-success">
@@ -186,16 +188,19 @@ const AlertsWidget: React.FC<{ wsId: string; view: DashboardView }> = ({ wsId, v
         )}
       </ul>
     )}
+    {writable && (
     <Link to={`/ws/${wsId}/announcements?new=1`} className="mt-3 inline-flex min-h-touch items-center gap-1 text-sm font-semibold text-primary underline-offset-4 hover:underline">
       전체 공지 쓰기
       <ArrowRightIcon className="h-4 w-4" aria-hidden="true" />
     </Link>
+    )}
   </Widget>
 );
 
 /** 진행도 승인 큐(13 §4.5). 승인하면 승인자로 지금 로그인한 계정이 기록된다. */
 const ApprovalQueue: React.FC<{ wsId: string; view: DashboardView }> = ({ wsId, view }) => {
   const approve = useApprove(wsId);
+  const writable = useWritable(wsId);
   const [busyId, setBusyId] = useState<string | null>(null);
   return (
     <section id="dsh-approvals" aria-labelledby="dsh-approvals-heading" className="scroll-mt-20 rounded-card border border-outline-soft bg-surface lg:col-span-2">
@@ -222,6 +227,7 @@ const ApprovalQueue: React.FC<{ wsId: string; view: DashboardView }> = ({ wsId, 
                 <Link to={`/ws/${wsId}/team/${item.teamId}/kanban?task=${item.id}`} className={buttonClassName('outline', 'sm')}>
                   상세 보기
                 </Link>
+                {writable && (
                 <Button
                   size="sm"
                   loading={busyId === item.id}
@@ -240,6 +246,7 @@ const ApprovalQueue: React.FC<{ wsId: string; view: DashboardView }> = ({ wsId, 
                 >
                   승인
                 </Button>
+                )}
               </div>
             </li>
           ))}
@@ -258,6 +265,7 @@ export const DashboardScreen: React.FC = () => {
   const workspace = useWorkspace(wsId);
   const manager = isManager(workspace.data?.myRole);
   const dashboard = useDashboard(wsId, manager);
+  const writable = !workspace.data?.archived;
 
   if (workspace.isLoading || (manager && dashboard.isLoading)) return <LoadingState className="min-h-[60vh]" label="대시보드를 불러오는 중이에요" />;
   if (workspace.error instanceof DataError && workspace.error.code === 'NOT_FOUND') return <NotFoundScreen />;
@@ -286,7 +294,7 @@ export const DashboardScreen: React.FC = () => {
         </div>
         <TeamBuildingWidget wsId={wsId} view={view} />
         <ProgressWidget view={view} />
-        <AlertsWidget wsId={wsId} view={view} />
+        <AlertsWidget wsId={wsId} view={view} writable={writable} />
         <ApprovalQueue wsId={wsId} view={view} />
       </div>
     </div>

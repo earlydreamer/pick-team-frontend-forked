@@ -226,7 +226,8 @@ export const MembersTab: React.FC<{ settings: WorkspaceSettings }> = ({ settings
         <ul className="mt-3 divide-y divide-outline-soft">
           {shown.map((member) => {
             const team = teamOf(member);
-            const actions = memberActions(settings.myRole, myId, { accountId: member.account.id, role: member.role });
+            // 보관 중이면 역할 변경·내보내기·차단 메뉴를 숨긴다(R24).
+            const actions = memberActions(settings.archivedAt ? 'MEMBER' : settings.myRole, myId, { accountId: member.account.id, role: member.role });
             return (
               <li key={member.account.id} className="flex items-center gap-3 py-2.5">
                 <Avatar name={member.account.name} imageUrl={member.account.profileImageUrl} size="md" />
@@ -300,6 +301,7 @@ export const BansTab: React.FC<{ settings: WorkspaceSettings }> = ({ settings })
                   {item.account.email} · {formatDate(item.bannedAt)} 차단
                 </span>
               </span>
+              {!settings.archivedAt && (
               <Button
                 variant="outline"
                 size="sm"
@@ -311,6 +313,7 @@ export const BansTab: React.FC<{ settings: WorkspaceSettings }> = ({ settings })
               >
                 차단 해제
               </Button>
+              )}
             </li>
           ))}
         </ul>

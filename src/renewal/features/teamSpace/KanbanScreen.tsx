@@ -6,6 +6,7 @@ import { useAddComment, useCreateTask, useDeleteTask, useMe, useTasks, useTransi
 import { Avatar, Badge, Button, EmptyState, ErrorState, LoadingState, toast } from '@/renewal/ui';
 import { activeDelegation } from '@/renewal/domain/teamSpace';
 import { useTeamSpaceContext } from './TeamSpaceLayout';
+import { useWritable } from '@/renewal/shell/useWritable';
 import { CreateTaskModal, TaskDetailModal, errorMessage } from './TaskModals';
 
 const formatDeadline = (date: string) => {
@@ -71,6 +72,7 @@ const TaskCard: React.FC<{ task: KanbanTask; nameOf: (id?: string) => string; on
  */
 export const KanbanScreen: React.FC = () => {
   const { workspaceId, teamId, space } = useTeamSpaceContext();
+  const writable = useWritable(workspaceId);
   const [params, setParams] = useSearchParams();
   const me = useMe();
   const tasks = useTasks(workspaceId, teamId);
@@ -123,7 +125,10 @@ export const KanbanScreen: React.FC = () => {
   const staffName = (id: string) => space.staff.find((account) => account.id === id)?.name;
   // 팀원이 아닌 매니저가 승인했으면 이름 뒤에 역할을 붙여 개입 승인임을 알린다(14 §4.2 승인 기록).
   const nameOf = (id?: string) => (!id ? '' : memberMap.get(id)?.name ?? (staffName(id) ? `${staffName(id)}(매니저)` : '알 수 없음'));
-  const viewer: TaskViewer = { accountId: me.data?.id ?? '', isMember: access.isMember, isLeader: access.isLeader, isManager: access.isManagerViewer };
+  // 보관된 워크스페이스는 읽기 전용이라 상태 변경·수정·댓글을 보이지 않는다(R24).
+  const viewer: TaskViewer = writable
+    ? { accountId: me.data?.id ?? '', isMember: access.isMember, isLeader: access.isLeader, isManager: access.isManagerViewer }
+    : { accountId: me.data?.id ?? '', isMember: false, isLeader: false, isManager: false };
   const all = [...tasks.data].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   const pending = all.filter((task) => task.status === 'APPROVAL_PENDING');
   const openTask = all.find((task) => task.id === openTaskId);
@@ -158,7 +163,7 @@ export const KanbanScreen: React.FC = () => {
               <span className={`rounded-full px-1.5 text-xs tabular-nums ${pending.length > 0 && approver ? 'bg-danger text-white' : ''}`}>{pending.length}</span>
             </button>
           </div>
-          {access.isMember && (
+          {access.isMember && writable && (
             <Button leftIcon={<PlusIcon className="h-5 w-5" />} onClick={() => setCreating(true)}>
               새 태스크
             </Button>
