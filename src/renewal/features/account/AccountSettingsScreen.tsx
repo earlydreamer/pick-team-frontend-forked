@@ -15,7 +15,8 @@ const CATEGORY_HINT: Partial<Record<NotificationCategory, string>> = {
   SCHEDULE: '팀 일정 등록',
   ANNOUNCEMENT: '공지 등록, 내 글에 달린 댓글',
   CHAT: '음소거하지 않은 방의 새 메시지',
-  MEMBERSHIP: '새 멤버 합류, 팀장 위임',
+  // 멤버십·관리는 운영진에게만 보인다(16-D2). 꺼도 받는 알림은 notification.ts의 ALWAYS_DELIVER와 맞춘다.
+  MEMBERSHIP: '새 멤버 합류, 팀장 위임, 새 신고. 차단, 신고 결과, 운영 안내는 꺼도 받아요',
 };
 
 /** 수신 설정(16 §4.3). 바꾸면 바로 저장하고 실패하면 되돌린다. */
