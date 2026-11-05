@@ -37,6 +37,32 @@ describe('알림 기록', () => {
   });
 });
 
+describe('지원 알림 묶음(16-D7)', () => {
+  const applyTwice = () => {
+    let db = rules.apply(publish(publish(seed(), 'u-student'), 'u-03'), WS, 'u-student', 't-2');
+    db = onApplicationCreated(db, WS, lastApplicationId(db), 'u-student');
+    db = rules.apply(db, WS, 'u-03', 't-2');
+    return onApplicationCreated(db, WS, lastApplicationId(db), 'u-03');
+  };
+
+  it('같은 팀에 한 시간 안에 온 지원은 한 건으로 묶고 인원을 센다', () => {
+    const db = applyTwice();
+    const received = inboxOf(db, 'u-05').filter((item) => item.type === 'TB_APPLICATION_RECEIVED');
+    expect(received).toHaveLength(1);
+    expect(received[0]).toMatchObject({ count: 2, title: '데이터 크루에 2명이 지원했어요.', read: false });
+  });
+
+  it('묶음을 시작한 지 한 시간이 지났거나 읽었으면 새로 쌓는다', () => {
+    let db = rules.apply(publish(publish(seed(), 'u-student'), 'u-03'), WS, 'u-student', 't-2');
+    db = onApplicationCreated(db, WS, lastApplicationId(db), 'u-student');
+    const old = new Date(Date.now() - 2 * 3_600_000).toISOString();
+    db = { ...db, notifications: db.notifications.map((item) => (item.groupKey === 'apply:t-2' ? { ...item, groupStartedAt: old, createdAt: old } : item)) };
+    db = rules.apply(db, WS, 'u-03', 't-2');
+    db = onApplicationCreated(db, WS, lastApplicationId(db), 'u-03');
+    expect(inboxOf(db, 'u-05').filter((item) => item.type === 'TB_APPLICATION_RECEIVED')).toHaveLength(2);
+  });
+});
+
 describe('리마인드 알림', () => {
   it('카드 미작성자 리마인드는 대상자에게 카드 편집 링크로 간다', () => {
     const db = onCardReminder(seed(), WS, ['u-student'], 'u-instructor');

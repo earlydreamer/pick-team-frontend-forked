@@ -83,10 +83,12 @@ export interface AppNotification {
   link: string;
   read: boolean;
   createdAt: string;
-  /** 채팅 묶음(§6.3)의 키. 같은 방의 읽지 않은 알림을 하나로 합친다 */
+  /** 묶음(§6.3)의 키. 같은 방의 채팅, 같은 팀의 지원처럼 읽지 않은 알림을 하나로 합친다 */
   groupKey?: string;
-  /** 묶인 메시지 수 */
+  /** 묶인 알림 수 */
   count?: number;
+  /** 묶음을 시작한 시각. 묶음 기간(16-D7)을 잴 때 쓴다 */
+  groupStartedAt?: string;
 }
 
 export interface NotificationSettings {
