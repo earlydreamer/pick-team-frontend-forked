@@ -15,18 +15,18 @@ export const AuthLayout: React.FC<{ title: string; description?: React.ReactNode
   footer,
 }) => (
   <div className="flex min-h-screen flex-col items-center bg-surface-low px-4 py-10 sm:justify-center">
-    <div className="mb-6 flex items-center gap-2">
+    <header className="mb-6 flex items-center gap-2">
       <Link to="/" aria-label="Pick Team 첫 화면">
         <BrandLockup />
       </Link>
       {data.kind === 'mock' && <Badge tone="warning">목업 데이터</Badge>}
-    </div>
+    </header>
     <main className="w-full max-w-md rounded-modal border border-outline-soft bg-surface p-6 shadow-sm sm:p-8">
       <h1 className="text-2xl font-bold leading-8">{title}</h1>
       {description && <p className="mt-1.5 text-[0.9375rem] leading-6 text-muted">{description}</p>}
       <div className="mt-6">{children}</div>
     </main>
-    {footer && <div className="mt-5 text-center text-sm text-muted">{footer}</div>}
+    {footer && <footer className="mt-5 text-center text-sm text-muted">{footer}</footer>}
   </div>
 );
 
