@@ -330,7 +330,7 @@ export const WorkspaceSettingsScreen: React.FC = () => {
                     >
                       {tab.label}
                       {tab.id === 'reports' && Boolean(openReports.data) && (
-                        <span className="ml-1.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-danger px-1.5 text-xs font-bold leading-5 text-white">
+                        <span className="relative ml-1.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-danger px-1.5 text-xs font-bold leading-5 text-white">
                           {openReports.data}
                           <span className="sr-only">건 처리 대기</span>
                         </span>
