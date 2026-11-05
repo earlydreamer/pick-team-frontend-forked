@@ -49,8 +49,9 @@ const Article: React.FC<{ id: string; title: string; children: React.ReactNode }
   </section>
 );
 
+/** 좁은 화면에서는 표가 가로로 스크롤된다. 키보드로도 스크롤할 수 있게 영역에 포커스와 이름을 준다. */
 const Table: React.FC<{ head: string[]; rows: string[][]; caption: string }> = ({ head, rows, caption }) => (
-  <div className="overflow-x-auto">
+  <div className="overflow-x-auto rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" tabIndex={0} role="region" aria-label={`${caption} 표`}>
     <table className="w-full min-w-[32rem] border-collapse text-sm">
       <caption className="sr-only">{caption}</caption>
       <thead>

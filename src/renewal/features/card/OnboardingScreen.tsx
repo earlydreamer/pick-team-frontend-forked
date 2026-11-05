@@ -186,10 +186,10 @@ export const OnboardingScreen: React.FC = () => {
   return (
     <div className="min-h-screen bg-canvas px-4 py-6 sm:py-10">
       <div className="mx-auto max-w-2xl">
-        <div className="mb-6 flex items-center justify-between gap-3">
+        <header className="mb-6 flex items-center justify-between gap-3">
           <BrandLockup className="text-base" />
           {workspace.data && <span className="truncate text-sm text-muted">{workspace.data.name}</span>}
-        </div>
+        </header>
 
         <main className="rounded-modal border border-outline-soft bg-surface p-5 sm:p-8">
           <StepIndicator step={step} />
@@ -221,7 +221,7 @@ export const OnboardingScreen: React.FC = () => {
               </h1>
               <p className="mt-1 text-[0.9375rem] text-muted">{workspace.data?.name}에서 팀을 찾으려면 PR 카드가 필요해요.</p>
               <p className="mb-4 mt-6 font-semibold">카드를 만들기 전에 확인해 주세요.</p>
-              <ConsentPanel workspaceName={workspace.data?.name} />
+              <ConsentPanel workspaceName={workspace.data?.name} headingLevel={2} />
               <div className="mt-8 flex flex-wrap justify-end gap-2 border-t border-outline-soft pt-6">
                 <Link to={home} className="inline-flex min-h-touch items-center rounded-[10px] border border-outline bg-surface px-4 text-sm font-semibold hover:bg-surface-container">
                   나중에 하기

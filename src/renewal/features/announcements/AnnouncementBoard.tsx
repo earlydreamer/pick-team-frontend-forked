@@ -38,7 +38,10 @@ export const AnnouncementBoard: React.FC<{
   highlightId?: string | null;
   openEditor?: boolean;
   onEditorOpened?: () => void;
-}> = ({ heading, query, canWrite, writeDescription, emptyDescription, create, update, remove, pending, removing, highlightId, openEditor, onEditorOpened }) => {
+  /** 공지 제목 단계. 화면 제목(h1) 바로 아래면 2, 탭 제목(h2) 아래면 3 */
+  itemHeadingLevel?: 2 | 3;
+}> = ({ heading, query, canWrite, writeDescription, emptyDescription, create, update, remove, pending, removing, highlightId, openEditor, onEditorOpened, itemHeadingLevel = 3 }) => {
+  const ItemHeading = `h${itemHeadingLevel}` as const;
   const [editing, setEditing] = useState<TeamAnnouncement | 'new' | null>(null);
   const [deleting, setDeleting] = useState<TeamAnnouncement | null>(null);
 
@@ -94,9 +97,9 @@ export const AnnouncementBoard: React.FC<{
                 <header className="flex flex-wrap items-start gap-2">
                   <MegaphoneIcon className="mt-1 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
                   <div className="min-w-0 flex-1">
-                    <h3 id={`announcement-${item.id}-title`} className="text-base font-bold leading-6">
+                    <ItemHeading id={`announcement-${item.id}-title`} className="text-base font-bold leading-6">
                       {item.title}
-                    </h3>
+                    </ItemHeading>
                     <p className="text-sm text-muted">
                       {item.authorName} · <time dateTime={item.createdAt}>{relativeTime(item.createdAt)}</time>
                       {item.updatedAt && ' · 수정됨'}

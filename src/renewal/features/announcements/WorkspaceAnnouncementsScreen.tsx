@@ -49,6 +49,7 @@ export const WorkspaceAnnouncementsScreen: React.FC = () => {
         highlightId={params.get('id')}
         openEditor={params.get('new') === '1'}
         onEditorOpened={clearNew}
+        itemHeadingLevel={2}
       />
     </div>
   );

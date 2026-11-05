@@ -47,7 +47,8 @@ export const ContextNav: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }
   const teamBuildingActive = pathname.startsWith(`${base}/team-building`) && !pathname.startsWith(`${base}/team-building/manage`);
 
   return (
-    <div className="flex h-full w-60 shrink-0 flex-col border-r border-outline-soft bg-surface">
+    // 워크스페이스 이름까지 내비 랜드마크 안에 둔다(모든 내용은 랜드마크 안에, axe region).
+    <nav aria-label={`${workspace.name} 메뉴`} className="flex h-full w-60 shrink-0 flex-col border-r border-outline-soft bg-surface">
       <div className="flex min-h-[56px] items-center border-b border-outline-soft px-4">
         <p className="min-w-0 truncate font-bold" title={workspace.name}>
           {workspace.name}
@@ -56,7 +57,7 @@ export const ContextNav: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }
           <span className="ml-2 shrink-0 rounded-full bg-surface-container px-2 py-0.5 text-xs font-semibold text-muted">보관됨</span>
         )}
       </div>
-      <nav aria-label={`${workspace.name} 메뉴`} className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
         <Section title="워크스페이스">
           <li>
             <NavLink to={base} end className={itemClass} onClick={onNavigate}>
@@ -191,7 +192,7 @@ export const ContextNav: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }
             </NavLink>
           </li>
         </Section>
-      </nav>
-    </div>
+      </div>
+    </nav>
   );
 };
