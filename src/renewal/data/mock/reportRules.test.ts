@@ -122,3 +122,37 @@ describe('워크스페이스 운영진의 1차 처리(17 §2, §5.2)', () => {
   });
 });
 
+describe('댓글 신고와 운영자 알림', () => {
+  const latest = (db: MockDb) => db.reports.slice(-1)[0];
+
+  it('댓글은 팀원만 신고하고, 원문에 어느 글의 댓글인지 남긴다', () => {
+    expect(() => submitReport(seed(), 'u-05', { targetType: 'COMMENT', targetId: 'pc-1', workspaceId: WS, reason: 'SPAM' })).toThrow('찾을 수 없어요');
+    expect(() => submitReport(seed(), 'u-02', { targetType: 'COMMENT', targetId: 'pc-1', workspaceId: WS, reason: 'SPAM' })).toThrow('신고할 수 없어요');
+    const db = submitReport(seed(), 'u-01', { targetType: 'COMMENT', targetId: 'pc-1', workspaceId: WS, reason: 'SPAM' });
+    expect(latest(db)).toMatchObject({ targetType: 'COMMENT', targetAccountId: 'u-02' });
+    expect(latest(db).snapshot).toContain('흐름도는 피그마에 올려 둘게요.');
+    expect(latest(db).snapshot).toContain('(글: ');
+  });
+
+  it('운영진이 댓글을 삭제하면 글은 남고 댓글만 지운다', () => {
+    const db = submitReport(seed(), 'u-01', { targetType: 'COMMENT', targetId: 'pc-1', workspaceId: WS, reason: 'SPAM' });
+    const id = latest(db).id;
+    const done = resolveInWorkspace(startWorkspaceReview(db, 'u-manager', WS, id), 'u-manager', WS, id, 'CONTENT_REMOVED');
+    const post = done.posts.find((item) => item.id === 'p-1');
+    expect(post).toBeTruthy();
+    expect(post?.comments.some((item) => item.id === 'pc-1')).toBe(false);
+    expect(listWorkspaceReports(done, 'u-manager', WS).find((item) => item.id === id)?.targetExists).toBe(false);
+  });
+
+  it('운영자에게 넘어오면 시스템 관리자에게 알리고 묶는다', () => {
+    const staffTarget = submitReport(seed(), 'u-02', { targetType: 'USER', targetId: 'u-manager', workspaceId: WS, reason: 'ABUSE' });
+    expect(inbox(staffTarget, 'u-admin').slice(-1)[0]).toMatchObject({ type: 'REPORT_RECEIVED', link: '/admin/reports?status=RECEIVED' });
+    const reported = submitReport(staffTarget, 'u-02', { targetType: 'POST', targetId: 'p-1', workspaceId: WS, reason: 'ABUSE' });
+    expect(inbox(reported, 'u-admin').filter((item) => item.type === 'REPORT_RECEIVED')).toHaveLength(1);
+    const escalated = escalateReport(reported, 'u-manager', WS, latest(reported).id);
+    const received = inbox(escalated, 'u-admin').filter((item) => item.type === 'REPORT_RECEIVED');
+    expect(received).toHaveLength(1);
+    expect(received[0]).toMatchObject({ count: 2, title: '운영자가 처리할 신고가 2건 넘어왔어요.' });
+  });
+});
+

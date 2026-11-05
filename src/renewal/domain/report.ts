@@ -4,8 +4,9 @@
  * 신고자 정보는 어떤 경우에도 피신고자에게 보이지 않는다(17 §5.1 신고자 보호).
  */
 
-export type ReportTargetType = 'USER' | 'MESSAGE' | 'POST';
-export const REPORT_TARGET_LABEL: Record<ReportTargetType, string> = { USER: '사용자', MESSAGE: '메시지', POST: '게시글' };
+/** 17 §6.5의 targetType에는 댓글이 없지만 §5.2가 게시글·댓글을 같은 처리 대상으로 두어 COMMENT를 더했다 */
+export type ReportTargetType = 'USER' | 'MESSAGE' | 'POST' | 'COMMENT';
+export const REPORT_TARGET_LABEL: Record<ReportTargetType, string> = { USER: '사용자', MESSAGE: '메시지', POST: '게시글', COMMENT: '댓글' };
 
 export type ReportReason = 'ABUSE' | 'SPAM' | 'PRIVACY' | 'OTHER';
 export const REPORT_REASONS: { value: ReportReason; label: string }[] = [
@@ -33,7 +34,7 @@ export const REPORT_LIMITS = { detailMax: 500, memoMax: 500 } as const;
 
 export interface ReportInput {
   targetType: ReportTargetType;
-  /** 사용자면 계정 id, 메시지·게시글이면 그 id */
+  /** 사용자면 계정 id, 메시지·게시글·댓글이면 그 id */
   targetId: string;
   workspaceId: string;
   reason: ReportReason;
@@ -82,7 +83,7 @@ export const validateReport = (input: Pick<ReportInput, 'reason' | 'detail'>) =>
   return undefined;
 };
 
-/** 대상 종류마다 고를 수 있는 조치(17 §5.2). 콘텐츠 삭제는 메시지·게시글에만 있다 */
+/** 대상 종류마다 고를 수 있는 조치(17 §5.2). 콘텐츠 삭제는 메시지·게시글·댓글에만 있다 */
 export const actionsFor = (targetType: ReportTargetType): ReportAction[] =>
   targetType === 'USER' ? ['DISMISS', 'WARNED', 'BANNED_WS', 'BANNED_SYSTEM'] : ['DISMISS', 'WARNED', 'CONTENT_REMOVED', 'BANNED_WS', 'BANNED_SYSTEM'];
 
