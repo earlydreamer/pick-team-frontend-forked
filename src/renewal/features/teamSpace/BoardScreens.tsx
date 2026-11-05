@@ -19,7 +19,7 @@ import {
 import { Avatar, Button, EmptyState, ErrorState, LoadingState, fieldClassName, toast } from '@/renewal/ui';
 import { AnnouncementBoard } from '@/renewal/features/announcements/AnnouncementBoard';
 import { TextEditorModal } from './TextEditorModal';
-import { ReportModal } from '@/renewal/features/reports/ReportModal';
+import { ReportModal, type ReportTarget } from '@/renewal/features/reports/ReportModal';
 import { useWritable } from '@/renewal/shell/useWritable';
 import { MissingRedirect } from '@/renewal/screens/system';
 import { ConfirmModal } from '@/renewal/features/teamBuilding/shared';
@@ -129,7 +129,7 @@ export const PostDetailScreen: React.FC = () => {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [comment, setComment] = useState('');
   const seenPostRef = useRef<string | undefined>(undefined);
-  const [reporting, setReporting] = useState(false);
+  const [reporting, setReporting] = useState<ReportTarget | null>(null);
 
   if (posts.isLoading) return <LoadingState className="min-h-[40vh]" label="글을 불러오는 중이에요" />;
   if (posts.isError || !posts.data) {
@@ -161,8 +161,13 @@ export const PostDetailScreen: React.FC = () => {
               {post.updatedAt !== post.createdAt && ' · 수정됨'}
             </p>
           </div>
-          {post.authorId !== viewer.accountId && (
-            <Button size="sm" variant="ghost" leftIcon={<FlagIcon className="h-4 w-4" />} onClick={() => setReporting(true)}>
+          {post.authorId !== me.data?.id && (
+            <Button
+              size="sm"
+              variant="ghost"
+              leftIcon={<FlagIcon className="h-4 w-4" />}
+              onClick={() => setReporting({ type: 'POST', id: post.id, workspaceId, label: `${nameOf(post.authorId)}님의 글 "${post.title}"` })}
+            >
               신고
             </Button>
           )}
@@ -194,6 +199,16 @@ export const PostDetailScreen: React.FC = () => {
                   </p>
                   <p className="mt-0.5 whitespace-pre-line break-words">{item.content}</p>
                 </div>
+                {item.authorId !== me.data?.id && (
+                  <button
+                    type="button"
+                    aria-label={`${nameOf(item.authorId)}의 댓글 신고`}
+                    onClick={() => setReporting({ type: 'COMMENT', id: item.id, workspaceId, label: `${nameOf(item.authorId)}님의 댓글` })}
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted hover:bg-surface-container"
+                  >
+                    <FlagIcon className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                )}
                 {canEditAuthored(item.authorId, viewer) && (
                   <button
                     type="button"
@@ -227,7 +242,7 @@ export const PostDetailScreen: React.FC = () => {
         )}
       </section>
 
-      <ReportModal target={reporting ? { type: 'POST', id: post.id, workspaceId, label: `${nameOf(post.authorId)}님의 글 "${post.title}"` } : null} onClose={() => setReporting(false)} />
+      <ReportModal target={reporting} onClose={() => setReporting(null)} />
       <TextEditorModal
         open={editing}
         heading="글 수정"

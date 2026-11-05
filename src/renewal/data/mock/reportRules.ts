@@ -37,6 +37,21 @@ const requireMember = (db: MockDb, workspaceId: string, accountId: string) => {
 const staffOf = (db: MockDb, workspaceId: string) =>
   db.workspaces.find((item) => item.id === workspaceId)?.members.filter((member) => member.role !== 'MEMBER').map((member) => member.accountId) ?? [];
 
+/** 운영자에게 넘어온 신고를 시스템 관리자에게 알린다. 운영자 콘솔의 접수 목록으로 잇고, 읽기 전까지 묶는다 */
+const notifyAdmins = (db: MockDb, workspaceId: string): MockDb =>
+  notify(
+    db,
+    db.accounts.filter((account) => account.systemRole === 'ADMIN').map((account) => account.id),
+    {
+      type: 'REPORT_RECEIVED',
+      workspaceId,
+      link: '/admin/reports?status=RECEIVED',
+      title: '운영자가 처리할 신고가 넘어왔어요.',
+      group: { key: 'report:system', title: (count) => `운영자가 처리할 신고가 ${count}건 넘어왔어요.` },
+    },
+    SYSTEM,
+  );
+
 export const requireSystemAdmin = (db: MockDb, accountId: string) => {
   if (accountOf(db, accountId)?.systemRole !== 'ADMIN') throw new DataError('시스템 관리자만 볼 수 있어요.', 'FORBIDDEN');
 };
@@ -56,6 +71,14 @@ const resolveTarget = (db: MockDb, reporterId: string, input: ReportInput): { ta
     const room = message && db.chatRooms.find((item) => item.id === message.roomId && item.workspaceId === input.workspaceId);
     if (!message || !room || !message.authorId || !membersOf(db, room).includes(reporterId)) throw missing;
     return { targetAccountId: message.authorId, snapshot: message.content };
+  }
+  if (input.targetType === 'COMMENT') {
+    const post = db.posts.find((item) => item.comments.some((comment) => comment.id === input.targetId));
+    const comment = post?.comments.find((item) => item.id === input.targetId);
+    const team = post && db.teams.find((item) => item.id === post.teamId && item.workspaceId === input.workspaceId);
+    if (!post || !comment || !team || !team.memberIds.includes(reporterId)) throw missing;
+    // 댓글만으로는 맥락이 부족해 어느 글의 댓글인지 함께 남긴다.
+    return { targetAccountId: comment.authorId, snapshot: `${comment.content}\n(글: ${post.title})` };
   }
   const post = db.posts.find((item) => item.id === input.targetId);
   const team = post && db.teams.find((item) => item.id === post.teamId && item.workspaceId === input.workspaceId);
@@ -85,7 +108,7 @@ export const submitReport = (db: MockDb, reporterId: string, input: ReportInput)
     createdAt: now(),
   };
   const staff = staffOf(db, input.workspaceId);
-  if (staff.includes(targetAccountId)) return { ...db, reports: [...db.reports, { ...report, escalation: 'STAFF_TARGET', escalatedAt: report.createdAt }] };
+  if (staff.includes(targetAccountId)) return notifyAdmins({ ...db, reports: [...db.reports, { ...report, escalation: 'STAFF_TARGET', escalatedAt: report.createdAt }] }, input.workspaceId);
   const next = { ...db, reports: [...db.reports, report] };
   return notify(
     next,
@@ -107,7 +130,9 @@ const targetExists = (db: MockDb, report: MockReport) =>
     ? Boolean(db.workspaces.find((item) => item.id === report.workspaceId)?.members.some((member) => member.accountId === report.targetId))
     : report.targetType === 'MESSAGE'
       ? db.chatMessages.some((item) => item.id === report.targetId)
-      : db.posts.some((item) => item.id === report.targetId);
+      : report.targetType === 'COMMENT'
+        ? db.posts.some((post) => post.comments.some((item) => item.id === report.targetId))
+        : db.posts.some((item) => item.id === report.targetId);
 
 /** 관리자 화면 모델. 신고자 id는 담지 않는다 */
 export const toAdminReport = (db: MockDb, report: MockReport): AdminReport => ({
@@ -178,7 +203,9 @@ const applyAction = (db: MockDb, report: MockReport, action: ReportAction, memo:
     next =
       report.targetType === 'MESSAGE'
         ? { ...next, chatMessages: next.chatMessages.filter((item) => item.id !== report.targetId) }
-        : { ...next, posts: next.posts.filter((item) => item.id !== report.targetId) };
+        : report.targetType === 'COMMENT'
+          ? { ...next, posts: next.posts.map((post) => ({ ...post, comments: post.comments.filter((item) => item.id !== report.targetId) })) }
+          : { ...next, posts: next.posts.filter((item) => item.id !== report.targetId) };
     next = notify(next, [target], { type: 'MODERATION_NOTICE', workspaceId, link: MODERATION_LINK, title: '작성한 콘텐츠가 운영 정책에 따라 삭제됐어요.' }, SYSTEM);
   } else if (action === 'BANNED_WS') {
     // 운영진은 멤버 관리의 차단과 같은 권한 검사를 거친다. 이미 떠난 사람은 다시 합류하지 못하게 기록만 남긴다.
@@ -255,7 +282,7 @@ export const resolveInWorkspace = (db: MockDb, actorId: string, workspaceId: str
 export const escalateReport = (db: MockDb, actorId: string, workspaceId: string, id: string, memo?: string): MockDb => {
   const report = findForStaff(db, actorId, workspaceId, id);
   if (!handledByWorkspace(report)) throw new DataError('처리가 끝난 신고예요.', 'CONFLICT');
-  return replaceReport(db, id, { escalation: 'MANAGER', escalatedAt: now(), adminMemo: memo?.trim() || report.adminMemo });
+  return notifyAdmins(replaceReport(db, id, { escalation: 'MANAGER', escalatedAt: now(), adminMemo: memo?.trim() || report.adminMemo }), workspaceId);
 };
 
 /** 운영진 설정 탭의 배지. 지금 처리할 신고 수 */
