@@ -1,16 +1,8 @@
-import React, { useEffect, useId, useState } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeftIcon, ChatBubbleLeftIcon, MegaphoneIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, ChatBubbleLeftIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { relativeTime } from '@/renewal/domain/announcement';
-import {
-  ANNOUNCEMENT_LIMITS,
-  POST_LIMITS,
-  canEditAuthored,
-  validateAnnouncement,
-  validatePost,
-  type PostInput,
-  type TeamAnnouncement,
-} from '@/renewal/domain/collab';
+import { POST_LIMITS, canEditAuthored, validatePost } from '@/renewal/domain/collab';
 import {
   useAddPostComment,
   useCreateAnnouncement,
@@ -24,7 +16,9 @@ import {
   useUpdateAnnouncement,
   useUpdatePost,
 } from '@/renewal/data/queries';
-import { Avatar, Button, EmptyState, ErrorState, LoadingState, Modal, fieldClassName, toast } from '@/renewal/ui';
+import { Avatar, Button, EmptyState, ErrorState, LoadingState, fieldClassName, toast } from '@/renewal/ui';
+import { AnnouncementBoard } from '@/renewal/features/announcements/AnnouncementBoard';
+import { TextEditorModal } from './TextEditorModal';
 import { NotFoundScreen } from '@/renewal/screens/system';
 import { ConfirmModal } from '@/renewal/features/teamBuilding/shared';
 import { useTeamSpaceContext } from './TeamSpaceLayout';
@@ -39,101 +33,6 @@ const attempt = async (work: () => Promise<unknown>, done?: string) => {
     toast.error(errorMessage(error));
     return false;
   }
-};
-
-/** 제목·본문 편집 대화상자. 게시글과 팀 공지가 함께 쓴다. */
-const TextEditorModal: React.FC<{
-  open: boolean;
-  heading: string;
-  initial?: PostInput;
-  limits: { titleMax: number; contentMax: number };
-  validate: (input: PostInput) => Partial<Record<keyof PostInput, string>>;
-  submitLabel: string;
-  description?: string;
-  pending: boolean;
-  onClose: () => void;
-  onSubmit: (input: PostInput) => Promise<boolean>;
-}> = ({ open, heading, initial, limits, validate, submitLabel, description, pending, onClose, onSubmit }) => {
-  const id = useId();
-  const [value, setValue] = useState<PostInput>({ title: '', content: '' });
-  const [errors, setErrors] = useState<Partial<Record<keyof PostInput, string>>>({});
-  useEffect(() => {
-    if (!open) return;
-    setValue(initial ?? { title: '', content: '' });
-    setErrors({});
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
-  const submit = async () => {
-    const found = validate(value);
-    setErrors(found);
-    if (found.title) return document.getElementById(`${id}-title`)?.focus();
-    if (found.content) return document.getElementById(`${id}-content`)?.focus();
-    if (await onSubmit(value)) onClose();
-  };
-  return (
-    <Modal
-      isOpen={open}
-      onClose={onClose}
-      preventClose={pending}
-      title={heading}
-      description={description}
-      size="xl"
-      footer={
-        <>
-          <Button variant="outline" onClick={onClose} disabled={pending}>
-            취소
-          </Button>
-          <Button onClick={submit} loading={pending}>
-            {submitLabel}
-          </Button>
-        </>
-      }
-    >
-      <div className="space-y-4">
-        <div>
-          <label htmlFor={`${id}-title`} className="mb-1.5 block text-sm font-semibold">
-            제목
-          </label>
-          <input
-            id={`${id}-title`}
-            value={value.title}
-            maxLength={limits.titleMax}
-            onChange={(event) => setValue((prev) => ({ ...prev, title: event.target.value }))}
-            aria-invalid={errors.title ? true : undefined}
-            aria-describedby={errors.title ? `${id}-title-error` : undefined}
-            className={fieldClassName(Boolean(errors.title))}
-          />
-          {errors.title && (
-            <p id={`${id}-title-error`} className="mt-1.5 text-sm text-danger">
-              {errors.title}
-            </p>
-          )}
-        </div>
-        <div>
-          <label htmlFor={`${id}-content`} className="mb-1.5 block text-sm font-semibold">
-            내용
-          </label>
-          <textarea
-            id={`${id}-content`}
-            rows={8}
-            value={value.content}
-            maxLength={limits.contentMax}
-            onChange={(event) => setValue((prev) => ({ ...prev, content: event.target.value }))}
-            aria-invalid={errors.content ? true : undefined}
-            aria-describedby={`${id}-content-count${errors.content ? ` ${id}-content-error` : ''}`}
-            className={fieldClassName(Boolean(errors.content), 'leading-6')}
-          />
-          <div className="mt-1 flex justify-between gap-2 text-xs">
-            <span id={`${id}-content-error`} className="text-sm text-danger">
-              {errors.content}
-            </span>
-            <span id={`${id}-content-count`} className="text-muted tabular-nums">
-              {value.content.length}/{limits.contentMax}자
-            </span>
-          </div>
-        </div>
-      </div>
-    </Modal>
-  );
 };
 
 /**
@@ -337,8 +236,7 @@ export const PostDetailScreen: React.FC = () => {
 };
 
 /**
- * SCR-TM-05 팀 공지(14 §4.5). 공지는 팀장만 쓰고 고친다. 팀원은 읽기만 한다.
- * 공지 알림(16 연동)은 알림 센터 단계에서 붙인다.
+ * SCR-TM-05 팀 공지(14 §4.5). 공지는 팀장만 쓰고 고친다. 팀원은 읽기만 하고, 올리면 팀원에게 알림이 간다(16 §5.4).
  */
 export const AnnouncementsScreen: React.FC = () => {
   const { workspaceId, teamId, space } = useTeamSpaceContext();
@@ -346,87 +244,20 @@ export const AnnouncementsScreen: React.FC = () => {
   const create = useCreateAnnouncement(workspaceId, teamId);
   const update = useUpdateAnnouncement(workspaceId, teamId);
   const remove = useDeleteAnnouncement(workspaceId, teamId);
-  const [editing, setEditing] = useState<TeamAnnouncement | 'new' | null>(null);
-  const [deleting, setDeleting] = useState<TeamAnnouncement | null>(null);
-  const leader = space.access.isLeader;
-
-  if (announcements.isLoading) return <LoadingState className="min-h-[40vh]" label="공지를 불러오는 중이에요" />;
-  if (announcements.isError || !announcements.data) {
-    return <ErrorState className="min-h-[40vh]" title="공지를 불러오지 못했어요" action={<Button onClick={() => announcements.refetch()}>다시 시도</Button>} />;
-  }
-
   return (
     <div className="max-w-3xl">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="text-xl font-bold">팀 공지</h2>
-        {leader && (
-          <Button leftIcon={<PlusIcon className="h-5 w-5" />} onClick={() => setEditing('new')}>
-            공지 작성
-          </Button>
-        )}
-      </div>
-      {announcements.data.length === 0 ? (
-        <div className="rounded-card border border-dashed border-outline-soft bg-surface">
-          <EmptyState compact icon={<MegaphoneIcon className="h-5 w-5" />} title="등록된 공지가 없어요" description={leader ? '팀 전체가 알아야 할 내용을 공지로 남겨 보세요.' : undefined} />
-        </div>
-      ) : (
-        <ul className="space-y-3">
-          {announcements.data.map((item) => (
-            <li key={item.id}>
-              <article className="rounded-card border border-outline-soft bg-surface p-5">
-                <header className="flex flex-wrap items-start gap-2">
-                  <MegaphoneIcon className="mt-1 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
-                  <div className="min-w-0 flex-1">
-                    <h3 className="text-base font-bold leading-6">{item.title}</h3>
-                    <p className="text-sm text-muted">
-                      {item.authorName} · {relativeTime(item.createdAt)}
-                    </p>
-                  </div>
-                  {leader && (
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => setEditing(item)} aria-label={`${item.title} 수정`}>
-                        수정
-                      </Button>
-                      <Button size="sm" variant="danger-ghost" onClick={() => setDeleting(item)} aria-label={`${item.title} 삭제`}>
-                        삭제
-                      </Button>
-                    </div>
-                  )}
-                </header>
-                {item.content && <p className="mt-3 whitespace-pre-line break-words text-[0.9375rem] leading-7">{item.content}</p>}
-              </article>
-            </li>
-          ))}
-        </ul>
-      )}
-      <TextEditorModal
-        open={editing !== null}
-        heading={editing === 'new' ? '공지 작성' : '공지 수정'}
-        initial={editing && editing !== 'new' ? { title: editing.title, content: editing.content } : undefined}
-        limits={ANNOUNCEMENT_LIMITS}
-        validate={validateAnnouncement}
-        submitLabel={editing === 'new' ? '올리기' : '저장'}
-        description={editing === 'new' ? '공지는 팀원 모두에게 보이고 워크스페이스 홈의 최근 공지에도 실려요.' : undefined}
+      <AnnouncementBoard
+        heading={<h2 className="text-xl font-bold">팀 공지</h2>}
+        query={announcements}
+        canWrite={space.access.isLeader}
+        writeDescription="공지는 팀원 모두에게 보이고 워크스페이스 홈의 최근 공지에도 실려요."
+        emptyDescription="팀 전체가 알아야 할 내용을 공지로 남겨 보세요."
+        create={(input) => create.mutateAsync(input)}
+        update={(announcementId, announcement) => update.mutateAsync({ announcementId, announcement })}
+        remove={(announcementId) => remove.mutateAsync(announcementId)}
         pending={create.isPending || update.isPending}
-        onClose={() => setEditing(null)}
-        onSubmit={(input) =>
-          editing === 'new'
-            ? attempt(() => create.mutateAsync(input), '공지를 올렸어요.')
-            : attempt(() => update.mutateAsync({ announcementId: (editing as TeamAnnouncement).id, announcement: input }), '공지를 고쳤어요.')
-        }
-      />
-      <ConfirmModal
-        open={deleting !== null}
-        title="공지 삭제"
-        description={`"${deleting?.title ?? ''}" 공지를 지우면 되돌릴 수 없어요.`}
-        confirmLabel="삭제하기"
-        pending={remove.isPending}
-        onClose={() => setDeleting(null)}
-        onConfirm={async () => {
-          if (deleting && (await attempt(() => remove.mutateAsync(deleting.id), '공지를 지웠어요.'))) setDeleting(null);
-        }}
+        removing={remove.isPending}
       />
     </div>
   );
 };
-

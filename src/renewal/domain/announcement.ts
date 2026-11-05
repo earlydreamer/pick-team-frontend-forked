@@ -9,7 +9,12 @@ export interface Announcement {
   content?: string;
   authorId?: string;
   createdAt: string;
+  updatedAt?: string;
 }
+
+/** 공지가 열리는 곳. 팀 공지는 팀 공지 탭, 전체 공지는 워크스페이스 공지에서 그 항목을 강조한다 */
+export const announcementLink = (workspaceId: string, item: Pick<Announcement, 'id' | 'teamId'>) =>
+  item.teamId ? `/ws/${workspaceId}/team/${item.teamId}/announcements` : `/ws/${workspaceId}/announcements?id=${item.id}`;
 
 /** 상대 시각 표기: 방금 전, N분 전, N시간 전, 어제, N일 전, 그 이전은 날짜 */
 export const relativeTime = (iso: string, now = new Date()) => {

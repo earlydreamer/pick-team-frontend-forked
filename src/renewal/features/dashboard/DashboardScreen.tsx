@@ -154,8 +154,8 @@ const ProgressWidget: React.FC<{ view: DashboardView }> = ({ view }) => (
   </Widget>
 );
 
-/** 위젯 D: 이상 신호 */
-const AlertsWidget: React.FC<{ view: DashboardView }> = ({ view }) => (
+/** 위젯 D: 이상 신호. 차단 이력은 차단 목록으로, 전체에 알릴 일은 워크스페이스 공지 작성으로 잇는다(R16). */
+const AlertsWidget: React.FC<{ wsId: string; view: DashboardView }> = ({ wsId, view }) => (
   <Widget id="dsh-alerts" title="이상 신호" className="lg:col-span-2">
     {view.alerts.length === 0 ? (
       <p className="flex items-center gap-2 text-sm text-success">
@@ -175,14 +175,21 @@ const AlertsWidget: React.FC<{ view: DashboardView }> = ({ view }) => (
           ) : (
             <li key={`ban-${alert.account.id}`} className="flex items-start gap-2 rounded-lg bg-surface-low px-3 py-2.5 text-sm">
               <InformationCircleIcon className="mt-0.5 h-5 w-5 shrink-0 text-muted" aria-hidden="true" />
-              <span>
+              <span className="min-w-0 flex-1">
                 <span className="font-semibold">{alert.account.name}</span>: 이번 기수 차단 이력 {alert.count}건
               </span>
+              <Link to={`/ws/${wsId}/settings?tab=bans`} className="shrink-0 text-xs font-semibold text-primary underline-offset-2 hover:underline">
+                차단 목록
+              </Link>
             </li>
           ),
         )}
       </ul>
     )}
+    <Link to={`/ws/${wsId}/announcements?new=1`} className="mt-3 inline-flex min-h-touch items-center gap-1 text-sm font-semibold text-primary underline-offset-4 hover:underline">
+      전체 공지 쓰기
+      <ArrowRightIcon className="h-4 w-4" aria-hidden="true" />
+    </Link>
   </Widget>
 );
 
@@ -279,7 +286,7 @@ export const DashboardScreen: React.FC = () => {
         </div>
         <TeamBuildingWidget wsId={wsId} view={view} />
         <ProgressWidget view={view} />
-        <AlertsWidget view={view} />
+        <AlertsWidget wsId={wsId} view={view} />
         <ApprovalQueue wsId={wsId} view={view} />
       </div>
     </div>

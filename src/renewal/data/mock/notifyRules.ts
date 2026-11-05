@@ -159,6 +159,18 @@ export const onAnnouncementCreated = (db: MockDb, workspaceId: string, teamId: s
   return notify(db, team.memberIds, { type: 'ANNOUNCEMENT_CREATED', workspaceId, link: `/ws/${workspaceId}/team/${teamId}/announcements`, title: `${team.name} 새 공지: ${title}` }, actorId);
 };
 
+/** 워크스페이스 전체 공지. 쓴 사람을 뺀 모든 멤버에게 알린다(16 §5.4). */
+export const onWorkspaceAnnouncement = (db: MockDb, workspaceId: string, announcementId: string, title: string, actorId: string) => {
+  const workspace = db.workspaces.find((item) => item.id === workspaceId);
+  if (!workspace) return db;
+  return notify(
+    db,
+    workspace.members.map((member) => member.accountId),
+    { type: 'ANNOUNCEMENT_CREATED', workspaceId, link: `/ws/${workspaceId}/announcements?id=${announcementId}`, title: `${workspace.name} 전체 공지: ${title}` },
+    actorId,
+  );
+};
+
 export const onPostCommented = (db: MockDb, workspaceId: string, teamId: string, postId: string, actorId: string) => {
   const post = db.posts.find((item) => item.id === postId);
   if (!post) return db;

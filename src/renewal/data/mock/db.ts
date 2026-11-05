@@ -358,8 +358,24 @@ export const seed = (): MockDb => ({
   ],
   oauthLinks: [],
   announcements: [
-    { id: 'a-1', workspaceId: 'ws-1', title: '팀 빌딩 마감 시각 안내', authorName: '박강사', createdAt: hoursAgo(1) },
-    { id: 'a-2', workspaceId: 'ws-1', title: 'PR 카드 작성 가이드: 희망 역할과 태그 쓰는 법', authorName: '정매니저', createdAt: hoursAgo(26) },
+    {
+      id: 'a-1',
+      workspaceId: 'ws-1',
+      title: '팀 빌딩 마감 시각 안내',
+      content: '팀 빌딩은 이번 주 일요일 밤 11시 59분에 마감해요. 마감 전에 팀을 정하지 못한 분은 운영진이 남은 자리에 배정해요.',
+      authorId: 'u-instructor',
+      authorName: '박강사',
+      createdAt: hoursAgo(1),
+    },
+    {
+      id: 'a-2',
+      workspaceId: 'ws-1',
+      title: 'PR 카드 작성 가이드: 희망 역할과 태그 쓰는 법',
+      content: '희망 역할은 가장 하고 싶은 일을 1순위로 적어 주세요. 태그는 써 본 기술 위주로 다섯 개 안팎이면 충분해요.',
+      authorId: 'u-manager',
+      authorName: '정매니저',
+      createdAt: hoursAgo(26),
+    },
     {
       id: 'a-3',
       workspaceId: 'ws-1',
