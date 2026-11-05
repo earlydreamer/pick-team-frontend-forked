@@ -23,20 +23,33 @@ interface Payload {
   link: string;
   /** 받는 사람마다 문구가 다를 수 있다(DM 방 이름 등) */
   title: string | ((recipientId: string) => string);
-  groupKey?: string;
+  /**
+   * 묶음(§6.3 폭주 제어). 같은 key의 읽지 않은 알림이 있으면 새로 쌓지 않고 개수와 문구만 바꾼다.
+   * windowMs가 있으면 묶음을 시작한 뒤 그 시간 안에 온 것만 묶는다(16-D7 지원 1시간 집계).
+   */
+  group?: { key: string; windowMs?: number; title: (count: number, recipientId: string) => string };
 }
 
 export const notify = (db: MockDb, recipients: (string | undefined)[], payload: Payload, actorId?: string): MockDb => {
   const targets = [...new Set(recipients.filter((id): id is string => Boolean(id) && id !== actorId))];
+  const at = now();
   let notifications = db.notifications;
   for (const accountId of targets) {
     if (!shouldDeliver(payload.type, db.notificationSettings[accountId] ?? defaultSettings())) continue;
     const title = typeof payload.title === 'function' ? payload.title(accountId) : payload.title;
-    const grouped = payload.groupKey && notifications.find((item) => item.accountId === accountId && item.groupKey === payload.groupKey && !item.read);
-    if (grouped) {
-      // 같은 방의 읽지 않은 알림이 있으면 새로 쌓지 않고 개수만 늘린다(§6.3 폭주 제어).
+    const { group } = payload;
+    const grouped =
+      group &&
+      notifications.find(
+        (item) =>
+          item.accountId === accountId &&
+          item.groupKey === group.key &&
+          !item.read &&
+          (!group.windowMs || new Date(at).getTime() - new Date(item.groupStartedAt ?? item.createdAt).getTime() < group.windowMs),
+      );
+    if (group && grouped) {
       const count = (grouped.count ?? 1) + 1;
-      notifications = notifications.map((item) => (item === grouped ? { ...item, count, title: `${title.replace(/ 새 메시지.*$/, '')} 새 메시지 ${count}개`, createdAt: now() } : item));
+      notifications = notifications.map((item) => (item === grouped ? { ...item, count, title: group.title(count, accountId), createdAt: at } : item));
       continue;
     }
     const meta = TYPE_META[payload.type];
@@ -50,9 +63,10 @@ export const notify = (db: MockDb, recipients: (string | undefined)[], payload: 
       title,
       link: payload.link,
       read: false,
-      createdAt: now(),
-      groupKey: payload.groupKey,
-      count: payload.groupKey ? 1 : undefined,
+      createdAt: at,
+      groupKey: group?.key,
+      groupStartedAt: group ? at : undefined,
+      count: group ? 1 : undefined,
     };
     notifications = [...notifications, item];
   }
@@ -60,6 +74,9 @@ export const notify = (db: MockDb, recipients: (string | undefined)[], payload: 
 };
 
 /* ── 팀 빌딩(§5.1) ── */
+
+/** 지원 알림 묶음 기간(16-D7) */
+export const APPLY_DIGEST_MS = 3_600_000;
 
 const appOf = (db: MockDb, appId: string) => db.applications.find((app) => app.id === appId)!;
 const teamOf = (db: MockDb, teamId: string) => db.teams.find((team) => team.id === teamId);
@@ -72,7 +89,19 @@ export const onApplicationCreated = (db: MockDb, workspaceId: string, appId: str
   const app = appOf(db, appId);
   const team = teamOf(db, app.teamId)!;
   return app.direction === 'APPLY'
-    ? notify(db, [team.leaderId], { type: 'TB_APPLICATION_RECEIVED', workspaceId, link: inbox(workspaceId), title: `${nameOf(db, app.applicantId)}님이 ${team.name}에 지원했어요.` }, actorId)
+    ? notify(
+        db,
+        [team.leaderId],
+        {
+          type: 'TB_APPLICATION_RECEIVED',
+          workspaceId,
+          link: inbox(workspaceId),
+          title: `${nameOf(db, app.applicantId)}님이 ${team.name}에 지원했어요.`,
+          // 16-D7: 같은 팀에 한 시간 안에 몰린 지원은 한 건으로 묶는다.
+          group: { key: `apply:${team.id}`, windowMs: APPLY_DIGEST_MS, title: (count) => `${team.name}에 ${count}명이 지원했어요.` },
+        },
+        actorId,
+      )
     : notify(db, [app.applicantId], { type: 'TB_SCOUT_RECEIVED', workspaceId, link: inbox(workspaceId), title: `${team.name}에서 스카우트를 보냈어요.` }, actorId);
 };
 
@@ -192,8 +221,9 @@ export const onChatMessage = (db: MockDb, workspaceId: string, roomId: string, a
       type: 'NEW_CHAT_MESSAGE',
       workspaceId,
       link: `/ws/${workspaceId}/chat/${roomId}`,
-      groupKey: `chat:${roomId}`,
       title: (recipientId) => `${roomTitle(full, recipientId, (id) => nameOf(db, id))} 새 메시지 1개`,
+      // 같은 방의 읽지 않은 채팅 알림은 하나로 묶는다(§6.3). 방에 들어가 읽으면 풀린다.
+      group: { key: `chat:${roomId}`, title: (count, recipientId) => `${roomTitle(full, recipientId, (id) => nameOf(db, id))} 새 메시지 ${count}개` },
     },
     actorId,
   );
