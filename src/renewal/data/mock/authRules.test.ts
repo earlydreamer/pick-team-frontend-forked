@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MOCK_PASSWORD, seed, type MockDb } from './db';
 import { DataError } from '../ports';
+import { POLICY_VERSION, consentState } from '@/renewal/domain/policy';
 import { agreePolicies, createWorkspace, getInvite, joinByInvite, oauthSignIn, requestCode, resetPassword, signIn, signUp, verifyCode } from './authRules';
 
 const ALL = { terms: true, privacy: true, age: true };
@@ -58,6 +59,28 @@ describe('가입', () => {
     expect(created.db.policyConsents[created.accountId]).toBeUndefined();
     expect(() => agreePolicies(created.db, created.accountId, { ...ALL, terms: false })).toThrow('동의해 주세요');
     expect(agreePolicies(created.db, created.accountId, ALL).policyConsents[created.accountId]).toBeTruthy();
+  });
+
+  it('개정 이전 동의를 다시 받을 때는 연령 확인을 다시 묻지 않는다', () => {
+    const db: MockDb = { ...seed(), policyConsents: { ...seed().policyConsents, 'u-student': { version: '2026-06-01', agreedAt: '2026-06-01T09:00:00.000Z' } } };
+    expect(() => agreePolicies(db, 'u-student', { terms: true, privacy: false, age: false })).toThrow('동의해 주세요');
+    expect(agreePolicies(db, 'u-student', { terms: true, privacy: true, age: false }).policyConsents['u-student']?.version).toBe(POLICY_VERSION);
+  });
+
+  it('동의 기록이 없거나 개정 이전이면 초대로 합류할 수 없다', async () => {
+    const created = oauthSignIn(seed(), 'google', { subject: 'g-new', email: 'g.new@example.com', name: '구글 사용자' });
+    expect(await codeOf(() => joinByInvite(created.db, 'ALGO2026', created.accountId))).toBe('CONFLICT');
+    const outdated: MockDb = { ...created.db, policyConsents: { [created.accountId]: { version: '2026-06-01', agreedAt: '2026-06-01T09:00:00.000Z' } } };
+    expect(await codeOf(() => joinByInvite(outdated, 'ALGO2026', created.accountId))).toBe('CONFLICT');
+    const agreed = agreePolicies(created.db, created.accountId, ALL);
+    expect((await joinByInvite(agreed, 'ALGO2026', created.accountId)).result.alreadyMember).toBe(false);
+  });
+
+  it('동의 판이 기준보다 앞서면 다시 받아야 한다', () => {
+    expect(consentState(null)).toBe('missing');
+    expect(consentState({ version: '2026-06-01', agreedAt: '' })).toBe('outdated');
+    expect(consentState({ version: '2026-10-01', agreedAt: '' })).toBe('current');
+    expect(consentState({ version: POLICY_VERSION, agreedAt: '' })).toBe('current');
   });
 
   it('코드를 확인하지 않으면 가입할 수 없다', async () => {

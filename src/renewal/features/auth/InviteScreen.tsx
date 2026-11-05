@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { CalendarDaysIcon, ExclamationTriangleIcon, UserIcon } from '@heroicons/react/24/outline';
 import { cardStatus } from '@/renewal/domain/card';
 import { DataError, data } from '@/renewal/data';
-import { useInvite, useMe } from '@/renewal/data/queries';
+import { consentState } from '@/renewal/domain/policy';
+import { useInvite, useMe, usePolicyConsent } from '@/renewal/data/queries';
 import { Button, ErrorState, LoadingState, buttonClassName, toast } from '@/renewal/ui';
 import { AuthLayout, FormError, MockHint, PasswordField } from './AuthUi';
 import { clearPendingInvite, savePendingInvite } from './pendingInvite';
@@ -15,6 +16,7 @@ const formatDate = (iso: string) => new Date(iso).toLocaleDateString('ko-KR', { 
  * SCR-AUTH-04 초대 랜딩(10 §4.4). 어디에 초대받았는지 먼저 보여 주고 가입·로그인으로 나눈다.
  * 초대 코드는 sessionStorage에 보존해 어떤 인증 경로를 거쳐도 이 화면으로 돌아와 합류를 마친다(10 §5.2).
  * 로그인 상태에서는 참여 버튼 하나만 보여 주고, ?join=1로 돌아오면 비밀번호가 없는 한 바로 합류한다.
+ * 약관 동의가 없거나 개정 이전이면(소셜 첫 로그인 등) 합류보다 동의를 먼저 받고 ?join=1로 돌아온다(17 §6.2).
  */
 export const InviteScreen: React.FC = () => {
   const { code = '' } = useParams<{ code: string }>();
@@ -29,6 +31,9 @@ export const InviteScreen: React.FC = () => {
   const autoTried = useRef(false);
   const passwordRef = useRef<HTMLInputElement>(null);
   const loggedIn = Boolean(me.data);
+  const consent = usePolicyConsent(loggedIn);
+  // 조회에 실패하면 막지 않는다. 합류 요청에서 서버가 다시 확인한다.
+  const needsConsent = loggedIn && consent.isSuccess && consentState(consent.data) !== 'current';
 
   const goToWorkspace = async (workspaceId: string) => {
     client.clear();
@@ -91,13 +96,13 @@ export const InviteScreen: React.FC = () => {
 
   // 인증을 마치고 돌아오면(?join=1) 비밀번호가 없는 워크스페이스는 바로 합류한다.
   useEffect(() => {
-    if (autoTried.current || !loggedIn || !invite.data || invite.data.alreadyMember || invite.data.requiresPassword || params.get('join') !== '1') return;
+    if (autoTried.current || !loggedIn || needsConsent || consent.isLoading || !invite.data || invite.data.alreadyMember || invite.data.requiresPassword || params.get('join') !== '1') return;
     autoTried.current = true;
     void join();
     // join은 최신 상태를 읽는 핸들러라 의존성에서 뺀다.
-  }, [loggedIn, invite.data, params]);
+  }, [loggedIn, needsConsent, consent.isLoading, invite.data, params]);
 
-  if (invite.isLoading || me.isLoading) return <LoadingState className="min-h-screen" label="초대 정보를 확인하는 중이에요" />;
+  if (invite.isLoading || me.isLoading || (loggedIn && consent.isLoading)) return <LoadingState className="min-h-screen" label="초대 정보를 확인하는 중이에요" />;
 
   if (invite.isError) {
     const expired = invite.error instanceof DataError && (invite.error.code === 'GONE' || invite.error.code === 'NOT_FOUND');
@@ -126,6 +131,7 @@ export const InviteScreen: React.FC = () => {
 
   const info = invite.data!;
   if (loggedIn && info.alreadyMember) return <LoadingState className="min-h-screen" label="워크스페이스로 이동하는 중이에요" />;
+  if (needsConsent) return <Navigate to={`/agreements?redirect=${encodeURIComponent(`/invite/${info.code}?join=1`)}`} replace />;
   const authQuery = `?redirect=${encodeURIComponent(`/invite/${info.code}`)}`;
 
   return (

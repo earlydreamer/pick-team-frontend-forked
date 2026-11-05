@@ -29,3 +29,21 @@ export interface PolicyConsent {
   version: string;
   agreedAt: string;
 }
+
+/**
+ * 이 판보다 앞선 동의는 다시 받는다. 수집 항목, 이용 목적, 이용 제한처럼 동의 내용이 바뀌는 개정에서만 올린다.
+ * 문구 정리 같은 작은 개정은 POLICY_VERSION만 올리고 다시 묻지 않는다.
+ */
+export const CONSENT_MIN_VERSION = '2026-10-01';
+
+/** missing은 동의 기록이 없는 경우(소셜 첫 로그인), outdated는 다시 동의해야 하는 개정 이전 동의다 */
+export type ConsentState = 'missing' | 'outdated' | 'current';
+
+/** 판은 시행일(YYYY-MM-DD)이라 문자열 비교로 앞뒤를 가린다 */
+export const consentState = (consent: PolicyConsent | null | undefined): ConsentState => {
+  if (!consent) return 'missing';
+  return consent.version < CONSENT_MIN_VERSION ? 'outdated' : 'current';
+};
+
+/** 다시 동의할 때 묻는 항목. 연령 확인은 처음 동의할 때 받은 것을 그대로 쓴다 */
+export const agreementKeysFor = (state: ConsentState): AgreementKey[] => (state === 'outdated' ? ['terms', 'privacy'] : ['terms', 'privacy', 'age']);

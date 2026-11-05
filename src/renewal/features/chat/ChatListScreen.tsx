@@ -6,6 +6,7 @@ import { CHAT_LIMITS } from '@/renewal/domain/chat';
 import { useChatRooms, useCreateRoom, useMe, useMembers } from '@/renewal/data/queries';
 import { Avatar, Badge, Button, EmptyState, ErrorState, LoadingState, Modal, fieldClassName, toast } from '@/renewal/ui';
 import { errorMessage } from '@/renewal/features/teamSpace/TaskModals';
+import { useWritable } from '@/renewal/shell/useWritable';
 
 const KIND_LABEL = { TEAM: '팀', DM: 'DM', GROUP: '그룹' } as const;
 
@@ -123,6 +124,7 @@ export const ChatListScreen: React.FC = () => {
   const { wsId = '' } = useParams<{ wsId: string }>();
   const [params, setParams] = useSearchParams();
   const rooms = useChatRooms(wsId);
+  const writable = useWritable(wsId);
   const [creating, setCreating] = useState(params.get('new') === '1');
 
   useEffect(() => {
@@ -138,9 +140,11 @@ export const ChatListScreen: React.FC = () => {
     <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 lg:py-8">
       <div className="mb-4 flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold leading-8">채팅</h1>
-        <Button leftIcon={<PlusIcon className="h-5 w-5" />} onClick={() => setCreating(true)}>
-          새 채팅방
-        </Button>
+        {writable && (
+          <Button leftIcon={<PlusIcon className="h-5 w-5" />} onClick={() => setCreating(true)}>
+            새 채팅방
+          </Button>
+        )}
       </div>
       {rooms.data.length === 0 ? (
         <div className="rounded-card border border-dashed border-outline-soft bg-surface">
@@ -149,7 +153,7 @@ export const ChatListScreen: React.FC = () => {
             icon={<ChatBubbleLeftRightIcon className="h-5 w-5" />}
             title="아직 채팅방이 없어요"
             description="팀에 합류하면 팀 채팅방이 자동으로 생겨요. 직접 대화를 시작할 수도 있어요."
-            action={<Button size="sm" onClick={() => setCreating(true)}>새 채팅방</Button>}
+            action={writable ? <Button size="sm" onClick={() => setCreating(true)}>새 채팅방</Button> : undefined}
           />
         </div>
       ) : (

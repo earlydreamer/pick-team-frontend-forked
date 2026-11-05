@@ -6,6 +6,7 @@ import { DataError, data } from '@/renewal/data';
 import { useChatRooms, useMe, useVideoChannel } from '@/renewal/data/queries';
 import { Avatar, Badge, Button, ErrorState, LoadingState, buttonClassName, toast } from '@/renewal/ui';
 import { MissingRedirect } from '@/renewal/screens/system';
+import { useWritable } from '@/renewal/shell/useWritable';
 import { errorMessage } from '@/renewal/features/teamSpace/TaskModals';
 
 type MediaState = { status: 'idle' | 'loading' } | { status: 'ready'; stream: MediaStream } | { status: 'error'; title: string; description: string } | { status: 'skipped' };
@@ -41,6 +42,7 @@ export const VideoScreen: React.FC = () => {
   const navigate = useNavigate();
   const me = useMe();
   const [joined, setJoined] = useState(false);
+  const writable = useWritable(wsId);
   const channel = useVideoChannel(wsId, channelId, joined);
   const rooms = useChatRooms(wsId);
   const [media, setMedia] = useState<MediaState>({ status: 'idle' });
@@ -207,9 +209,15 @@ export const VideoScreen: React.FC = () => {
             ) : (
               <p className="mt-2 text-sm text-muted">먼저 들어가서 팀원을 기다려 보세요.</p>
             )}
-            <Button className="mt-5 w-full" onClick={join} loading={busy} disabled={media.status === 'loading' || media.status === 'idle'}>
-              {hasMedia ? '참여하기' : '장치 없이 참여하기'}
-            </Button>
+            {writable ? (
+              <Button className="mt-5 w-full" onClick={join} loading={busy} disabled={media.status === 'loading' || media.status === 'idle'}>
+                {hasMedia ? '참여하기' : '장치 없이 참여하기'}
+              </Button>
+            ) : (
+              <p role="note" className="mt-5 rounded-lg bg-surface-container px-4 py-3 text-sm text-muted">
+                보관된 워크스페이스라 회의에 참여할 수 없어요.
+              </p>
+            )}
             <Link to={teamBase} className="mt-2 inline-flex min-h-touch w-full items-center justify-center text-sm font-semibold text-muted hover:text-ink">
               팀 스페이스로 돌아가기
             </Link>

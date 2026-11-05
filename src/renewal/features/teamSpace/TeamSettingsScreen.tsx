@@ -17,6 +17,7 @@ import { ConfirmModal } from '@/renewal/features/teamBuilding/shared';
 import { useTeamSpaceContext } from './TeamSpaceLayout';
 import { errorMessage } from './TaskModals';
 import { josa } from '@/renewal/domain/josa';
+import { useWritable } from '@/renewal/shell/useWritable';
 
 const attempt = async (work: () => Promise<unknown>, done?: string) => {
   try {
@@ -102,7 +103,10 @@ export const TeamSettingsScreen: React.FC = () => {
   const expired = delegationExpired(team);
   const nameOf = (id?: string) => members.find((member) => member.account.id === id)?.account.name ?? '';
   const others = members.filter((member) => member.account.id !== team.leaderId);
-  const canManage = access.isLeader || access.isManagerViewer;
+  // 보관된 워크스페이스에서는 위임·내보내기·나가기·삭제가 모두 막히므로(R21) 읽기 화면으로 보인다.
+  const writable = useWritable(workspaceId);
+  const isLeader = access.isLeader && writable;
+  const canManage = (access.isLeader || access.isManagerViewer) && writable;
   const alone = members.length === 1;
 
   useEffect(() => {
@@ -153,8 +157,13 @@ export const TeamSettingsScreen: React.FC = () => {
   return (
     <div className="max-w-3xl space-y-5">
       <h2 className="text-xl font-bold">팀 설정</h2>
+      {!writable && (
+        <p role="note" className="rounded-lg bg-surface-container px-4 py-3 text-sm text-muted">
+          보관된 워크스페이스라 팀 설정을 바꿀 수 없어요.
+        </p>
+      )}
 
-      {pendingDelegation && pendingDelegation.targetId === meId && (
+      {writable && pendingDelegation && pendingDelegation.targetId === meId && (
         <div role="status" className="flex flex-wrap items-center gap-3 rounded-card border border-peri-200 bg-peri-50 px-4 py-3">
           <p className="flex-1 text-sm">
             <span className="font-semibold">{nameOf(team.leaderId)}</span>님이 팀장 위임을 요청했어요. {hoursLeft(pendingDelegation.requestedAt)}시간 안에 답해 주세요.
@@ -171,7 +180,7 @@ export const TeamSettingsScreen: React.FC = () => {
       )}
 
       {access.isMember && (
-        <Section id="ts-info" title="기본 정보" description={access.isLeader ? undefined : '팀장만 바꿀 수 있어요.'}>
+        <Section id="ts-info" title="기본 정보" description={isLeader || !writable ? undefined : '팀장만 바꿀 수 있어요.'}>
           <form onSubmit={saveInfo} noValidate className="space-y-4">
             <div>
               <label htmlFor="team-name" className="mb-1.5 block text-sm font-semibold">
@@ -181,7 +190,7 @@ export const TeamSettingsScreen: React.FC = () => {
                 id="team-name"
                 value={info.name}
                 maxLength={TEAM_INFO_LIMITS.nameMax}
-                readOnly={!access.isLeader}
+                readOnly={!isLeader}
                 onChange={(event) => setInfo((prev) => ({ ...prev, name: event.target.value }))}
                 aria-invalid={infoErrors.name ? true : undefined}
                 aria-describedby={infoErrors.name ? 'team-name-error' : undefined}
@@ -201,12 +210,12 @@ export const TeamSettingsScreen: React.FC = () => {
                 id="team-intro"
                 value={info.intro ?? ''}
                 maxLength={TEAM_INFO_LIMITS.introMax}
-                readOnly={!access.isLeader}
+                readOnly={!isLeader}
                 onChange={(event) => setInfo((prev) => ({ ...prev, intro: event.target.value }))}
                 className={fieldClassName(false)}
               />
             </div>
-            {access.isLeader && (
+            {isLeader && (
               <Button type="submit" loading={updateInfo.isPending} disabled={info.name === team.name && (info.intro ?? '') === (team.intro ?? '')}>
                 저장
               </Button>
@@ -215,7 +224,7 @@ export const TeamSettingsScreen: React.FC = () => {
         </Section>
       )}
 
-      {access.isLeader && (
+      {isLeader && (
         <Section id="ts-delegate" title="팀장 위임" description="지명한 팀원이 24시간 안에 수락하면 팀장이 바뀌고, 나는 팀원이 돼요.">
           {pendingDelegation ? (
             <div className="flex flex-wrap items-center gap-3">
@@ -282,7 +291,7 @@ export const TeamSettingsScreen: React.FC = () => {
         </ul>
       </Section>
 
-      {access.isMember && (
+      {access.isMember && writable && (
         <Section id="ts-leave" title="팀 나가기">
           {access.isLeader && !alone ? (
             <p className="flex items-start gap-2 text-sm text-muted">
