@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeftIcon, ChatBubbleLeftIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { relativeTime } from '@/renewal/domain/announcement';
@@ -19,7 +19,7 @@ import {
 import { Avatar, Button, EmptyState, ErrorState, LoadingState, fieldClassName, toast } from '@/renewal/ui';
 import { AnnouncementBoard } from '@/renewal/features/announcements/AnnouncementBoard';
 import { TextEditorModal } from './TextEditorModal';
-import { NotFoundScreen } from '@/renewal/screens/system';
+import { MissingRedirect } from '@/renewal/screens/system';
 import { ConfirmModal } from '@/renewal/features/teamBuilding/shared';
 import { useTeamSpaceContext } from './TeamSpaceLayout';
 import { errorMessage } from './TaskModals';
@@ -122,13 +122,16 @@ export const PostDetailScreen: React.FC = () => {
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [comment, setComment] = useState('');
+  const seenPostRef = useRef<string | undefined>(undefined);
 
   if (posts.isLoading) return <LoadingState className="min-h-[40vh]" label="글을 불러오는 중이에요" />;
   if (posts.isError || !posts.data) {
     return <ErrorState className="min-h-[40vh]" title="글을 불러오지 못했어요" action={<Button onClick={() => posts.refetch()}>다시 시도</Button>} />;
   }
   const post = posts.data.find((item) => item.id === postId);
-  if (!post) return <NotFoundScreen />;
+  // 글이 없으면 게시판으로 옮긴다(16 §6.4). 내가 방금 지운 글이면 이미 결과 토스트가 떴으므로 조용히 옮긴다.
+  if (!post) return <MissingRedirect to={`${base}/board`} silent={seenPostRef.current === postId} message="삭제됐거나 볼 수 없는 글이에요." />;
+  seenPostRef.current = postId;
 
   const viewer = { accountId: me.data?.id ?? '', isLeader: space.access.isLeader };
   const author = space.members.find((member) => member.account.id === post.authorId)?.account;

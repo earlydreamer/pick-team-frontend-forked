@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { MapIcon, WrenchScrewdriverIcon, LockClosedIcon } from '@heroicons/react/24/outline';
-import { EmptyState, ErrorState, LoadingState, buttonClassName } from '@/renewal/ui';
+import { EmptyState, ErrorState, LoadingState, buttonClassName, toast } from '@/renewal/ui';
 import { useMe, useMyWorkspaces } from '@/renewal/data/queries';
 import { workspaceEntryPath } from '@/renewal/shell/entry';
 
@@ -77,3 +77,19 @@ export const ForbiddenScreen: React.FC<{ backTo: string }> = ({ backTo }) => (
     }
   />
 );
+
+/**
+ * 딥링크 대상이 없을 때(16 §6.4). 404 화면 대신 안내 토스트를 띄우고 한 단계 위 화면으로 보낸다.
+ * 내가 방금 지우거나 나가서 사라진 경우에는 silent로 토스트 없이 옮긴다(이미 결과 토스트가 떴다).
+ * 비공개 자원도 같은 문구로 다뤄 존재 여부를 드러내지 않는다(02 §4).
+ */
+export const MissingRedirect: React.FC<{ to: string; silent?: boolean; message?: string }> = ({ to, silent = false, message = '삭제됐거나 볼 수 없는 항목이에요.' }) => {
+  const shown = useRef(false);
+  useEffect(() => {
+    if (silent || shown.current) return;
+    shown.current = true;
+    toast.info(message);
+  }, [silent, message]);
+  return <Navigate to={to} replace />;
+};
+

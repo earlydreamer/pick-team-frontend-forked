@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Link, NavLink, Outlet, useLocation, useOutletContext, useParams } from 'react-router-dom';
 import { Cog6ToothIcon, EyeIcon, LockClosedIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
 import { activeDelegation, type TeamSpace } from '@/renewal/domain/teamSpace';
 import { DataError } from '@/renewal/data';
 import { useMe, useTeamSpace, useVideoChannels } from '@/renewal/data/queries';
 import { Avatar, Badge, Button, EmptyState, ErrorState, LoadingState, buttonClassName } from '@/renewal/ui';
-import { NotFoundScreen } from '@/renewal/screens/system';
+import { MissingRedirect } from '@/renewal/screens/system';
 
 export interface TeamSpaceContext {
   workspaceId: string;
@@ -37,8 +37,12 @@ export const TeamSpaceLayout: React.FC = () => {
   const { pathname } = useLocation();
   const base = `/ws/${wsId}/team/${teamId}`;
 
+  const seenTeamRef = useRef<string | undefined>(undefined);
+  if (space.data) seenTeamRef.current = teamId;
+
   if (space.isLoading) return <LoadingState className="min-h-[60vh]" label="팀 스페이스를 불러오는 중이에요" />;
-  if (space.error instanceof DataError && space.error.code === 'NOT_FOUND') return <NotFoundScreen />;
+  // 팀이 해체됐거나 내가 빠진 경우. 팀 설정에서 내가 지우거나 나간 직후면 안내 없이 옮긴다(이미 결과 토스트가 떴다).
+  if (space.error instanceof DataError && space.error.code === 'NOT_FOUND') return <MissingRedirect to={`/ws/${wsId}`} silent={seenTeamRef.current === teamId} message="해체됐거나 볼 수 없는 팀이에요." />;
   if (space.isError || !space.data) {
     return (
       <ErrorState

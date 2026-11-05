@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ChatBubbleLeftIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { TASK_STATUSES, TASK_STATUS_LABEL, isOverdue, type KanbanTask, type TaskAction, type TaskInput, type TaskViewer } from '@/renewal/domain/kanban';
@@ -92,6 +92,20 @@ export const KanbanScreen: React.FC = () => {
       setParams(next, { replace: true });
     }
   }, [params, setParams]);
+
+  // 알림이나 대시보드에서 지워진 태스크로 들어오면 안내하고 주소에서 지운다(16 §6.4).
+  // 이 화면에서 연 태스크가 사라졌으면(내가 지웠거나 다른 사람이 지움) 안내만 바꾼다.
+  const seenTaskRef = useRef<string | null>(null);
+  const deletedByMeRef = useRef<string | null>(null);
+  const missingTask = Boolean(openTaskId && tasks.data && !tasks.data.some((task) => task.id === openTaskId));
+  useEffect(() => {
+    if (!missingTask) return;
+    if (deletedByMeRef.current !== openTaskId) toast.info(seenTaskRef.current === openTaskId ? '다른 사람이 지운 태스크예요.' : '삭제됐거나 볼 수 없는 태스크예요.');
+    const next = new URLSearchParams(params);
+    next.delete('task');
+    setParams(next, { replace: true });
+  }, [missingTask]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (openTaskId && tasks.data?.some((task) => task.id === openTaskId)) seenTaskRef.current = openTaskId;
 
   const setParam = (key: string, value: string | null) => {
     const next = new URLSearchParams(params);
@@ -222,6 +236,7 @@ export const KanbanScreen: React.FC = () => {
         onAction={(action, note) => attempt(() => transition.mutateAsync({ taskId: openTask!.id, action, note }), actionDone[action])}
         onComment={(content) => attempt(() => comment.mutateAsync({ taskId: openTask!.id, content }))}
         onDelete={async () => {
+          deletedByMeRef.current = openTask!.id;
           const ok = await attempt(() => remove.mutateAsync(openTask!.id));
           if (ok) setParam('task', null);
           return ok;

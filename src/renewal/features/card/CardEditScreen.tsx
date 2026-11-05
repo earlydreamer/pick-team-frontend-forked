@@ -9,7 +9,7 @@ import {
   type CardErrors,
   type PrCard,
 } from '@/renewal/domain/card';
-import { Avatar, Button, ErrorState, LoadingState, Modal, toast } from '@/renewal/ui';
+import { Avatar, Button, ErrorState, LoadingState, Modal, Switch, toast } from '@/renewal/ui';
 import { useMe, useMyCard, useSaveMyCard, useUpdateProfileImage } from '@/renewal/data/queries';
 import { useWorkspaceContext } from '@/renewal/shell/useWorkspaceContext';
 import { ConsentPanel } from './ConsentPanel';
@@ -212,7 +212,6 @@ export const CardEditScreen: React.FC = () => {
   }
 
   const otherSelected = card.desiredRole1 === 'OTHER' || card.desiredRole2 === 'OTHER';
-  const visibilityHelpId = 'card-visibility-help';
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 pb-16 sm:px-6">
@@ -313,30 +312,15 @@ export const CardEditScreen: React.FC = () => {
         </Section>
 
         <Section id="visibility" title="공개 설정" open={open.visibility} onToggle={toggle}>
-          <div className="flex items-start gap-4">
-            <button
-              type="button"
-              role="switch"
-              aria-checked={card.cardVisible}
-              aria-describedby={visibilityHelpId}
-              aria-label="소속 워크스페이스에 내 카드 공개"
-              disabled={!requiredComplete && !card.cardVisible}
-              onClick={() => update({ cardVisible: !card.cardVisible })}
-              className={`relative mt-0.5 inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-                card.cardVisible ? 'bg-primary' : 'bg-neutral-400'
-              }`}
-            >
-              <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${card.cardVisible ? 'translate-x-6' : 'translate-x-1'}`} aria-hidden="true" />
-            </button>
-            <div>
-              <p className="font-semibold">소속 워크스페이스에 내 카드 공개 {card.cardVisible ? '켜짐' : '꺼짐'}</p>
-              <p id={visibilityHelpId} className="mt-0.5 text-sm text-muted">
-                {!requiredComplete && !card.cardVisible
-                  ? '희망 역할과 주간 가용 시간을 채우면 공개할 수 있어요.'
-                  : '끄면 멤버 카드와 추천에서 숨겨져요. 저장해야 반영돼요.'}
-              </p>
-            </div>
-          </div>
+          <Switch
+            label="소속 워크스페이스에 내 카드 공개"
+            description={
+              !requiredComplete && !card.cardVisible ? '희망 역할과 주간 가용 시간을 채우면 공개할 수 있어요.' : '끄면 멤버 카드와 추천에서 숨겨져요. 저장해야 반영돼요.'
+            }
+            checked={card.cardVisible}
+            disabled={!requiredComplete && !card.cardVisible}
+            onChange={(cardVisible) => update({ cardVisible })}
+          />
         </Section>
       </div>
 

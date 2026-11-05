@@ -1,7 +1,8 @@
 import React, { forwardRef, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { CheckIcon, ExclamationTriangleIcon, EyeIcon, EyeSlashIcon, XMarkIcon } from '@heroicons/react/24/outline';
-import { CODE_TTL_MS, OAUTH_LABEL, passwordRules, type OAuthProvider, type PasswordPolicy } from '@/renewal/domain/auth';
+import { CODE_TTL_MS, OAUTH_LABEL, passwordRules, safeRedirect, type OAuthProvider, type PasswordPolicy } from '@/renewal/domain/auth';
+import { savePendingRedirect } from './pendingInvite';
 import { data } from '@/renewal/data';
 import { Badge, Button, Input } from '@/renewal/ui';
 import { BrandLockup } from '@/renewal/shell/BrandMark';
@@ -164,8 +165,10 @@ const providerStyle: Record<OAuthProvider, string> = {
   kakao: 'bg-[#FEE500] text-[#191600] border border-transparent hover:brightness-95',
 };
 
-/** OAuth 시작 버튼. 제공자 인증 화면으로 이동한다(목업은 바로 콜백으로 돌아온다). */
-export const OAuthButtons: React.FC<{ verb: '로그인' | '가입' }> = ({ verb }) => (
+/** OAuth 시작 버튼. 제공자 인증 화면으로 이동한다(목업은 바로 콜백으로 돌아온다). 떠나기 전에 ?redirect= 목적지를 보존한다. */
+export const OAuthButtons: React.FC<{ verb: '로그인' | '가입' }> = ({ verb }) => {
+  const [params] = useSearchParams();
+  return (
   <div>
     <div className="my-5 flex items-center gap-3 text-xs text-muted" aria-hidden="true">
       <span className="h-px flex-1 bg-outline-soft" />
@@ -177,6 +180,7 @@ export const OAuthButtons: React.FC<{ verb: '로그인' | '가입' }> = ({ verb 
         <a
           key={provider}
           href={data.session.oauthStartUrl(provider)}
+          onClick={() => savePendingRedirect(safeRedirect(params.get('redirect')))}
           className={`inline-flex min-h-touch items-center justify-center rounded-[10px] px-4 text-sm font-semibold transition ${providerStyle[provider]}`}
         >
           {OAUTH_LABEL[provider]}로 {verb}
@@ -184,7 +188,8 @@ export const OAuthButtons: React.FC<{ verb: '로그인' | '가입' }> = ({ verb 
       ))}
     </div>
   </div>
-);
+  );
+};
 
 /** 단계 표시(가입·비밀번호 재설정 3단계). */
 export const StepIndicator: React.FC<{ steps: string[]; current: number }> = ({ steps, current }) => (

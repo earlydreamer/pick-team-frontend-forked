@@ -11,7 +11,7 @@ import {
 import { Avatar, Badge, Button, EmptyState, ErrorState, LoadingState, buttonClassName, toast } from '@/renewal/ui';
 import { DataError } from '@/renewal/data';
 import { useBoard, useInbox, useMe, useMember, useOpenDm, useScout } from '@/renewal/data/queries';
-import { NotFoundScreen } from '@/renewal/screens/system';
+import { MissingRedirect } from '@/renewal/screens/system';
 import { CardRequiredModal, ProposalModal, useActionErrorHandler } from '@/renewal/features/teamBuilding/shared';
 import { RoleBadges } from './MemberCardTile';
 
@@ -44,7 +44,7 @@ export const MemberDetailScreen: React.FC = () => {
   const back = `/ws/${wsId}/members`;
 
   if (member.isLoading) return <LoadingState className="min-h-[60vh]" label="카드를 불러오는 중이에요" />;
-  if (member.error instanceof DataError && member.error.code === 'NOT_FOUND') return <NotFoundScreen />;
+  if (member.error instanceof DataError && member.error.code === 'NOT_FOUND') return <MissingRedirect to={back} message="워크스페이스를 떠났거나 볼 수 없는 멤버예요." />;
   if (member.isError || !member.data) {
     return (
       <ErrorState

@@ -18,8 +18,8 @@ import {
   useSendMessage,
   useSetMuted,
 } from '@/renewal/data/queries';
-import { Avatar, Button, ErrorState, LoadingState, Modal, fieldClassName, toast } from '@/renewal/ui';
-import { NotFoundScreen } from '@/renewal/screens/system';
+import { Avatar, Button, ErrorState, LoadingState, Modal, Switch, fieldClassName, toast } from '@/renewal/ui';
+import { MissingRedirect } from '@/renewal/screens/system';
 import { ConfirmModal } from '@/renewal/features/teamBuilding/shared';
 import { errorMessage } from '@/renewal/features/teamSpace/TaskModals';
 
@@ -72,27 +72,13 @@ const RoomSettingsModal: React.FC<{ open: boolean; workspaceId: string; roomId: 
     <>
       <Modal isOpen={open} onClose={onClose} title="방 설정" size="lg">
         <div className="space-y-6">
-          <section aria-labelledby={`${id}-mute`}>
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h3 id={`${id}-mute`} className="text-sm font-semibold">
-                  새 메시지 알림
-                </h3>
-                <p className="text-sm text-muted">끄면 이 방의 새 메시지를 알림으로 받지 않아요. 안 읽은 수는 계속 보여요.</p>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={!detail.muted}
-                aria-labelledby={`${id}-mute`}
-                disabled={setMuted.isPending}
-                onClick={() => run(() => setMuted.mutateAsync(!detail.muted), detail.muted ? '알림을 켰어요.' : '알림을 껐어요.')}
-                className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors ${detail.muted ? 'bg-neutral-300' : 'bg-primary'}`}
-              >
-                <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${detail.muted ? 'translate-x-1' : 'translate-x-6'}`} />
-              </button>
-            </div>
-          </section>
+          <Switch
+            label="새 메시지 알림"
+            description="끄면 이 방의 새 메시지를 알림으로 받지 않아요. 안 읽은 수는 계속 보여요."
+            checked={!detail.muted}
+            disabled={setMuted.isPending}
+            onChange={(on) => run(() => setMuted.mutateAsync(!on), on ? '알림을 켰어요.' : '알림을 껐어요.')}
+          />
 
           {detail.permissions.rename && (
             <form
@@ -219,6 +205,9 @@ export const ChatRoomScreen: React.FC = () => {
   const logRef = useRef<HTMLDivElement>(null);
   const count = messages.data?.length ?? 0;
   const ready = Boolean(messages.data && room.data);
+  // 방을 보던 중에 내가 나가거나 지워 사라졌으면 안내 없이 목록으로 옮긴다(16 §6.4).
+  const seenRoomRef = useRef<string | undefined>(undefined);
+  if (room.data) seenRoomRef.current = roomId;
 
   // 들어오거나 새 메시지가 오면 읽음 처리하고 목록의 안 읽은 수와 이 방의 채팅 알림을 새로 고친다(15 §4.1, 16 §6.2).
   useEffect(() => {
@@ -244,7 +233,7 @@ export const ChatRoomScreen: React.FC = () => {
   }, [roomId]);
 
   if (room.isLoading || messages.isLoading) return <LoadingState className="min-h-[60vh]" label="채팅방을 불러오는 중이에요" />;
-  if (room.error instanceof DataError && room.error.code === 'NOT_FOUND') return <NotFoundScreen />;
+  if (room.error instanceof DataError && room.error.code === 'NOT_FOUND') return <MissingRedirect to={`/ws/${wsId}/chat`} silent={seenRoomRef.current === roomId} />;
   if (room.isError || messages.isError || !room.data || !messages.data) {
     return (
       <ErrorState

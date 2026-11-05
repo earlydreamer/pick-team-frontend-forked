@@ -5,7 +5,7 @@ import { mediaErrorGuide } from '@/renewal/domain/chat';
 import { DataError, data } from '@/renewal/data';
 import { useChatRooms, useMe, useVideoChannel } from '@/renewal/data/queries';
 import { Avatar, Badge, Button, ErrorState, LoadingState, buttonClassName, toast } from '@/renewal/ui';
-import { NotFoundScreen } from '@/renewal/screens/system';
+import { MissingRedirect } from '@/renewal/screens/system';
 import { errorMessage } from '@/renewal/features/teamSpace/TaskModals';
 
 type MediaState = { status: 'idle' | 'loading' } | { status: 'ready'; stream: MediaStream } | { status: 'error'; title: string; description: string } | { status: 'skipped' };
@@ -88,7 +88,7 @@ export const VideoScreen: React.FC = () => {
   }, [camOn, media]);
 
   if (channel.isLoading) return <LoadingState className="min-h-[60vh]" label="회의실을 불러오는 중이에요" />;
-  if (channel.error instanceof DataError && channel.error.code === 'NOT_FOUND') return <NotFoundScreen />;
+  if (channel.error instanceof DataError && channel.error.code === 'NOT_FOUND') return <MissingRedirect to={`/ws/${wsId}`} />;
   if (channel.isError || !channel.data) {
     return <ErrorState className="min-h-[60vh]" title="회의실을 불러오지 못했어요" action={<Button onClick={() => channel.refetch()}>다시 시도</Button>} />;
   }
