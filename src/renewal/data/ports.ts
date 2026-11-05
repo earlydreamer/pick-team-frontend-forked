@@ -21,6 +21,7 @@ import type { ChatMessage, ChatRoom, ChatRoomSummary, VideoChannel } from '@/ren
 import type { AppNotification, NotificationCategory, NotificationSettings } from '@/renewal/domain/notification';
 import type { Announcement } from '@/renewal/domain/announcement';
 import type { MyData } from '@/renewal/domain/account';
+import type { AdminReport, ReportAction, ReportInput, ReportStatus } from '@/renewal/domain/report';
 import type { Agreements, PolicyConsent } from '@/renewal/domain/policy';
 import type { BannedMember, InviteView, WorkspaceSettings } from '@/renewal/domain/workspaceAdmin';
 import type { CreateWorkspaceInput, InviteInfo, JoinResult, OAuthProvider, SignUpInput } from '@/renewal/domain/auth';
@@ -88,6 +89,17 @@ export interface CardPort {
   searchHashtags(keyword: string): Promise<string[]>;
   /** 카드만 삭제(17 §6.3). 동의 기록과 성향 정보를 지워 작성 전 상태로 돌린다 */
   deleteMine(): Promise<void>;
+}
+
+/** 신고(17 §6.5). 제출은 로그인한 사용자, 나머지는 시스템 관리자만(아니면 FORBIDDEN) */
+export interface ReportPort {
+  /** 이미 처리 중인 같은 신고가 있으면 CONFLICT */
+  submit(input: ReportInput): Promise<void>;
+  listAdmin(status?: ReportStatus): Promise<AdminReport[]>;
+  /** 접수 → 검토 중 */
+  startReview(reportId: string): Promise<void>;
+  /** 검토 중인 신고에 조치한다. 기각이면 DISMISSED, 나머지는 ACTED */
+  resolve(reportId: string, action: ReportAction, memo?: string): Promise<void>;
 }
 
 /** 내 계정(SCR-MY-01, SCR-MY-03, 17 §6.3~§6.4). */
@@ -308,6 +320,7 @@ export interface DataSource {
   workspaces: WorkspacePort;
   workspaceAdmin: WorkspaceAdminPort;
   account: AccountPort;
+  reports: ReportPort;
   cards: CardPort;
   teamBuilding: TeamBuildingPort;
   dashboard: DashboardPort;

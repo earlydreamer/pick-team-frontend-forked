@@ -1,7 +1,7 @@
 import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeftIcon, ArrowPathIcon, Cog6ToothIcon, MagnifyingGlassIcon, PaperAirplaneIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, ArrowPathIcon, Cog6ToothIcon, FlagIcon, MagnifyingGlassIcon, PaperAirplaneIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { CHAT_LIMITS, validateMessage, type ChatMessage } from '@/renewal/domain/chat';
 import { DataError, data } from '@/renewal/data';
 import {
@@ -21,6 +21,7 @@ import {
 } from '@/renewal/data/queries';
 import { Avatar, Button, ErrorState, LoadingState, Modal, Switch, fieldClassName, toast } from '@/renewal/ui';
 import { MissingRedirect } from '@/renewal/screens/system';
+import { ReportModal, type ReportTarget } from '@/renewal/features/reports/ReportModal';
 import { ConfirmModal } from '@/renewal/features/teamBuilding/shared';
 import { errorMessage } from '@/renewal/features/teamSpace/TaskModals';
 
@@ -205,6 +206,7 @@ export const ChatRoomScreen: React.FC = () => {
   const [results, setResults] = useState<ChatMessage[] | null>(null);
   const [highlight, setHighlight] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
   const count = messages.data?.length ?? 0;
   const ready = Boolean(messages.data && room.data);
@@ -387,7 +389,7 @@ export const ChatRoomScreen: React.FC = () => {
                     <div
                       id={`msg-${message.id}`}
                       tabIndex={-1}
-                      className={`flex gap-2.5 rounded-lg px-2 py-1 focus:outline-none ${highlight === message.id ? 'bg-amber-50 ring-2 ring-warning' : mine ? 'bg-peri-50/60' : ''}`}
+                      className={`group relative flex gap-2.5 rounded-lg px-2 py-1 focus:outline-none ${highlight === message.id ? 'bg-amber-50 ring-2 ring-warning' : mine ? 'bg-peri-50/60' : ''}`}
                     >
                       <span className="w-8 shrink-0">{!grouped && <Avatar name={memberName(message.authorId)} imageUrl={memberImage(message.authorId)} size="sm" />}</span>
                       <div className="min-w-0 flex-1">
@@ -399,6 +401,17 @@ export const ChatRoomScreen: React.FC = () => {
                         )}
                         <p className="whitespace-pre-line break-words text-[0.9375rem] leading-6">{message.content}</p>
                       </div>
+                      {/* 남의 메시지 신고(17 §4.1). 마우스를 올리거나 키보드로 닿으면 보인다. */}
+                      {!mine && (
+                        <button
+                          type="button"
+                          onClick={() => setReportTarget({ type: 'MESSAGE', id: message.id, workspaceId: wsId, label: `${memberName(message.authorId)}님의 메시지` })}
+                          aria-label={`${memberName(message.authorId)}님의 메시지 신고`}
+                          className="absolute right-1 top-1 inline-flex h-8 w-8 items-center justify-center rounded-md text-muted opacity-0 hover:bg-surface-container hover:text-danger focus:opacity-100 focus-visible:ring-2 focus-visible:ring-primary group-hover:opacity-100"
+                        >
+                          <FlagIcon className="h-4 w-4" aria-hidden="true" />
+                        </button>
+                      )}
                     </div>
                   )}
                 </li>
@@ -482,6 +495,7 @@ export const ChatRoomScreen: React.FC = () => {
       </form>
       )}
 
+      <ReportModal target={reportTarget} onClose={() => setReportTarget(null)} />
       <RoomSettingsModal open={settingsOpen} workspaceId={wsId} roomId={roomId} onClose={() => setSettingsOpen(false)} />
     </div>
   );

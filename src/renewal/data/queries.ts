@@ -6,6 +6,7 @@ import type { AnnouncementInput, PostInput, ScheduleInput } from '@/renewal/doma
 import type { TeamInfoInput } from '@/renewal/domain/teamSpace';
 import type { NotificationCategory, NotificationSettings } from '@/renewal/domain/notification';
 import type { Agreements } from '@/renewal/domain/policy';
+import type { ReportAction, ReportInput, ReportStatus } from '@/renewal/domain/report';
 import { data } from './index';
 
 /** 쿼리 키를 한곳에서 관리해 무효화 범위를 분명히 한다. */
@@ -39,6 +40,7 @@ export const keys = {
   videoChannel: (id: string, channelId: string) => ['workspaces', id, 'video', channelId] as const,
   myData: ['me', 'data'] as const,
   policyConsent: ['me', 'policy-consent'] as const,
+  adminReports: (status: string) => ['admin', 'reports', status] as const,
   workspaceAnnouncements: (id: string) => ['workspaces', id, 'announcements', 'workspace'] as const,
   workspaceSettings: (id: string) => ['workspaces', id, 'settings'] as const,
   bans: (id: string) => ['workspaces', id, 'bans'] as const,
@@ -330,4 +332,14 @@ export const useCreateWorkspaceAnnouncement = (id: string) => useWsAnnouncementM
 export const useUpdateWorkspaceAnnouncement = (id: string) =>
   useWsAnnouncementMutation(id, (input: { announcementId: string; announcement: AnnouncementInput }) => data.announcements.updateWorkspace(id, input.announcementId, input.announcement));
 export const useDeleteWorkspaceAnnouncement = (id: string) => useWsAnnouncementMutation(id, (announcementId: string) => data.announcements.removeWorkspace(id, announcementId));
+
+/** 신고(17 §6.5). 처리하면 해당 워크스페이스의 데이터(메시지·게시글·멤버)도 바뀔 수 있어 워크스페이스 쿼리도 새로 고친다. */
+export const useSubmitReport = () => useMutation({ mutationFn: (input: ReportInput) => data.reports.submit(input) });
+export const useAdminReports = (status: ReportStatus | undefined) => useQuery({ queryKey: keys.adminReports(status ?? 'ALL'), queryFn: () => data.reports.listAdmin(status) });
+const useAdminReportMutation = <Input, Output>(fn: (input: Input) => Promise<Output>) => {
+  const client = useQueryClient();
+  return useMutation({ mutationFn: fn, onSettled: () => Promise.all([client.invalidateQueries({ queryKey: ['admin'] }), client.invalidateQueries({ queryKey: keys.workspaces })]) });
+};
+export const useStartReview = () => useAdminReportMutation((reportId: string) => data.reports.startReview(reportId));
+export const useResolveReport = () => useAdminReportMutation((input: { reportId: string; action: ReportAction; memo?: string }) => data.reports.resolve(input.reportId, input.action, input.memo));
 

@@ -227,3 +227,15 @@ export const setArchived = (db: MockDb, workspaceId: string, accountId: string, 
   };
 };
 
+/**
+ * 시스템 관리자의 워크스페이스 차단(17 §5.1 BANNED_WS). 워크스페이스 역할 검사 없이 차단 파급(§5.1)을 그대로 적용한다.
+ * 개설자는 워크스페이스에서 뺄 수 없으므로 막는다. 그 경우는 계정 정지로 다룬다.
+ */
+export const banBySystem = (db: MockDb, workspaceId: string, targetId: string) => {
+  const workspace = workspaceOf(db, workspaceId);
+  const member = workspace.members.find((item) => item.accountId === targetId);
+  if (!member) return { db, successor: undefined };
+  if (member.role === 'OWNER') throw new DataError('개설자는 워크스페이스에서 차단할 수 없어요. 계정 정지로 처리해 주세요.', 'CONFLICT');
+  return removeFromWorkspace(db, workspaceId, targetId, 'BAN');
+};
+
