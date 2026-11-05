@@ -20,6 +20,7 @@ import type { Account as ChatAccount } from '@/renewal/domain/workspace';
 import type { ChatMessage, ChatRoom, ChatRoomSummary, VideoChannel } from '@/renewal/domain/chat';
 import type { AppNotification, NotificationCategory, NotificationSettings } from '@/renewal/domain/notification';
 import type { Announcement } from '@/renewal/domain/announcement';
+import type { MyData } from '@/renewal/domain/account';
 import type { BannedMember, InviteView, WorkspaceSettings } from '@/renewal/domain/workspaceAdmin';
 import type { CreateWorkspaceInput, InviteInfo, JoinResult, OAuthProvider, SignUpInput } from '@/renewal/domain/auth';
 
@@ -80,6 +81,19 @@ export interface CardPort {
   saveMine(card: PrCard): Promise<PrCard>;
   setVisibility(visible: boolean): Promise<PrCard>;
   searchHashtags(keyword: string): Promise<string[]>;
+  /** 카드만 삭제(17 §6.3). 동의 기록과 성향 정보를 지워 작성 전 상태로 돌린다 */
+  deleteMine(): Promise<void>;
+}
+
+/** 내 계정(SCR-MY-01, SCR-MY-03, 17 §6.3~§6.4). */
+export interface AccountPort {
+  /** 열람권: 저장된 내 정보와 계정 삭제 전 해야 할 일 */
+  myData(): Promise<MyData>;
+  updateName(name: string): Promise<void>;
+  /** 이메일 계정만. 지금 비밀번호가 틀리면 INVALID, 소셜 계정이면 CONFLICT */
+  changePassword(current: string, next: string): Promise<void>;
+  /** 이메일 계정은 비밀번호, 소셜 계정은 이메일로 확인한다. 끝나면 로그아웃 상태가 된다 */
+  deleteAccount(confirm: string): Promise<void>;
 }
 
 export interface TeamBuildingPort {
@@ -280,6 +294,7 @@ export interface DataSource {
   session: SessionPort;
   workspaces: WorkspacePort;
   workspaceAdmin: WorkspaceAdminPort;
+  account: AccountPort;
   cards: CardPort;
   teamBuilding: TeamBuildingPort;
   dashboard: DashboardPort;
