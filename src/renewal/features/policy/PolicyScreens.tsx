@@ -22,7 +22,7 @@ const PolicyLayout: React.FC<{ title: string; other: { to: string; label: string
             <BrandLockup className="text-base" />
           </Link>
           {data.kind === 'mock' && <Badge tone="warning">목업 데이터</Badge>}
-          <Link to={other.to} className="ml-auto text-sm font-semibold text-primary underline-offset-2 hover:underline">
+          <Link to={other.to} className="ml-auto inline-flex min-h-touch items-center text-sm font-semibold text-primary underline-offset-2 hover:underline">
             {other.label}
           </Link>
         </div>

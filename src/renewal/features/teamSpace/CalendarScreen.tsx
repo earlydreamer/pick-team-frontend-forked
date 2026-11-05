@@ -359,7 +359,7 @@ export const CalendarScreen: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => go({ view: 'week', date: day })}
-                            className="mt-1 flex w-full items-center gap-0.5 sm:hidden"
+                            className="mt-0.5 flex min-h-[1.5rem] w-full items-center justify-center gap-0.5 rounded sm:hidden"
                             aria-label={`${day.getMonth() + 1}월 ${day.getDate()}일 일정 ${items.length}개 보기`}
                           >
                             {items.slice(0, 3).map((item) => (

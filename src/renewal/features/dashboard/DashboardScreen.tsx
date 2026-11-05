@@ -173,7 +173,7 @@ const AlertsWidget: React.FC<{ wsId: string; view: DashboardView; writable: bool
           <li className="flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2.5 text-sm">
             <FlagIcon className="mt-0.5 h-5 w-5 shrink-0 text-danger" aria-hidden="true" />
             <span className="min-w-0 flex-1 font-semibold">처리할 신고 {reports}건</span>
-            <Link to={`/ws/${wsId}/settings?tab=reports`} className="shrink-0 text-xs font-semibold text-primary underline-offset-2 hover:underline">
+            <Link to={`/ws/${wsId}/settings?tab=reports`} className="inline-flex min-h-[1.5rem] shrink-0 items-center text-xs font-semibold text-primary underline-offset-2 hover:underline">
               신고 확인
             </Link>
           </li>
@@ -192,7 +192,7 @@ const AlertsWidget: React.FC<{ wsId: string; view: DashboardView; writable: bool
               <span className="min-w-0 flex-1">
                 <span className="font-semibold">{alert.account.name}</span>: 이번 기수 차단 이력 {alert.count}건
               </span>
-              <Link to={`/ws/${wsId}/settings?tab=bans`} className="shrink-0 text-xs font-semibold text-primary underline-offset-2 hover:underline">
+              <Link to={`/ws/${wsId}/settings?tab=bans`} className="inline-flex min-h-[1.5rem] shrink-0 items-center text-xs font-semibold text-primary underline-offset-2 hover:underline">
                 차단 목록
               </Link>
             </li>
