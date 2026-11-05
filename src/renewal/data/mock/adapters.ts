@@ -269,6 +269,7 @@ const baseSource: DataSource = {
     },
     async getMember(workspaceId, accountId) {
       await latency();
+      fail('member');
       const { me, workspace } = findWorkspaceOfMe(workspaceId);
       const member = workspace.members.find((item) => item.accountId === accountId);
       if (!member) throw new DataError('멤버를 찾을 수 없어요.', 'NOT_FOUND');
@@ -443,6 +444,7 @@ const baseSource: DataSource = {
     },
     async getMine() {
       await latency();
+      fail('myCard');
       const me = requireMe();
       return getDb().cards[me.id] ?? emptyCard();
     },
