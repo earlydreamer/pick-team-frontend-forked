@@ -389,6 +389,27 @@ const baseSource: DataSource = {
       const me = requireMe();
       await mutate('resolveReport', (db) => reportRules.resolveReport(db, me.id, reportId, action, memo));
     },
+    async listWorkspace(workspaceId) {
+      await latency();
+      fail('reports');
+      return reportRules.listWorkspaceReports(getDb(), requireMe().id, workspaceId);
+    },
+    async getOpenCount(workspaceId) {
+      await latency(100);
+      return reportRules.openWorkspaceReportCount(getDb(), requireMe().id, workspaceId);
+    },
+    async startWorkspaceReview(workspaceId, reportId) {
+      const me = requireMe();
+      await mutate('startReview', (db) => reportRules.startWorkspaceReview(db, me.id, workspaceId, reportId));
+    },
+    async resolveInWorkspace(workspaceId, reportId, action, memo) {
+      const me = requireMe();
+      await mutate('resolveReport', (db) => reportRules.resolveInWorkspace(db, me.id, workspaceId, reportId, action, memo));
+    },
+    async escalate(workspaceId, reportId, memo) {
+      const me = requireMe();
+      await mutate('escalateReport', (db) => reportRules.escalateReport(db, me.id, workspaceId, reportId, memo));
+    },
   },
 
   account: {

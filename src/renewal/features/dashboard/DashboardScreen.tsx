@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowRightIcon, CheckCircleIcon, ExclamationTriangleIcon, InformationCircleIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
+import { ArrowRightIcon, CheckCircleIcon, ExclamationTriangleIcon, FlagIcon, InformationCircleIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
 import { relativeTime } from '@/renewal/domain/announcement';
 import { writtenRate, type DashboardView } from '@/renewal/domain/dashboard';
 import { SESSION_STATUS_LABEL, dDayLabel, formatDeadline } from '@/renewal/domain/teamBuilding';
 import { isManager } from '@/renewal/domain/workspace';
 import { DataError } from '@/renewal/data';
-import { useApprove, useDashboard, useRemindCardWriters, useWorkspace } from '@/renewal/data/queries';
+import { useApprove, useDashboard, useOpenReportCount, useRemindCardWriters, useWorkspace } from '@/renewal/data/queries';
 import { Badge, Button, ErrorState, LoadingState, buttonClassName, toast } from '@/renewal/ui';
 import { ForbiddenScreen, NotFoundScreen } from '@/renewal/screens/system';
 import { useWritable } from '@/renewal/shell/useWritable';
@@ -157,15 +157,27 @@ const ProgressWidget: React.FC<{ view: DashboardView }> = ({ view }) => (
 );
 
 /** 위젯 D: 이상 신호. 차단 이력은 차단 목록으로, 전체에 알릴 일은 워크스페이스 공지 작성으로 잇는다(R16). */
-const AlertsWidget: React.FC<{ wsId: string; view: DashboardView; writable: boolean }> = ({ wsId, view, writable }) => (
+/** 이상 신호. 팀 정체와 차단 이력에 더해 운영진이 처리할 신고 수를 맨 앞에 보인다(17 §2 1차 수신). */
+const AlertsWidget: React.FC<{ wsId: string; view: DashboardView; writable: boolean }> = ({ wsId, view, writable }) => {
+  const reports = useOpenReportCount(wsId, true).data ?? 0;
+  return (
   <Widget id="dsh-alerts" title="이상 신호" className="lg:col-span-2">
-    {view.alerts.length === 0 ? (
+    {view.alerts.length === 0 && reports === 0 ? (
       <p className="flex items-center gap-2 text-sm text-success">
         <CheckCircleIcon className="h-5 w-5" aria-hidden="true" />
         모든 팀이 정상적으로 진행 중이에요.
       </p>
     ) : (
       <ul className="grid gap-2 sm:grid-cols-2">
+        {reports > 0 && (
+          <li className="flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2.5 text-sm">
+            <FlagIcon className="mt-0.5 h-5 w-5 shrink-0 text-danger" aria-hidden="true" />
+            <span className="min-w-0 flex-1 font-semibold">처리할 신고 {reports}건</span>
+            <Link to={`/ws/${wsId}/settings?tab=reports`} className="shrink-0 text-xs font-semibold text-primary underline-offset-2 hover:underline">
+              신고 확인
+            </Link>
+          </li>
+        )}
         {view.alerts.map((alert) =>
           alert.kind === 'INACTIVE_TEAM' ? (
             <li key={`team-${alert.teamId}`} className="flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2.5 text-sm">
@@ -195,7 +207,8 @@ const AlertsWidget: React.FC<{ wsId: string; view: DashboardView; writable: bool
     </Link>
     )}
   </Widget>
-);
+  );
+};
 
 /** 진행도 승인 큐(13 §4.5). 승인하면 승인자로 지금 로그인한 계정이 기록된다. */
 const ApprovalQueue: React.FC<{ wsId: string; view: DashboardView }> = ({ wsId, view }) => {

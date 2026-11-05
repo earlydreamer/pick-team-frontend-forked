@@ -42,6 +42,7 @@ describe('보관 중 쓰기 차단(archiveGuard)', () => {
     video: port('video', ['getChannel', 'join', 'leave']),
     dashboard: port('dashboard', ['get', 'approve']),
     notifications: port('notifications', ['markAllRead']),
+    reports: port('reports', ['submit', 'listWorkspace', 'startReview', 'resolveInWorkspace']),
   } as unknown as DataSource;
   const guarded = withArchiveGuard(source, (id) => id === 'archived');
 
@@ -52,12 +53,17 @@ describe('보관 중 쓰기 차단(archiveGuard)', () => {
     await expect(guarded.teamBuilding.apply('archived', 't-1')).rejects.toThrow(ARCHIVED_MESSAGE);
     await expect(guarded.video.join('archived', 'c')).rejects.toThrow(ARCHIVED_MESSAGE);
     await expect(guarded.dashboard.approve('archived', 'a')).rejects.toThrow(ARCHIVED_MESSAGE);
+    await expect(guarded.reports.resolveInWorkspace('archived', 'rp-1', 'WARNED')).rejects.toThrow(ARCHIVED_MESSAGE);
     for (const run of [
       () => guarded.teamSpace.listTasks('archived', 't-1'),
       () => guarded.teamSpace.overview('archived', 't-1'),
       () => guarded.chat.markRead('archived', 'r'),
       () => guarded.chat.setMuted('archived', 'r', true),
       () => guarded.teamBuilding.inbox('archived'),
+      () => guarded.reports.listWorkspace('archived'),
+      // 신고 제출과 시스템 관리자 처리는 첫 인자가 워크스페이스 id가 아니라 막지 않는다.
+      () => guarded.reports.submit({ targetType: 'USER', targetId: 'u-1', workspaceId: 'archived', reason: 'SPAM' }),
+      () => guarded.reports.startReview('rp-1'),
       () => guarded.video.leave('archived', 'c'),
       () => guarded.workspaceAdmin.leave('archived'),
       () => guarded.workspaceAdmin.setArchived('archived', false),

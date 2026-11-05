@@ -23,8 +23,8 @@ const team = (db: MockDb, id: string) => db.teams.find((item) => item.id === id)
 describe('권한 표', () => {
   it('멤버는 일반 탭만, 매니저는 보안·위험 구역을 빼고 연다', () => {
     expect(tabsFor('MEMBER').map((tab) => tab.id)).toEqual(['general']);
-    expect(tabsFor('ADMIN').map((tab) => tab.id)).toEqual(['general', 'invite', 'members', 'bans']);
-    expect(tabsFor('OWNER')).toHaveLength(6);
+    expect(tabsFor('ADMIN').map((tab) => tab.id)).toEqual(['general', 'invite', 'members', 'bans', 'reports']);
+    expect(tabsFor('OWNER')).toHaveLength(7);
   });
 
   it('매니저는 멤버만 내보내고, 자기 자신과 개설자에게는 아무것도 못 한다', () => {

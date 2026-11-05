@@ -40,6 +40,7 @@ export type NotificationType =
   | 'NEW_CHAT_MESSAGE'
   | 'WS_MEMBER_JOINED'
   | 'WS_MEMBER_BANNED'
+  | 'REPORT_RECEIVED'
   | 'REPORT_RESOLVED'
   | 'MODERATION_NOTICE'
   | 'TEAM_LEADER_DELEGATION_REQUESTED'
@@ -70,6 +71,8 @@ export const TYPE_META: Record<NotificationType, { category: NotificationCategor
   WS_MEMBER_JOINED: { category: 'MEMBERSHIP', priority: 'LOW' },
   WS_MEMBER_BANNED: { category: 'MEMBERSHIP', priority: 'HIGH' },
   // 신고 처리(17 §5.1). 신고자에게는 결과만, 피신고자에게는 조치만 알린다. 운영 알림이라 계열을 꺼도 남긴다.
+  // 워크스페이스 운영진에게 가는 새 신고(17 §2 1차 수신). 카탈로그 밖 이벤트다.
+  REPORT_RECEIVED: { category: 'MEMBERSHIP', priority: 'HIGH' },
   REPORT_RESOLVED: { category: 'MEMBERSHIP', priority: 'MEDIUM' },
   MODERATION_NOTICE: { category: 'MEMBERSHIP', priority: 'HIGH' },
   TEAM_LEADER_DELEGATION_REQUESTED: { category: 'MEMBERSHIP', priority: 'HIGH' },

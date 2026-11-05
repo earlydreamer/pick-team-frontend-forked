@@ -100,6 +100,15 @@ export interface ReportPort {
   startReview(reportId: string): Promise<void>;
   /** 검토 중인 신고에 조치한다. 기각이면 DISMISSED, 나머지는 ACTED */
   resolve(reportId: string, action: ReportAction, memo?: string): Promise<void>;
+  /** 워크스페이스 운영진의 1차 수신함(17 §2). 운영진 대상 신고와 내가 신고했거나 대상인 신고는 빠진다 */
+  listWorkspace(workspaceId: string): Promise<AdminReport[]>;
+  /** 운영진이 지금 처리할 신고 수(설정 탭 배지) */
+  getOpenCount(workspaceId: string): Promise<number>;
+  startWorkspaceReview(workspaceId: string, reportId: string): Promise<void>;
+  /** 계정 정지는 고를 수 없다(INVALID) */
+  resolveInWorkspace(workspaceId: string, reportId: string, action: ReportAction, memo?: string): Promise<void>;
+  /** 시스템 관리자에게 넘긴다. 넘긴 뒤에는 운영진이 처리할 수 없다 */
+  escalate(workspaceId: string, reportId: string, memo?: string): Promise<void>;
 }
 
 /** 내 계정(SCR-MY-01, SCR-MY-03, 17 §6.3~§6.4). */

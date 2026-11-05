@@ -4,13 +4,14 @@ import { ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
 import { WORKSPACE_LIMITS, validateWorkspaceName, validateWorkspacePassword } from '@/renewal/domain/auth';
 import { WORKSPACE_ROLE_LABEL } from '@/renewal/domain/workspace';
 import { tabsFor, type SettingsTab, type WorkspaceSettings } from '@/renewal/domain/workspaceAdmin';
-import { useDeleteWorkspace, useLeaveWorkspace, useRenameWorkspace, useSetArchived, useSetWorkspacePassword, useWorkspaceSettings } from '@/renewal/data/queries';
+import { useDeleteWorkspace, useLeaveWorkspace, useOpenReportCount, useRenameWorkspace, useSetArchived, useSetWorkspacePassword, useWorkspaceSettings } from '@/renewal/data/queries';
 import { Button, ErrorState, Input, LoadingState, Modal, fieldClassName } from '@/renewal/ui';
 import { NotFoundScreen } from '@/renewal/screens/system';
 import { DataError } from '@/renewal/data';
 import { ConfirmModal } from '@/renewal/features/teamBuilding/shared';
 import { InviteTab } from './InviteTab';
 import { BansTab, MembersTab } from './MemberAdminTabs';
+import { ReportsTab } from './ReportsTab';
 import { SettingsSection, attempt, formatDate } from './parts';
 
 /** 일반 탭. 매니저 이상은 이름을 바꾸고, 개설자가 아닌 사람은 여기서 워크스페이스를 나간다. */
@@ -274,6 +275,7 @@ const TAB_VIEW: Record<SettingsTab, React.FC<{ settings: WorkspaceSettings }>> =
   invite: InviteTab,
   members: MembersTab,
   bans: BansTab,
+  reports: ReportsTab,
   security: SecurityTab,
   danger: DangerTab,
 };
@@ -287,6 +289,7 @@ export const WorkspaceSettingsScreen: React.FC = () => {
   const { wsId = '' } = useParams<{ wsId: string }>();
   const [params, setParams] = useSearchParams();
   const settings = useWorkspaceSettings(wsId);
+  const openReports = useOpenReportCount(wsId, settings.data?.myRole === 'OWNER' || settings.data?.myRole === 'ADMIN');
   const headingRef = useRef<HTMLHeadingElement>(null);
   const requested = params.get('tab');
 
@@ -326,6 +329,12 @@ export const WorkspaceSettingsScreen: React.FC = () => {
                       } ${tab.id === 'danger' && !current ? 'md:text-danger' : ''}`}
                     >
                       {tab.label}
+                      {tab.id === 'reports' && Boolean(openReports.data) && (
+                        <span className="ml-1.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-danger px-1.5 text-xs font-bold leading-5 text-white">
+                          {openReports.data}
+                          <span className="sr-only">건 처리 대기</span>
+                        </span>
+                      )}
                     </Link>
                   </li>
                 );
