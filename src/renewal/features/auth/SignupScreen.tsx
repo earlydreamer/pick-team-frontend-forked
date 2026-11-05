@@ -7,6 +7,8 @@ import { Button, Input } from '@/renewal/ui';
 import { AuthLayout, CodeField, FormError, MockHint, OAuthButtons, PasswordChecklist, PasswordField, StepIndicator, useStepFocus } from './AuthUi';
 import { InviteNotice, withRedirect } from './LoginScreen';
 import { useCompleteAuth } from './useCompleteAuth';
+import { missingAgreement, noAgreements, type Agreements } from '@/renewal/domain/policy';
+import { AgreementChecklist } from '@/renewal/features/policy/AgreementChecklist';
 
 const STEPS = ['이메일', '인증', '계정 정보'];
 const messageOf = (error: unknown) => (error instanceof Error ? error.message : '요청을 처리하지 못했어요. 다시 시도해 주세요.');
@@ -25,7 +27,8 @@ export const SignupScreen: React.FC = () => {
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
-  const [errors, setErrors] = useState<{ email?: string; code?: string; name?: string; password?: string; confirm?: string; form?: string }>({});
+  const [agreements, setAgreements] = useState<Agreements>(noAgreements());
+  const [errors, setErrors] = useState<{ email?: string; code?: string; name?: string; password?: string; confirm?: string; agreements?: string; form?: string }>({});
   const [conflict, setConflict] = useState(false);
   const [pending, setPending] = useState(false);
   const [resending, setResending] = useState(false);
@@ -95,12 +98,13 @@ export const SignupScreen: React.FC = () => {
     found.name = validateName(name);
     if (!isPasswordValid(password, 'signup')) found.password = '비밀번호 조건을 모두 채워 주세요.';
     if (password !== confirm) found.confirm = '비밀번호가 서로 달라요.';
+    found.agreements = missingAgreement(agreements);
     setErrors(found);
-    const firstError = (['name', 'password', 'confirm'] as const).find((key) => found[key]);
-    if (firstError) return document.getElementsByName(firstError)[0]?.focus();
+    const firstError = (['name', 'password', 'confirm', 'agreements'] as const).find((key) => found[key]);
+    if (firstError) return document.getElementsByName(firstError === 'agreements' ? 'agree-all' : firstError)[0]?.focus();
     setPending(true);
     try {
-      complete(await data.session.signUp({ email: email.trim(), name: name.trim(), password }));
+      complete(await data.session.signUp({ email: email.trim(), name: name.trim(), password, agreements }));
     } catch (error) {
       setErrors({ form: messageOf(error) });
     } finally {
@@ -195,6 +199,7 @@ export const SignupScreen: React.FC = () => {
             onChange={(event) => setConfirm(event.target.value)}
             error={errors.confirm}
           />
+          <AgreementChecklist value={agreements} onChange={setAgreements} error={errors.agreements} />
           <Button type="submit" className="w-full" loading={pending}>
             가입 완료
           </Button>

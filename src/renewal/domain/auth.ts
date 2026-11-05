@@ -1,3 +1,4 @@
+import type { Agreements } from './policy';
 /**
  * 인증·초대 도메인 규칙. 근거: docs/renewal/spec/10-auth-onboarding.md, 백엔드 DTO 검증 규칙.
  *
@@ -104,6 +105,8 @@ export interface SignUpInput {
   email: string;
   name: string;
   password: string;
+  /** 이용약관, 개인정보 처리방침, 만 14세 이상 확인(17 §6.2, 17-D6) */
+  agreements: Agreements;
 }
 
 export interface CreateWorkspaceInput {

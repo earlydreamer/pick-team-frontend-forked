@@ -14,6 +14,7 @@ import {
   type SignUpInput,
 } from '@/renewal/domain/auth';
 import { DataError } from '../ports';
+import { POLICY_VERSION, missingAgreement, type Agreements } from '@/renewal/domain/policy';
 import type { MockDb, MockInvite, MockVerification } from './db';
 
 /*
@@ -89,6 +90,8 @@ export const signUp = async (db: MockDb, input: SignUpInput) => {
   const nameError = validateName(input.name);
   if (nameError) throw new DataError(nameError, 'INVALID');
   if (!isPasswordValid(input.password, 'signup')) throw new DataError('비밀번호 조건을 모두 채워 주세요.', 'INVALID');
+  const agreementError = missingAgreement(input.agreements);
+  if (agreementError) throw new DataError(agreementError, 'INVALID');
   const accountId = randomId('u');
   const next = withoutVerification(db, input.email, 'SIGNUP');
   return {
@@ -98,8 +101,16 @@ export const signUp = async (db: MockDb, input: SignUpInput) => {
       currentAccountId: accountId,
       accounts: [...next.accounts, { id: accountId, name: input.name.trim(), email: normalizeEmail(input.email), profileImageUrl: null }],
       credentials: { ...next.credentials, [accountId]: { passwordHash: await hashPassword(input.password) } },
+      policyConsents: { ...next.policyConsents, [accountId]: { version: POLICY_VERSION, agreedAt: new Date().toISOString() } },
     },
   };
+};
+
+/** 소셜 로그인으로 처음 들어온 계정의 동의(17 §6.2). 세 항목이 모두 있어야 기록한다. */
+export const agreePolicies = (db: MockDb, accountId: string, agreements: Agreements): MockDb => {
+  const error = missingAgreement(agreements);
+  if (error) throw new DataError(error, 'INVALID');
+  return { ...db, policyConsents: { ...db.policyConsents, [accountId]: { version: POLICY_VERSION, agreedAt: new Date().toISOString() } } };
 };
 
 /** 비밀번호 재설정. 성공하면 코드를 지워 같은 코드로 다시 바꿀 수 없게 한다(10 §5.3, AuthServiceImpl TODO 해소). */

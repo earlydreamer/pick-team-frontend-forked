@@ -1,7 +1,7 @@
 import React from 'react';
 import { Route, Routes } from 'react-router-dom';
 import { AppShell } from '@/renewal/shell/AppShell';
-import { NotFoundScreen, PendingScreen, RootRedirect } from '@/renewal/screens/system';
+import { NotFoundScreen, RootRedirect } from '@/renewal/screens/system';
 import { WelcomeScreen } from '@/renewal/features/auth/WelcomeScreen';
 import { OnboardingScreen } from '@/renewal/features/card/OnboardingScreen';
 import { CardEditScreen } from '@/renewal/features/card/CardEditScreen';
@@ -13,7 +13,9 @@ import { TeamRecruitDetail } from '@/renewal/features/teamBuilding/TeamRecruitDe
 import { InboxScreen } from '@/renewal/features/teamBuilding/InboxScreen';
 import { ManageScreen } from '@/renewal/features/manage/ManageScreen';
 import { DashboardScreen } from '@/renewal/features/dashboard/DashboardScreen';
-import { GuestOnly, RequireAuth } from '@/renewal/features/auth/guards';
+import { GuestOnly, RequireAuth, RequireConsent } from '@/renewal/features/auth/guards';
+import { AgreementsScreen } from '@/renewal/features/policy/AgreementsScreen';
+import { PrivacyScreen, TermsScreen } from '@/renewal/features/policy/PolicyScreens';
 import { LoginScreen } from '@/renewal/features/auth/LoginScreen';
 import { SignupScreen } from '@/renewal/features/auth/SignupScreen';
 import { ResetPasswordScreen } from '@/renewal/features/auth/ResetPasswordScreen';
@@ -35,7 +37,7 @@ import { WorkspaceSettingsScreen } from '@/renewal/features/workspaceSettings/Wo
 
 /**
  * 리뉴얼 라우트. URL 체계는 docs/renewal/spec/02-information-architecture.md §4를 따른다.
- * 목업 6종은 단계별 PR에서 PendingScreen을 실제 화면으로 바꾼다.
+ * 로그인한 화면은 약관 동의(RequireConsent)도 거친다.
  * 인증 화면과 초대 랜딩을 뺀 모든 화면은 RequireAuth 아래에 둔다.
  */
 export const AppRoutes: React.FC = () => (
@@ -47,9 +49,13 @@ export const AppRoutes: React.FC = () => (
       <Route path="reset-password" element={<ResetPasswordScreen />} />
     </Route>
     <Route path="oauth/callback" element={<OAuthCallbackScreen />} />
-    {/* 초대 랜딩은 로그인하지 않아도 열린다(10 §2). */}
+    {/* 초대 랜딩과 정책 문서는 로그인하지 않아도 열린다(10 §2, 17 §6.2). */}
     <Route path="invite/:code" element={<InviteScreen />} />
+    <Route path="privacy" element={<PrivacyScreen />} />
+    <Route path="terms" element={<TermsScreen />} />
     <Route element={<RequireAuth />}>
+    <Route path="agreements" element={<AgreementsScreen />} />
+    <Route element={<RequireConsent />}>
     {/* 온보딩 위저드는 셸 없이 단독 화면으로 띄운다(목업 onboarding.html). */}
     <Route path="ws/:wsId/onboarding" element={<OnboardingScreen />} />
     <Route element={<AppShell />}>
@@ -58,7 +64,6 @@ export const AppRoutes: React.FC = () => (
       <Route path="notifications" element={<NotificationsScreen />} />
       <Route path="me" element={<MyPageScreen />} />
       <Route path="me/card" element={<CardEditScreen />} />
-      <Route path="privacy" element={<PendingScreen screenId="17-policy-operations.md" title="개인정보 처리방침" />} />
       <Route path="me/settings" element={<AccountSettingsScreen />} />
       <Route path="ws/:wsId">
         <Route index element={<HomeScreen />} />
@@ -86,6 +91,7 @@ export const AppRoutes: React.FC = () => (
         <Route path="*" element={<NotFoundScreen />} />
       </Route>
       <Route path="*" element={<NotFoundScreen />} />
+    </Route>
     </Route>
     </Route>
   </Routes>

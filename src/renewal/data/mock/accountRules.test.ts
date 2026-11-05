@@ -56,7 +56,7 @@ describe('계정 삭제', () => {
     const email = seed().accounts.find((account) => account.id === 'u-02')!.email;
     const db = await deleteAccount(seed(), 'u-02', MOCK_PASSWORD);
     const verified = { ...db, verifications: [{ email, purpose: 'SIGNUP' as const, code: '123456', expiresAt: new Date(Date.now() + 60_000).toISOString(), verified: true }] };
-    const result = await signUp(verified, { email, password: NEW_PASSWORD, name: '이영희' });
+    const result = await signUp(verified, { email, password: NEW_PASSWORD, name: '이영희', agreements: { terms: true, privacy: true, age: true } });
     expect(result.accountId).not.toBe('u-02');
   });
 });

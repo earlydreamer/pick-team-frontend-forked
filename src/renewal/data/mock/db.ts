@@ -7,6 +7,7 @@ import type { Schedule } from '@/renewal/domain/teamSpace';
 import type { Post } from '@/renewal/domain/collab';
 import type { ChatMessage, ChatRoom, VideoChannel } from '@/renewal/domain/chat';
 import type { AppNotification, NotificationSettings } from '@/renewal/domain/notification';
+import type { PolicyConsent } from '@/renewal/domain/policy';
 
 /**
  * 목업 단계의 데이터 저장소. 브라우저 localStorage에 저장해 새로고침해도 유지된다.
@@ -67,6 +68,8 @@ export interface MockDb {
   /** 초대 링크 v2(10 §5.5, §6.3) */
   invites: MockInvite[];
   oauthLinks: { provider: 'google' | 'kakao'; subject: string; accountId: string }[];
+  /** 약관·개인정보·연령 동의(17 §6.2). 없으면 첫 화면 전에 동의를 받는다 */
+  policyConsents: Record<string, PolicyConsent>;
 }
 
 export interface MockVerification {
@@ -97,7 +100,7 @@ const SEED_PASSWORD_HASH = 'adb7a220a9fc0f2e7f11eb83d815e591330158c0b16f2db35ee8
 const SEED_WORKSPACE_PASSWORD_HASH = '6b5960ce025fca41a5e127b14ad6a8544685e224ef4566816cf90726d81c4ebc';
 
 const STORAGE_KEY = 'pickteam.renewal.mock';
-const VERSION = 10;
+const VERSION = 11;
 
 const daysFromNow = (days: number, hour = 23, minute = 59) => {
   const date = new Date();
@@ -344,6 +347,7 @@ export const seed = (): MockDb => ({
   bans: [{ workspaceId: 'ws-1', accountId: 'u-12', bannedAt: hoursAgo(24 * 4) }],
   reminders: [],
   credentials: Object.fromEntries(people.map(([id]) => [id, { passwordHash: SEED_PASSWORD_HASH }])),
+  policyConsents: Object.fromEntries(people.map(([id]) => [id, { version: '2026-10-01', agreedAt: '2026-10-01T09:00:00.000Z' }])),
   verifications: [],
   invites: [
     { workspaceId: 'ws-1', code: 'SUMMER26', expiresAt: daysFromNow(30), active: true, usedCount: 14 },
