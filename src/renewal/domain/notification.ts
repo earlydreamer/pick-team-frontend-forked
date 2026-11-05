@@ -40,6 +40,8 @@ export type NotificationType =
   | 'NEW_CHAT_MESSAGE'
   | 'WS_MEMBER_JOINED'
   | 'WS_MEMBER_BANNED'
+  | 'REPORT_RESOLVED'
+  | 'MODERATION_NOTICE'
   | 'TEAM_LEADER_DELEGATION_REQUESTED'
   | 'TEAM_LEADER_DELEGATED';
 
@@ -67,6 +69,9 @@ export const TYPE_META: Record<NotificationType, { category: NotificationCategor
   NEW_CHAT_MESSAGE: { category: 'CHAT', priority: 'MEDIUM' },
   WS_MEMBER_JOINED: { category: 'MEMBERSHIP', priority: 'LOW' },
   WS_MEMBER_BANNED: { category: 'MEMBERSHIP', priority: 'HIGH' },
+  // 신고 처리(17 §5.1). 신고자에게는 결과만, 피신고자에게는 조치만 알린다. 운영 알림이라 계열을 꺼도 남긴다.
+  REPORT_RESOLVED: { category: 'MEMBERSHIP', priority: 'MEDIUM' },
+  MODERATION_NOTICE: { category: 'MEMBERSHIP', priority: 'HIGH' },
   TEAM_LEADER_DELEGATION_REQUESTED: { category: 'MEMBERSHIP', priority: 'HIGH' },
   TEAM_LEADER_DELEGATED: { category: 'MEMBERSHIP', priority: 'HIGH' },
 };
@@ -103,7 +108,7 @@ export const defaultSettings = (): NotificationSettings => ({
 });
 
 /** 계열을 꺼도 남기는 알림(16-D9). 마스터 스위치는 따른다. 멘션은 아직 발생하지 않는다. */
-const ALWAYS_DELIVER: NotificationType[] = ['WS_MEMBER_BANNED'];
+const ALWAYS_DELIVER: NotificationType[] = ['WS_MEMBER_BANNED', 'REPORT_RESOLVED', 'MODERATION_NOTICE'];
 
 /** 이 알림을 남길지(§6.4 수신 설정 OFF 계열은 기록도 생략). */
 export const shouldDeliver = (type: NotificationType, settings: NotificationSettings) =>

@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeftIcon, ChatBubbleLeftIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, ChatBubbleLeftIcon, FlagIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { relativeTime } from '@/renewal/domain/announcement';
 import { POST_LIMITS, canEditAuthored, validatePost } from '@/renewal/domain/collab';
 import {
@@ -19,6 +19,7 @@ import {
 import { Avatar, Button, EmptyState, ErrorState, LoadingState, fieldClassName, toast } from '@/renewal/ui';
 import { AnnouncementBoard } from '@/renewal/features/announcements/AnnouncementBoard';
 import { TextEditorModal } from './TextEditorModal';
+import { ReportModal } from '@/renewal/features/reports/ReportModal';
 import { MissingRedirect } from '@/renewal/screens/system';
 import { ConfirmModal } from '@/renewal/features/teamBuilding/shared';
 import { useTeamSpaceContext } from './TeamSpaceLayout';
@@ -123,6 +124,7 @@ export const PostDetailScreen: React.FC = () => {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [comment, setComment] = useState('');
   const seenPostRef = useRef<string | undefined>(undefined);
+  const [reporting, setReporting] = useState(false);
 
   if (posts.isLoading) return <LoadingState className="min-h-[40vh]" label="글을 불러오는 중이에요" />;
   if (posts.isError || !posts.data) {
@@ -153,6 +155,11 @@ export const PostDetailScreen: React.FC = () => {
               {post.updatedAt !== post.createdAt && ' · 수정됨'}
             </p>
           </div>
+          {post.authorId !== viewer.accountId && (
+            <Button size="sm" variant="ghost" leftIcon={<FlagIcon className="h-4 w-4" />} onClick={() => setReporting(true)}>
+              신고
+            </Button>
+          )}
           {canEditAuthored(post.authorId, viewer) && (
             <div className="flex gap-2">
               <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
@@ -212,6 +219,7 @@ export const PostDetailScreen: React.FC = () => {
         </form>
       </section>
 
+      <ReportModal target={reporting ? { type: 'POST', id: post.id, workspaceId, label: `${nameOf(post.authorId)}님의 글 "${post.title}"` } : null} onClose={() => setReporting(false)} />
       <TextEditorModal
         open={editing}
         heading="글 수정"

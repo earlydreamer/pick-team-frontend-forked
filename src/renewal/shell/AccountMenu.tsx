@@ -1,7 +1,7 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { IdentificationIcon, UserCircleIcon, Cog6ToothIcon, ArrowsRightLeftIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
+import { IdentificationIcon, UserCircleIcon, Cog6ToothIcon, ArrowsRightLeftIcon, ArrowRightOnRectangleIcon, FlagIcon } from '@heroicons/react/24/outline';
 import { Avatar } from '@/renewal/ui';
 import { useMe } from '@/renewal/data/queries';
 import { data } from '@/renewal/data';
@@ -82,6 +82,14 @@ export const AccountMenu: React.FC = () => {
                 계정 설정
               </Link>
             </li>
+            {me.systemRole === 'ADMIN' && (
+              <li>
+                <Link to="/admin/reports" className={itemClass} onClick={close}>
+                  <FlagIcon className="h-5 w-5 text-muted" aria-hidden="true" />
+                  신고 처리
+                </Link>
+              </li>
+            )}
             <li>
               <button
                 type="button"

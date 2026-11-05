@@ -44,6 +44,7 @@ export const signIn = async (db: MockDb, email: string, password: string) => {
   if (!account || !credential || credential.passwordHash !== (await hashPassword(password))) {
     throw new DataError('이메일 또는 비밀번호가 맞지 않아요.', 'INVALID');
   }
+  if (account.suspendedAt) throw new DataError('이용이 정지된 계정이에요. 운영자에게 문의해 주세요.', 'FORBIDDEN');
   return { db: { ...db, currentAccountId: account.id }, accountId: account.id };
 };
 
@@ -133,7 +134,10 @@ export const resetPassword = async (db: MockDb, email: string, code: string, new
  */
 export const oauthSignIn = (db: MockDb, provider: OAuthProvider, profile: { subject: string; email: string; name: string }) => {
   const linked = db.oauthLinks.find((link) => link.provider === provider && link.subject === profile.subject);
-  if (linked) return { db: { ...db, currentAccountId: linked.accountId }, accountId: linked.accountId, created: false };
+  if (linked) {
+    if (db.accounts.find((account) => account.id === linked.accountId)?.suspendedAt) throw new DataError('이용이 정지된 계정이에요. 운영자에게 문의해 주세요.', 'FORBIDDEN');
+    return { db: { ...db, currentAccountId: linked.accountId }, accountId: linked.accountId, created: false };
+  }
   if (accountByEmail(db, profile.email)) {
     throw new DataError('이미 이메일로 가입된 계정이 있어요. 이메일로 로그인한 뒤 계정 설정에서 연동해 주세요.', 'CONFLICT');
   }

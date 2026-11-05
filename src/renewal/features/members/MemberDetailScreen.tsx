@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeftIcon, ArrowTopRightOnSquareIcon, ChatBubbleLeftRightIcon, ClockIcon, CalendarDaysIcon, LockClosedIcon, PaperAirplaneIcon, PencilSquareIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, ArrowTopRightOnSquareIcon, ChatBubbleLeftRightIcon, ClockIcon, CalendarDaysIcon, LockClosedIcon, PaperAirplaneIcon, PencilSquareIcon, FlagIcon } from '@heroicons/react/24/outline';
 import {
   TIME_SLOT_LABEL,
   WEEKLY_HOURS_LABEL,
@@ -13,6 +13,7 @@ import { DataError } from '@/renewal/data';
 import { useBoard, useInbox, useMe, useMember, useOpenDm, useScout } from '@/renewal/data/queries';
 import { MissingRedirect } from '@/renewal/screens/system';
 import { CardRequiredModal, ProposalModal, useActionErrorHandler } from '@/renewal/features/teamBuilding/shared';
+import { ReportModal } from '@/renewal/features/reports/ReportModal';
 import { RoleBadges } from './MemberCardTile';
 
 const temperatureText = (value: GoalTemperature) => (value <= 2 ? '완주 지향에 가까움' : value >= 4 ? '수상 지향에 가까움' : '중간');
@@ -41,6 +42,7 @@ export const MemberDetailScreen: React.FC = () => {
   const navigate = useNavigate();
   const errors = useActionErrorHandler();
   const [scouting, setScouting] = useState(false);
+  const [reporting, setReporting] = useState(false);
   const back = `/ws/${wsId}/members`;
 
   if (member.isLoading) return <LoadingState className="min-h-[60vh]" label="카드를 불러오는 중이에요" />;
@@ -117,6 +119,11 @@ export const MemberDetailScreen: React.FC = () => {
               }}
             >
               DM 보내기
+            </Button>
+          )}
+          {!isMe && (
+            <Button variant="ghost" leftIcon={<FlagIcon className="h-5 w-5" />} onClick={() => setReporting(true)}>
+              신고
             </Button>
           )}
           {scoutable &&
@@ -241,6 +248,7 @@ export const MemberDetailScreen: React.FC = () => {
         onSubmit={submitScout}
       />
       <CardRequiredModal open={errors.cardRequired !== null} workspaceId={wsId} message={errors.cardRequired ?? undefined} onClose={errors.clearCardRequired} />
+      <ReportModal target={reporting ? { type: 'USER', id: account.id, workspaceId: wsId, label: `${account.name}님` } : null} onClose={() => setReporting(false)} />
     </div>
   );
 };

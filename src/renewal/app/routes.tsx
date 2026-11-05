@@ -66,6 +66,7 @@ const NotificationsScreen = lazyNamed(() => import('@/renewal/features/notificat
 const AccountSettingsScreen = lazyNamed(() => import('@/renewal/features/account/AccountSettingsScreen'), 'AccountSettingsScreen');
 const MyPageScreen = lazyNamed(() => import('@/renewal/features/account/MyPageScreen'), 'MyPageScreen');
 const WorkspaceAnnouncementsScreen = lazyNamed(() => import('@/renewal/features/announcements/WorkspaceAnnouncementsScreen'), 'WorkspaceAnnouncementsScreen');
+const AdminReportsScreen = lazyNamed(() => import('@/renewal/features/reports/AdminReportsScreen'), 'AdminReportsScreen');
 const WorkspaceSettingsScreen = lazyNamed(() => import('@/renewal/features/workspaceSettings/WorkspaceSettingsScreen'), 'WorkspaceSettingsScreen');
 
 /** 셸 밖 화면(인증, 정책, 온보딩)이 내려받는 동안 보이는 자리. 셸 안 화면은 AppShell이 따로 감싼다. */
@@ -102,6 +103,7 @@ export const AppRoutes: React.FC = () => (
       <Route path="me" element={<MyPageScreen />} />
       <Route path="me/card" element={<CardEditScreen />} />
       <Route path="me/settings" element={<AccountSettingsScreen />} />
+      <Route path="admin/reports" element={<AdminReportsScreen />} />
       <Route path="ws/:wsId">
         <Route index element={<HomeScreen />} />
         <Route path="members" element={<GalleryScreen />} />

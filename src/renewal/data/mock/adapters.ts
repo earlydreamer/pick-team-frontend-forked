@@ -16,6 +16,7 @@ import * as accountRules from './accountRules';
 import * as wsAnnouncementRules from './workspaceAnnouncementRules';
 import { runTimedEvents } from './timedRules';
 import { withArchiveGuard } from './archiveGuard';
+import * as reportRules from './reportRules';
 import { defaultSettings, railCounts } from '@/renewal/domain/notification';
 import { progressOf } from '@/renewal/domain/kanban';
 import { INACTIVE_DAYS, type DashboardAlert } from '@/renewal/domain/dashboard';
@@ -136,7 +137,13 @@ const baseSource: DataSource = {
     async me() {
       await latency(150);
       const db = getDb();
-      return db.accounts.find((item) => item.id === db.currentAccountId) ?? null;
+      const account = db.accounts.find((item) => item.id === db.currentAccountId);
+      // 정지된 계정은 로그인 상태를 끝낸다(17 §5.1 BANNED_SYSTEM).
+      if (account?.suspendedAt) {
+        commit({ ...db, currentAccountId: null });
+        return null;
+      }
+      return account ?? null;
     },
     async signOut() {
       await latency(150);
@@ -361,6 +368,26 @@ const baseSource: DataSource = {
     async remove(workspaceId, confirmName) {
       const { me } = findWorkspaceOfMe(workspaceId);
       await mutate('deleteWorkspace', (db) => adminRules.deleteWorkspace(db, workspaceId, me.id, confirmName));
+    },
+  },
+
+  reports: {
+    async submit(input) {
+      const me = requireMe();
+      await mutate('submitReport', (db) => reportRules.submitReport(db, me.id, input));
+    },
+    async listAdmin(status) {
+      await latency();
+      fail('reports');
+      return reportRules.listReports(getDb(), requireMe().id, status);
+    },
+    async startReview(reportId) {
+      const me = requireMe();
+      await mutate('startReview', (db) => reportRules.startReview(db, me.id, reportId));
+    },
+    async resolve(reportId, action, memo) {
+      const me = requireMe();
+      await mutate('resolveReport', (db) => reportRules.resolveReport(db, me.id, reportId, action, memo));
     },
   },
 
@@ -1127,6 +1154,7 @@ export const mockPersonas = [
   { id: 'u-instructor', label: '강사 박강사', description: '2026 하계 부트캠프 개설자' },
   { id: 'u-manager', label: '매니저 정매니저', description: '2026 하계 부트캠프 매니저' },
   { id: 'u-01', label: '팀장 김철수', description: '2026 하계 부트캠프 알파팀 팀장' },
+  { id: 'u-admin', label: '운영자', description: '시스템 관리자, 신고 처리' },
 ] as const;
 
 /** 목업 전용: 발송한 인증 코드를 화면 안내로 보여 주려고 읽는다. 실제 서비스에서는 메일로만 받는다. */

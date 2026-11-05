@@ -16,6 +16,10 @@ export interface Account {
   name: string;
   email: string;
   profileImageUrl?: string | null;
+  /** 시스템 관리자(17 §2 UserRole.ADMIN). 신고 처리 콘솔을 연다 */
+  systemRole?: 'ADMIN';
+  /** 시스템 제재로 정지된 시각(17 §5.1 BANNED_SYSTEM). 정지되면 로그인할 수 없다 */
+  suspendedAt?: string;
 }
 
 export interface Workspace {

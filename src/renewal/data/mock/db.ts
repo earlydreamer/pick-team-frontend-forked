@@ -8,6 +8,7 @@ import type { Post } from '@/renewal/domain/collab';
 import type { ChatMessage, ChatRoom, VideoChannel } from '@/renewal/domain/chat';
 import type { AppNotification, NotificationSettings } from '@/renewal/domain/notification';
 import type { PolicyConsent } from '@/renewal/domain/policy';
+import type { ReportAction, ReportReason, ReportStatus, ReportTargetType } from '@/renewal/domain/report';
 
 /**
  * 목업 단계의 데이터 저장소. 브라우저 localStorage에 저장해 새로고침해도 유지된다.
@@ -74,6 +75,25 @@ export interface MockDb {
   oauthLinks: { provider: 'google' | 'kakao'; subject: string; accountId: string }[];
   /** 약관·개인정보·연령 동의(17 §6.2). 없으면 첫 화면 전에 동의를 받는다 */
   policyConsents: Record<string, PolicyConsent>;
+  /** 신고(17 §6.5). 신고자 id는 관리자 화면에도 내보내지 않는다 */
+  reports: MockReport[];
+}
+
+export interface MockReport {
+  id: string;
+  reporterId: string;
+  targetType: ReportTargetType;
+  targetId: string;
+  workspaceId: string;
+  targetAccountId: string;
+  snapshot: string;
+  reason: ReportReason;
+  detail?: string;
+  status: ReportStatus;
+  action?: Exclude<ReportAction, 'DISMISS'>;
+  adminMemo?: string;
+  createdAt: string;
+  resolvedAt?: string;
 }
 
 export interface MockVerification {
@@ -104,7 +124,7 @@ const SEED_PASSWORD_HASH = 'adb7a220a9fc0f2e7f11eb83d815e591330158c0b16f2db35ee8
 const SEED_WORKSPACE_PASSWORD_HASH = '6b5960ce025fca41a5e127b14ad6a8544685e224ef4566816cf90726d81c4ebc';
 
 const STORAGE_KEY = 'pickteam.renewal.mock';
-const VERSION = 12;
+const VERSION = 13;
 
 const daysFromNow = (days: number, hour = 23, minute = 59) => {
   const date = new Date();
@@ -138,6 +158,7 @@ const people: [string, string][] = [
   ['u-10', '임채원'],
   ['u-11', '강도윤'],
   ['u-12', '홍길동'],
+  ['u-admin', '운영자'],
 ];
 
 const dateFromNow = (days: number) => {
@@ -220,7 +241,7 @@ const seedSchedules = (): Schedule[] => [
 export const seed = (): MockDb => ({
   version: VERSION,
   currentAccountId: 'u-student',
-  accounts: people.map(([id, name], index) => ({ id, name, email: `user${index + 1}@example.com`, profileImageUrl: null })),
+  accounts: people.map(([id, name], index) => ({ id, name, email: `user${index + 1}@example.com`, profileImageUrl: null, ...(id === 'u-admin' ? { systemRole: 'ADMIN' as const } : {}) })),
   cards: {
     // 수강생 본인: 동의 전 상태로 시작해 온보딩 위저드를 체험할 수 있게 한다.
     'u-student': emptyCard(),
@@ -354,6 +375,22 @@ export const seed = (): MockDb => ({
   credentials: Object.fromEntries(people.map(([id]) => [id, { passwordHash: SEED_PASSWORD_HASH }])),
   policyConsents: Object.fromEntries(people.map(([id]) => [id, { version: '2026-10-01', agreedAt: '2026-10-01T09:00:00.000Z' }])),
   verifications: [],
+  // 시연용 신고 한 건. 박민준이 백엔드 스터디 방의 메시지를 신고했다.
+  reports: [
+    {
+      id: 'rp-1',
+      reporterId: 'u-03',
+      targetType: 'MESSAGE',
+      targetId: 'm-7',
+      workspaceId: 'ws-1',
+      targetAccountId: 'u-01',
+      snapshot: '스프링 시큐리티 같이 공부하실 분들 모였어요.',
+      reason: 'SPAM',
+      detail: '같은 홍보 메시지를 여러 방에 반복해서 올려요.',
+      status: 'RECEIVED',
+      createdAt: hoursAgo(3),
+    },
+  ],
   invites: [
     { workspaceId: 'ws-1', code: 'SUMMER26', expiresAt: daysFromNow(30), active: true, usedCount: 14 },
     { workspaceId: 'ws-1', code: 'SPRING26', expiresAt: daysFromNow(-1), active: true, usedCount: 3 },
