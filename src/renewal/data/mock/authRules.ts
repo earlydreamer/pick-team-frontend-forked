@@ -14,7 +14,7 @@ import {
   type SignUpInput,
 } from '@/renewal/domain/auth';
 import { DataError } from '../ports';
-import { POLICY_VERSION, missingAgreement, type Agreements } from '@/renewal/domain/policy';
+import { POLICY_VERSION, consentState, missingAgreement, type Agreements } from '@/renewal/domain/policy';
 import type { MockDb, MockInvite, MockVerification } from './db';
 
 /*
@@ -107,9 +107,13 @@ export const signUp = async (db: MockDb, input: SignUpInput) => {
   };
 };
 
-/** 소셜 로그인으로 처음 들어온 계정의 동의(17 §6.2). 세 항목이 모두 있어야 기록한다. */
+/**
+ * 약관 동의 기록(17 §6.2). 소셜 로그인으로 처음 들어온 계정은 세 항목이 모두 있어야 한다.
+ * 개정으로 다시 동의하는 계정은 처음 받은 연령 확인을 그대로 쓰므로 약관과 개인정보 처리방침만 확인한다.
+ */
 export const agreePolicies = (db: MockDb, accountId: string, agreements: Agreements): MockDb => {
-  const error = missingAgreement(agreements);
+  const confirmedAge = Boolean(db.policyConsents[accountId]);
+  const error = missingAgreement(confirmedAge ? { ...agreements, age: true } : agreements);
   if (error) throw new DataError(error, 'INVALID');
   return { ...db, policyConsents: { ...db.policyConsents, [accountId]: { version: POLICY_VERSION, agreedAt: new Date().toISOString() } } };
 };
@@ -189,6 +193,9 @@ export const joinByInvite = async (db: MockDb, code: string, accountId: string, 
   if (db.bans.some((ban) => ban.workspaceId === workspace.id && ban.accountId === accountId)) {
     throw new DataError('이 워크스페이스에 참여할 수 없어요.', 'FORBIDDEN');
   }
+  // 동의 기록이 없거나 개정 이전이면 합류보다 동의가 먼저다(17 §6.2). 화면은 동의 화면으로 먼저 보낸다.
+  // 보관·차단은 동의해도 합류할 수 없으므로 그 앞에서 먼저 알린다.
+  if (consentState(db.policyConsents[accountId]) !== 'current') throw new DataError('약관에 동의한 뒤 참여할 수 있어요.', 'CONFLICT');
   if (workspace.passwordHash) {
     if (!password) throw new DataError('워크스페이스 비밀번호를 입력해 주세요.', 'INVALID');
     if ((await hashPassword(password)) !== workspace.passwordHash) throw new DataError('비밀번호가 맞지 않아요.', 'INVALID');

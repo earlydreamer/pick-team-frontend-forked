@@ -8,6 +8,7 @@ import { useConfirmRoles, useTeamOverview } from '@/renewal/data/queries';
 import { Avatar, Button, ErrorState, Skeleton, toast } from '@/renewal/ui';
 import { RoleBadges } from '@/renewal/features/members/MemberCardTile';
 import { useTeamSpaceContext } from './TeamSpaceLayout';
+import { useWritable } from '@/renewal/shell/useWritable';
 
 const formatWhen = (iso: string) => new Date(iso).toLocaleString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' });
 
@@ -39,6 +40,7 @@ export const OverviewScreen: React.FC = () => {
   const overview = useTeamOverview(workspaceId, teamId);
   const confirmRoles = useConfirmRoles(workspaceId, teamId);
   const { team, members, access } = space;
+  const writable = useWritable(workspaceId);
 
   const membersCard = (
     <Card id="tm-members" title={`팀원 ${members.length}명`}>
@@ -99,7 +101,8 @@ export const OverviewScreen: React.FC = () => {
   }
 
   const data = overview.data;
-  const checklist = access.isMember && showChecklist(data);
+  // 보관된 워크스페이스에서는 새로 시작할 일이 없으므로 시작 체크리스트를 숨긴다.
+  const checklist = access.isMember && writable && showChecklist(data);
   const pending = data.progress.byStatus.APPROVAL_PENDING;
 
   return (

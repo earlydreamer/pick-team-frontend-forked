@@ -24,6 +24,7 @@ import { MissingRedirect } from '@/renewal/screens/system';
 import { ReportModal, type ReportTarget } from '@/renewal/features/reports/ReportModal';
 import { ConfirmModal } from '@/renewal/features/teamBuilding/shared';
 import { errorMessage } from '@/renewal/features/teamSpace/TaskModals';
+import { useWritable } from '@/renewal/shell/useWritable';
 
 interface PendingMessage {
   tempId: string;
@@ -47,6 +48,7 @@ const RoomSettingsModal: React.FC<{ open: boolean; workspaceId: string; roomId: 
   const setMuted = useSetMuted(workspaceId, roomId);
   const leave = useLeaveRoom(workspaceId, roomId);
   const remove = useDeleteRoom(workspaceId, roomId);
+  const writable = useWritable(workspaceId);
   const client = useQueryClient();
   const [title, setTitle] = useState('');
   const [toAdd, setToAdd] = useState('');
@@ -55,7 +57,8 @@ const RoomSettingsModal: React.FC<{ open: boolean; workspaceId: string; roomId: 
     if (open && room.data) setTitle(room.data.room.title ?? '');
   }, [open, room.data]);
   if (!room.data) return null;
-  const detail = room.data;
+  // 보관된 워크스페이스에서는 알림 끄기만 남긴다(R21 허용 목록과 같다).
+  const detail = writable ? room.data : { ...room.data, permissions: { ...room.data.permissions, rename: false, addMembers: false, leave: false, delete: false } };
   const refresh = () => client.invalidateQueries({ queryKey: keys.chatRoom(workspaceId, roomId) });
   const run = async (work: () => Promise<unknown>, done: string) => {
     try {
