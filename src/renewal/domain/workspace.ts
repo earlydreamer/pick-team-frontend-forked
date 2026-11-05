@@ -24,6 +24,8 @@ export interface Workspace {
   iconUrl?: string | null;
   memberCount: number;
   myRole: WorkspaceRole;
+  /** 읽기 전용으로 보관됐는지(01-D4, US-13-07) */
+  archived?: boolean;
 }
 
 export interface Member {

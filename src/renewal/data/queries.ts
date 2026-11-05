@@ -279,6 +279,7 @@ export const useTransferOwnership = (id: string) => useAdminMutation((input: { a
 export const useKickMember = (id: string) => useAdminMutation((accountId: string) => data.workspaceAdmin.kick(id, accountId));
 export const useBanMember = (id: string) => useAdminMutation((accountId: string) => data.workspaceAdmin.ban(id, accountId));
 export const useUnbanMember = (id: string) => useAdminMutation((accountId: string) => data.workspaceAdmin.unban(id, accountId));
+export const useSetArchived = (id: string) => useAdminMutation((archived: boolean) => data.workspaceAdmin.setArchived(id, archived));
 export const useSetWorkspacePassword = (id: string) => useAdminMutation((password: string | null) => data.workspaceAdmin.setPassword(id, password));
 
 /**

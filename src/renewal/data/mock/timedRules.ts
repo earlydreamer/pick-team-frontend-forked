@@ -57,7 +57,7 @@ export const runTimedEvents = (db: MockDb, now = Date.now()): MockDb => {
     const key = `schedule:${schedule.id}:${schedule.startAt}`;
     if (sent.has(key)) continue;
     const team = db.teams.find((item) => item.id === schedule.teamId);
-    if (!team) continue;
+    if (!team || db.workspaces.find((item) => item.id === team.workspaceId)?.archivedAt) continue;
     const minutes = Math.max(1, Math.ceil((startAt - now) / 60_000));
     next = notify(
       next,

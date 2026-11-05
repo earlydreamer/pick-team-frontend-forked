@@ -4,14 +4,14 @@ import { ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
 import { WORKSPACE_LIMITS, validateWorkspaceName, validateWorkspacePassword } from '@/renewal/domain/auth';
 import { WORKSPACE_ROLE_LABEL } from '@/renewal/domain/workspace';
 import { tabsFor, type SettingsTab, type WorkspaceSettings } from '@/renewal/domain/workspaceAdmin';
-import { useDeleteWorkspace, useLeaveWorkspace, useRenameWorkspace, useSetWorkspacePassword, useWorkspaceSettings } from '@/renewal/data/queries';
+import { useDeleteWorkspace, useLeaveWorkspace, useRenameWorkspace, useSetArchived, useSetWorkspacePassword, useWorkspaceSettings } from '@/renewal/data/queries';
 import { Button, ErrorState, Input, LoadingState, Modal, fieldClassName } from '@/renewal/ui';
 import { NotFoundScreen } from '@/renewal/screens/system';
 import { DataError } from '@/renewal/data';
 import { ConfirmModal } from '@/renewal/features/teamBuilding/shared';
 import { InviteTab } from './InviteTab';
 import { BansTab, MembersTab } from './MemberAdminTabs';
-import { SettingsSection, attempt } from './parts';
+import { SettingsSection, attempt, formatDate } from './parts';
 
 /** 일반 탭. 매니저 이상은 이름을 바꾸고, 개설자가 아닌 사람은 여기서 워크스페이스를 나간다. */
 const GeneralTab: React.FC<{ settings: WorkspaceSettings }> = ({ settings }) => {
@@ -166,7 +166,51 @@ const SecurityTab: React.FC<{ settings: WorkspaceSettings }> = ({ settings }) =>
   );
 };
 
-/** 위험 구역(개설자). 워크스페이스 이름을 그대로 입력해야 삭제한다(prompt() 대체). */
+/**
+ * 보관(01-D4, US-13-07). 기수가 끝나면 읽기 전용으로 바꾼다. 진행 중인 팀 빌딩은 끝나고 대기 지원은 만료된다(13-D7).
+ * 해제하면 다시 쓸 수 있다.
+ */
+const ArchiveSection: React.FC<{ settings: WorkspaceSettings }> = ({ settings }) => {
+  const id = useId();
+  const setArchived = useSetArchived(settings.id);
+  const [confirming, setConfirming] = useState(false);
+  const archived = Boolean(settings.archivedAt);
+  return (
+    <SettingsSection
+      id={`${id}-title`}
+      title={archived ? '보관 중' : '워크스페이스 보관'}
+      description={
+        archived
+          ? `${formatDate(settings.archivedAt!)}부터 읽기 전용으로 보관 중이에요. 해제하면 다시 쓰고 고칠 수 있어요.`
+          : '기수가 끝나면 읽기 전용으로 보관하세요. 멤버는 지난 기록을 볼 수 있지만 새로 쓰거나 고칠 수 없고, 초대 링크로 새로 합류할 수 없어요.'
+      }
+    >
+      {archived ? (
+        <Button variant="outline" loading={setArchived.isPending} onClick={() => attempt(() => setArchived.mutateAsync(false), '보관을 해제했어요. 다시 쓸 수 있어요.')}>
+          보관 해제
+        </Button>
+      ) : (
+        <Button variant="outline" onClick={() => setConfirming(true)}>
+          보관하기
+        </Button>
+      )}
+      <ConfirmModal
+        open={confirming}
+        title="워크스페이스를 보관할까요?"
+        description="읽기 전용으로 바뀌어요. 진행 중인 팀 빌딩이 있으면 끝나고, 대기 중인 지원·스카우트는 만료돼요. 언제든 해제할 수 있어요."
+        confirmLabel="보관하기"
+        pending={setArchived.isPending}
+        onClose={() => setConfirming(false)}
+        onConfirm={async () => {
+          await attempt(() => setArchived.mutateAsync(true), '워크스페이스를 보관했어요.');
+          setConfirming(false);
+        }}
+      />
+    </SettingsSection>
+  );
+};
+
+/** 위험 구역(개설자). 보관과 삭제. 워크스페이스 이름을 그대로 입력해야 삭제한다(prompt() 대체). */
 const DangerTab: React.FC<{ settings: WorkspaceSettings }> = ({ settings }) => {
   const id = useId();
   const navigate = useNavigate();
@@ -175,6 +219,8 @@ const DangerTab: React.FC<{ settings: WorkspaceSettings }> = ({ settings }) => {
   const [value, setValue] = useState('');
   const matches = value.trim() === settings.name;
   return (
+    <div className="space-y-4">
+    <ArchiveSection settings={settings} />
     <SettingsSection id={`${id}-title`} title="워크스페이스 삭제" tone="danger" description="팀과 칸반·일정·게시판, 채팅, 초대 링크가 모두 지워지고 되돌릴 수 없어요. 멤버는 모두 이 워크스페이스에 들어올 수 없게 돼요.">
       <Button
         variant="danger"
@@ -216,6 +262,7 @@ const DangerTab: React.FC<{ settings: WorkspaceSettings }> = ({ settings }) => {
         <input id={`${id}-confirm`} value={value} onChange={(event) => setValue(event.target.value)} autoComplete="off" className={fieldClassName(false)} />
       </Modal>
     </SettingsSection>
+    </div>
   );
 };
 
