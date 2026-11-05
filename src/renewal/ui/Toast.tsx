@@ -1,12 +1,13 @@
 import React, { useSyncExternalStore } from 'react';
-import { CheckCircleIcon, ExclamationCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { CheckCircleIcon, ExclamationCircleIcon, InformationCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 /**
  * 토스트 알림. alert() 대신 사용한다(00 §5-7).
- * 성공은 role=status, 실패는 role=alert로 읽히며 실패 토스트는 사용자가 닫을 때까지 남는다.
+ * 성공·안내는 role=status, 실패는 role=alert로 읽히며 실패 토스트는 사용자가 닫을 때까지 남는다.
+ * 안내(info)는 내 행동의 결과가 아닌 상황 설명(예: 삭제된 항목으로 들어옴)에 쓴다.
  */
 
-type Tone = 'success' | 'error';
+type Tone = 'success' | 'error' | 'info';
 interface ToastItem {
   id: number;
   tone: Tone;
@@ -27,12 +28,13 @@ const push = (tone: Tone, message: string) => {
   const id = nextId++;
   items = [...items, { id, tone, message }].slice(-3);
   emit();
-  if (tone === 'success') setTimeout(() => dismiss(id), 4000);
+  if (tone !== 'error') setTimeout(() => dismiss(id), tone === 'info' ? 6000 : 4000);
 };
 
 export const toast = {
   success: (message: string) => push('success', message),
   error: (message: string) => push('error', message),
+  info: (message: string) => push('info', message),
 };
 
 const subscribe = (listener: () => void) => {
@@ -54,6 +56,8 @@ export const Toaster: React.FC = () => {
         >
           {item.tone === 'error' ? (
             <ExclamationCircleIcon className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+          ) : item.tone === 'info' ? (
+            <InformationCircleIcon className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
           ) : (
             <CheckCircleIcon className="mt-0.5 h-5 w-5 shrink-0 text-success" aria-hidden="true" />
           )}

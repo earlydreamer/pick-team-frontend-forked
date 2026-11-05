@@ -396,6 +396,7 @@ export const TaskDetailModal: React.FC<{
         title="태스크 삭제"
         description="이 태스크를 삭제하면 댓글도 함께 지워지고 되돌릴 수 없어요."
         confirmLabel="삭제하기"
+        tone="danger"
         pending={busy}
         onClose={() => setConfirmDelete(false)}
         onConfirm={async () => {

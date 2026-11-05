@@ -6,7 +6,7 @@ import type { TeamDetail } from '@/renewal/domain/teamBuilding';
 import { DataError } from '@/renewal/data';
 import { useApply, useBoard, useInbox, useMe, useTeamDetail } from '@/renewal/data/queries';
 import { Avatar, Badge, Button, EmptyState, ErrorState, LoadingState, toast } from '@/renewal/ui';
-import { NotFoundScreen } from '@/renewal/screens/system';
+import { MissingRedirect } from '@/renewal/screens/system';
 import { RoleBadges } from '@/renewal/features/members/MemberCardTile';
 import { ProposalItem } from './ProposalItem';
 import { ApplicationStatusBadge, CardRequiredModal, FitReasons, GoalTag, ProposalModal, Stars, temperatureLabel, useActionErrorHandler } from './shared';
@@ -60,7 +60,7 @@ export const TeamRecruitDetail: React.FC = () => {
   const base = `/ws/${wsId}/team-building`;
 
   if (detail.isLoading || board.isLoading) return <LoadingState className="min-h-[60vh]" label="팀 정보를 불러오는 중이에요" />;
-  if (detail.error instanceof DataError && detail.error.code === 'NOT_FOUND') return <NotFoundScreen />;
+  if (detail.error instanceof DataError && detail.error.code === 'NOT_FOUND') return <MissingRedirect to={base} message="해체됐거나 볼 수 없는 팀이에요." />;
   if (detail.isError || board.isError || !detail.data || !board.data) {
     return (
       <ErrorState
