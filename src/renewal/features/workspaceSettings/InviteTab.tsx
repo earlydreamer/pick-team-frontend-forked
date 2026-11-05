@@ -102,6 +102,7 @@ export const InviteTab: React.FC<{ settings: WorkspaceSettings }> = ({ settings 
         </p>
       </SettingsSection>
 
+      {!settings.archivedAt && (
       <SettingsSection id={`${id}-reissue`} title={invite ? '초대 링크 재발급' : '초대 링크 만들기'} description={invite ? '링크가 밖으로 퍼졌다면 새 링크를 만들어 이전 링크를 막으세요.' : undefined}>
         <fieldset>
           <legend className="mb-2 text-sm font-semibold">만료 기간</legend>
@@ -119,6 +120,7 @@ export const InviteTab: React.FC<{ settings: WorkspaceSettings }> = ({ settings 
           {invite ? '재발급' : '링크 만들기'}
         </Button>
       </SettingsSection>
+      )}
 
       <ConfirmModal
         open={confirming}

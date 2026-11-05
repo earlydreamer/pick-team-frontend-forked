@@ -22,7 +22,8 @@ const GeneralTab: React.FC<{ settings: WorkspaceSettings }> = ({ settings }) => 
   const [name, setName] = useState(settings.name);
   const [error, setError] = useState<string>();
   const [leaving, setLeaving] = useState(false);
-  const canEdit = settings.myRole !== 'MEMBER';
+  // 보관 중이면 이름을 바꿀 수 없다(R24). 나가기는 그대로 둔다.
+  const canEdit = settings.myRole !== 'MEMBER' && !settings.archivedAt;
   useEffect(() => setName(settings.name), [settings.name]);
 
   const save = async (event: React.FormEvent) => {
@@ -127,6 +128,7 @@ const SecurityTab: React.FC<{ settings: WorkspaceSettings }> = ({ settings }) =>
       title="합류 비밀번호"
       description={settings.hasPassword ? '초대 링크로 들어온 사람은 비밀번호를 입력해야 합류할 수 있어요.' : '지금은 초대 링크만 있으면 누구나 합류할 수 있어요.'}
     >
+      {!settings.archivedAt && (
       <form onSubmit={save} noValidate className="flex flex-col gap-3 sm:flex-row sm:items-start">
         <div className="flex-1">
           <Input
@@ -144,7 +146,8 @@ const SecurityTab: React.FC<{ settings: WorkspaceSettings }> = ({ settings }) =>
           {settings.hasPassword ? '바꾸기' : '정하기'}
         </Button>
       </form>
-      {settings.hasPassword && (
+      )}
+      {settings.hasPassword && !settings.archivedAt && (
         <Button className="mt-3" variant="danger-ghost" onClick={() => setRemoving(true)}>
           비밀번호 없애기
         </Button>
@@ -331,6 +334,11 @@ export const WorkspaceSettingsScreen: React.FC = () => {
           </nav>
         )}
         <div className="min-w-0 flex-1">
+          {settings.data.archivedAt && active.id !== 'danger' && active.id !== 'general' && (
+            <p role="note" className="mb-4 rounded-lg bg-surface-container px-4 py-3 text-sm text-muted">
+              보관 중이라 설정을 바꿀 수 없어요.{settings.data.myRole === 'OWNER' && ' 위험 구역에서 보관을 해제할 수 있어요.'}
+            </p>
+          )}
           <View key={active.id} settings={settings.data} />
         </div>
       </div>

@@ -38,7 +38,7 @@ export const WorkspaceAnnouncementsScreen: React.FC = () => {
           </div>
         }
         query={announcements}
-        canWrite={isManager(workspace.data?.myRole)}
+        canWrite={isManager(workspace.data?.myRole) && !workspace.data?.archived}
         writeDescription="워크스페이스 멤버 모두에게 보이고 알림이 가요. 워크스페이스 홈의 최근 공지에도 실려요."
         emptyDescription="일정 변경이나 안내처럼 모두가 알아야 할 내용을 올려 보세요."
         create={(input) => create.mutateAsync(input)}
