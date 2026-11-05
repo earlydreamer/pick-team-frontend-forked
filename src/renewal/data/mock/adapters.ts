@@ -15,6 +15,7 @@ import * as adminRules from './workspaceAdminRules';
 import * as accountRules from './accountRules';
 import * as wsAnnouncementRules from './workspaceAnnouncementRules';
 import { runTimedEvents } from './timedRules';
+import { withArchiveGuard } from './archiveGuard';
 import { defaultSettings, railCounts } from '@/renewal/domain/notification';
 import { progressOf } from '@/renewal/domain/kanban';
 import { INACTIVE_DAYS, type DashboardAlert } from '@/renewal/domain/dashboard';
@@ -128,7 +129,7 @@ const mutate = async (operation: string, change: (db: MockDb) => MockDb) => {
   commit(change(getDb()));
 };
 
-export const mockDataSource: DataSource = {
+const baseSource: DataSource = {
   kind: 'mock',
 
   session: {
@@ -230,6 +231,7 @@ export const mockDataSource: DataSource = {
           name: workspace.name,
           memberCount: workspace.members.length,
           myRole: workspace.members.find((member) => member.accountId === me.id)!.role,
+          archived: Boolean(workspace.archivedAt),
         }));
     },
     async create(input) {
@@ -243,7 +245,7 @@ export const mockDataSource: DataSource = {
     async get(workspaceId) {
       await latency();
       const { workspace, membership } = findWorkspaceOfMe(workspaceId);
-      return { id: workspace.id, name: workspace.name, memberCount: workspace.members.length, myRole: membership.role };
+      return { id: workspace.id, name: workspace.name, memberCount: workspace.members.length, myRole: membership.role, archived: Boolean(workspace.archivedAt) };
     },
     async listMembers(workspaceId) {
       await latency();
@@ -287,6 +289,7 @@ export const mockDataSource: DataSource = {
         memberCount: workspace.members.length,
         capacity: workspace.capacity,
         hasPassword: Boolean(workspace.passwordHash),
+        archivedAt: workspace.archivedAt ?? null,
         invite:
           membership.role === 'MEMBER' || !invite
             ? null
@@ -346,6 +349,10 @@ export const mockDataSource: DataSource = {
       await latency(350);
       fail('workspacePassword');
       commit(await adminRules.setWorkspacePassword(getDb(), workspaceId, me.id, password));
+    },
+    async setArchived(workspaceId, archived) {
+      const { me } = findWorkspaceOfMe(workspaceId);
+      await mutate('archiveWorkspace', (db) => adminRules.setArchived(db, workspaceId, me.id, archived));
     },
     async leave(workspaceId) {
       const { me } = findWorkspaceOfMe(workspaceId);
@@ -1129,3 +1136,6 @@ export const peekMockCode = (email: string, purpose: 'SIGNUP' | 'RESET') => {
 };
 
 export const switchMockPersona = (accountId: string) => commit({ ...getDb(), currentAccountId: accountId });
+
+/** 보관된 워크스페이스의 쓰기를 막는 겹을 씌운다(archiveGuard). 화면은 이 데이터 소스만 쓴다. */
+export const mockDataSource: DataSource = withArchiveGuard(baseSource, (workspaceId) => Boolean(getDb().workspaces.find((workspace) => workspace.id === workspaceId)?.archivedAt));

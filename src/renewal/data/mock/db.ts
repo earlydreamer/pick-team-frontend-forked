@@ -22,6 +22,8 @@ export interface MockWorkspace {
   /** 합류 비밀번호 해시(10-D4). 없으면 비밀번호 없이 합류한다 */
   passwordHash?: string;
   members: { accountId: string; role: WorkspaceRole; teamId?: string }[];
+  /** 보관(아카이브)한 시각. 있으면 읽기 전용이다(01-D4) */
+  archivedAt?: string;
 }
 
 

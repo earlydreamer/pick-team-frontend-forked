@@ -207,3 +207,23 @@ export const deleteWorkspace = (db: MockDb, workspaceId: string, accountId: stri
     reminders: next.reminders.filter((item) => item.workspaceId !== workspaceId),
   };
 };
+
+/**
+ * 보관(01-D4, US-13-07)과 해제. 개설자만 한다. 보관하면 읽기 전용이 되고, 쓰기는 archiveGuard가 막는다.
+ * 진행 중인(OPEN·CLOSING) 팀 빌딩 세션은 끝내고 대기 중인 지원·스카우트를 만료한다(13-D7). 해제해도 세션은 되살리지 않는다.
+ */
+export const setArchived = (db: MockDb, workspaceId: string, accountId: string, archived: boolean): MockDb => {
+  const workspace = requireOwner(db, workspaceId, accountId);
+  if (Boolean(workspace.archivedAt) === archived) return db;
+  if (!archived) return replaceWorkspace(db, workspaceId, (item) => ({ ...item, archivedAt: undefined }));
+  const session = findSession(db, workspaceId);
+  const closing = session && (session.status === 'OPEN' || session.status === 'CLOSING');
+  return {
+    ...replaceWorkspace(db, workspaceId, (item) => ({ ...item, archivedAt: now() })),
+    sessions: closing ? db.sessions.map((item) => (item.id === session.id ? { ...item, status: 'RESOLVED' as const } : item)) : db.sessions,
+    applications: closing
+      ? db.applications.map((app) => (app.sessionId === session.id && app.status === 'PENDING' ? { ...app, status: 'EXPIRED' as const, reason: '워크스페이스 보관', decidedAt: now() } : app))
+      : db.applications,
+  };
+};
+

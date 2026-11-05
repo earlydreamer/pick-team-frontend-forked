@@ -181,6 +181,7 @@ export const joinByInvite = async (db: MockDb, code: string, accountId: string, 
   const invite = activeInvite(db, code, now);
   const workspace = db.workspaces.find((item) => item.id === invite.workspaceId)!;
   if (workspace.members.some((member) => member.accountId === accountId)) return { db, result: { workspaceId: workspace.id, alreadyMember: true } };
+  if (workspace.archivedAt) throw new DataError('보관된 워크스페이스라 새로 합류할 수 없어요.', 'FORBIDDEN');
   if (db.bans.some((ban) => ban.workspaceId === workspace.id && ban.accountId === accountId)) {
     throw new DataError('이 워크스페이스에 참여할 수 없어요.', 'FORBIDDEN');
   }

@@ -17,6 +17,7 @@ import {
   useRenameRoom,
   useSendMessage,
   useSetMuted,
+  useWorkspace,
 } from '@/renewal/data/queries';
 import { Avatar, Button, ErrorState, LoadingState, Modal, Switch, fieldClassName, toast } from '@/renewal/ui';
 import { MissingRedirect } from '@/renewal/screens/system';
@@ -189,6 +190,8 @@ const RoomSettingsModal: React.FC<{ open: boolean; workspaceId: string; roomId: 
  */
 export const ChatRoomScreen: React.FC = () => {
   const { wsId = '', roomId = '' } = useParams<{ wsId: string; roomId: string }>();
+  // 보관된 워크스페이스는 읽기 전용이다(01-D4). 입력창 대신 안내를 보인다.
+  const archived = Boolean(useWorkspace(wsId).data?.archived);
   const client = useQueryClient();
   const me = useMe();
   const room = useChatRoom(wsId, roomId);
@@ -434,6 +437,11 @@ export const ChatRoomScreen: React.FC = () => {
         )}
       </div>
 
+      {archived ? (
+        <p role="note" className="border-t border-outline-soft bg-surface-low px-5 py-4 text-center text-sm text-muted">
+          보관된 워크스페이스라 메시지를 보낼 수 없어요. 지난 대화는 그대로 볼 수 있어요.
+        </p>
+      ) : (
       <form
         className="border-t border-outline-soft bg-surface px-3 py-3 sm:px-5"
         onSubmit={(event) => {
@@ -472,6 +480,7 @@ export const ChatRoomScreen: React.FC = () => {
           </p>
         )}
       </form>
+      )}
 
       <RoomSettingsModal open={settingsOpen} workspaceId={wsId} roomId={roomId} onClose={() => setSettingsOpen(false)} />
     </div>

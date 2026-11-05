@@ -268,6 +268,8 @@ export interface WorkspaceAdminPort {
   /** null이면 비밀번호를 없앤다 */
   setPassword(workspaceId: string, password: string | null): Promise<void>;
   leave(workspaceId: string): Promise<void>;
+  /** 보관(읽기 전용 전환)과 해제. 개설자만. 보관할 때 진행 중인 팀 빌딩 세션은 끝낸다(13-D7) */
+  setArchived(workspaceId: string, archived: boolean): Promise<void>;
   /** 워크스페이스 이름을 그대로 입력해야 한다 */
   remove(workspaceId: string, confirmName: string): Promise<void>;
 }

@@ -1,6 +1,6 @@
 import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
+import { ArchiveBoxIcon, Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import { data } from '@/renewal/data';
 import { useMarkWorkspaceSeen } from '@/renewal/data/queries';
 import { LoadingState } from '@/renewal/ui';
@@ -123,6 +123,12 @@ export const AppShell: React.FC = () => {
       )}
 
       <main id="main" tabIndex={-1} className={`min-h-screen pt-14 focus:outline-none md:pl-16 ${inWorkspace ? 'lg:pl-[304px]' : ''}`}>
+        {routeWsId && workspace?.archived && (
+          <div role="note" className="flex items-center gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-warning sm:px-6">
+            <ArchiveBoxIcon className="h-5 w-5 shrink-0" aria-hidden="true" />
+            <span>이 워크스페이스는 읽기 전용으로 보관 중이에요. 지난 기록은 볼 수 있지만 새로 쓰거나 고칠 수 없어요.</span>
+          </div>
+        )}
         {/* 화면 코드를 내려받는 동안 셸(헤더, 레일, 내비)은 그대로 두고 본문만 기다린다(R20 코드 분할). */}
         <Suspense fallback={<LoadingState className="min-h-[60vh]" label="화면을 불러오는 중이에요" />}>
           <Outlet />

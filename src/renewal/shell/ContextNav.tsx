@@ -52,6 +52,9 @@ export const ContextNav: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }
         <p className="min-w-0 truncate font-bold" title={workspace.name}>
           {workspace.name}
         </p>
+        {workspace.archived && (
+          <span className="ml-2 shrink-0 rounded-full bg-surface-container px-2 py-0.5 text-xs font-semibold text-muted">보관됨</span>
+        )}
       </div>
       <nav aria-label={`${workspace.name} 메뉴`} className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
         <Section title="워크스페이스">

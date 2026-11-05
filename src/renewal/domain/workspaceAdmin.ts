@@ -34,6 +34,8 @@ export interface WorkspaceSettings {
   /** 정원. 없으면 제한 없음 */
   capacity?: number;
   hasPassword: boolean;
+  /** 보관한 시각. 보관 중이 아니면 null */
+  archivedAt: string | null;
   /** 현재 초대 링크. 매니저 이상에게만 내려 준다. 만료됐으면 expired가 참이다 */
   invite: (InviteView & { expired: boolean }) | null;
 }
